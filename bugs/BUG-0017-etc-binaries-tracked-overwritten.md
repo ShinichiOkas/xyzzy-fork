@@ -14,3 +14,5 @@ etc/ には DLL と EXE が追跡されている。projects/etc.sln のビルド
 ## 参照箇所
 - projects/etc.targets（EtcDir へのコピー）
 
+## 追記（2026-11-09）
+- x64 の etc.sln ビルドでは etc/ は更新されない（projects/etc.targets の条件が Release|Win32 のまま。BUG-0026）。上の実測は、Win32 の構成でビルドしていたときのもの。

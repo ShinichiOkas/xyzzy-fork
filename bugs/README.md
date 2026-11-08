@@ -13,8 +13,8 @@
 | [BUG-0005](BUG-0005-verup-uses-32bit-extract-exe.md) | 自己更新（verup）の展開が 32bit の etc/extract.exe と UNLHA32.DLL に依存する | 未検証 |
 | [BUG-0006](BUG-0006-extract-vcxproj-unlha32-lib.md) | projects/extract.vcxproj が UNLHA32.LIB を要求し、リンクできない | 未修正 |
 | [BUG-0007](BUG-0007-update-zlib-bat-stale.md) | misc/update_zlib.bat が現在の環境で使えない | 未修正 |
-| [BUG-0008](BUG-0008-etc-sln-win32-configurations.md) | projects/etc.sln に Win32 の構成が残り、ビルドできない | 未修正 |
-| [BUG-0009](BUG-0009-intdir-shared-across-platforms.md) | 中間ディレクトリが構成とプラットフォームで共有され、x86 と x64 の obj が混在する | 未修正 |
+| [BUG-0008](BUG-0008-etc-sln-win32-configurations.md) | projects/etc.sln に Win32 の構成が残り、ビルドできない | 修正済み |
+| [BUG-0009](BUG-0009-intdir-shared-across-platforms.md) | 中間ディレクトリが構成とプラットフォームで共有され、x86 と x64 の obj が混在する | 修正済み |
 | [BUG-0010](BUG-0010-run-tests-bat-no-console-output.md) | run-tests.bat の結果がコンソールに出ず、エディタのバッファにしか出ない | 未修正 |
 | [BUG-0011](BUG-0011-foreign-test-not-collected.md) | unittest/foreign-test.l が全テスト実行の対象になっていない | 未修正 |
 | [BUG-0012](BUG-0012-eval-in-another-xyzzy-reader-error.md) | テスト基盤: 別プロセスの評価がエラーを返すと、結果の読み戻しで reader-error になる | 未修正 |
@@ -31,3 +31,5 @@
 | [BUG-0023](BUG-0023-kbd-hkl-roundtrip.md) | kbd.cc: HKL を fixnum に変換して戻すとき、上位 32bit の扱いが未確認 | 要確認（この PC では問題になる値を確認できず） |
 | [BUG-0024](BUG-0024-format-mismatch-varargs.md) | 書式指定子と可変引数の型が一致しない箇所（C4477 / C4313 / C4309 / C4319） | 修正済み |
 | [BUG-0025](BUG-0025-gen-syms-dump-version-int.md) | gen-syms: 画像の版番号 dump_version が int（time(0) 由来）で、2038 年に折り返す | 未修正（低重大度） |
+| [BUG-0026](BUG-0026-etc-targets-win32-condition.md) | etc.targets の後処理コピーが Release\|Win32 の条件のままで、x64 のビルドでは etc/ が更新されず、etc/ の実行ファイルは x86 のまま | 方針待ち（etc/ の扱いの判断。BUG-0017 と連動） |
+| [BUG-0027](BUG-0027-duplicate-projectguid.md) | ProjectGuid {2C956011-ED51-4699-BAC1-B7687910AF1D} が extract.vcxproj と xyzzyenv.vcxproj で重複している（現状は害なし） | 未修正（低重大度） |
