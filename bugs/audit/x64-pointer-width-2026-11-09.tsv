@@ -1,0 +1,566 @@
+id	file	line	verdict	severity	origin
+1	src/xyzzycli.cc	299	bounded	none	Reply of the xyzzy-server registered message, produced by eval_xyzzysrv_param.
+2	src/xyzzyenv.cc	59	bounded	none	Length of a token in the command line, from split().
+3	src/xyzzyenv.cc	64	bounded	none	Length of an unquoted token in the command line, from split().
+4	src/gen-syms.cc	2940	bounded	none	strlen of a build-time symbol name.
+5	src/gen-ucs2tab.cc	17	bounded	none	strlen of one input text line in the build-time table generator.
+6	src/gen-ucs2tab.cc	661	bounded	none	Index of an entry in the CNS table being built.
+7	src/gen-ucs2tab.cc	689	bounded	none	Count of entries written into cnstab.
+8	src/gen-msg.cc	92	bounded	none	Running byte offset into the static message table being printed.
+9	src/xdde.h	194	bounded	low	Length of a DDE execute command string, passed as an int.
+10	src/xdde.h	209	bounded	low	Length of a DDE poke data string, passed as an int.
+11	src/wstream.h	102	bounded	none	Character count of one StrBuf chunk, passed to update_column.
+12	src/winhelp.cc	127	bounded	none	strlen of the help topic string held in is_topic.
+13	src/winhelp.cc	248	bounded	none	Return of LB_ADDSTRING: a listbox index or LB_ERR.
+14	src/winhelp.cc	330	bounded	none	Return of LB_GETCURSEL: a listbox index or LB_ERR.
+15	src/winhelp.cc	444	pointer-carrying	high	Address of the stack HH_AKLINK passed through HTMLHELPPROC, whose 4th parameter is declared DWORD (typedef at winhelp.cc:400).
+16	src/winhelp.cc	448	pointer-carrying	high	Address of the stack HH_LAST_ERROR passed through the same DWORD-typed HTMLHELPPROC (typedef at winhelp.cc:400).
+17	src/winhelp.cc	454	bounded	none	Length of the narrow conversion of the error-description BSTR, done inside ATL's W2A macro.
+18	src/Window.cc	236	bounded	none	Length of the status-bar text being built, a pointer difference into a fixed buffer.
+19	src/Window.cc	2672	bounded	low	Success flag of SendMessageTimeout, stored in an int.
+20	src/wheel.cc	16	bounded	none	Scroll-line count returned by the mouse-wheel module window.
+21	src/wheel.cc	185	unclear	medium	Return of SetTimer(NULL hwnd, ...) (UINT_PTR), stored in UINT timer_id.
+22	src/wheel.cc	234	unclear	medium	Return of SetTimer(NULL hwnd, ...) (UINT_PTR) for the first timer, stored in UINT timer_id.
+23	src/wheel.cc	241	bounded	none	Exit code of WM_QUIT, taken from msg.wParam.
+24	src/vfs.cc	186	bounded	none	Length of the UNC share prefix of a path, a pointer difference.
+25	src/vector.cc	242	bounded	none	Element offset of a vector inside its displaced-to array.
+26	src/dockbar.h	128	bounded	none	GetWindowLongPtr(GWL_STYLE) returned as long.
+27	src/dockbar.h	224	bounded	none	Return of TB_SETBITMAPSIZE (BOOL) through sendmsg (LRESULT).
+28	src/dockbar.h	230	bounded	none	Return of TB_SETBUTTONSIZE (BOOL) through sendmsg.
+29	src/dockbar.h	233	bounded	none	Return of TB_ADDBITMAP: index of the first added image.
+30	src/dockbar.h	235	bounded	none	Return of TB_BUTTONCOUNT: a count.
+31	src/dockbar.h	237	bounded	none	Return of TB_ADDBUTTONS (BOOL).
+32	src/dockbar.h	241	bounded	none	Return of TB_GETBUTTON (BOOL).
+33	src/dockbar.h	243	bounded	none	Return of TB_INSERTBUTTON (BOOL).
+34	src/dockbar.h	245	bounded	none	Return of TB_DELETEBUTTON (BOOL).
+35	src/dockbar.h	248	bounded	none	Return of TB_GETITEMRECT (BOOL).
+36	src/dockbar.h	250	bounded	none	Return of TB_GETSTATE: button state flags (32-bit UINT).
+37	src/dockbar.h	252	bounded	none	Return of TB_SETSTATE (BOOL).
+38	src/dockbar.h	254	bounded	none	Return of TB_ENABLEBUTTON (BOOL).
+39	src/dockbar.h	256	bounded	none	Return of TB_CHECKBUTTON (BOOL).
+40	src/dockbar.h	258	bounded	none	Return of TB_PRESSBUTTON (BOOL).
+41	src/dockbar.h	327	bounded	none	Return of TCM_INSERTITEM: index of the new tab or -1.
+42	src/dockbar.h	329	bounded	none	Return of TCM_DELETEITEM (BOOL).
+43	src/dockbar.h	331	bounded	none	Return of TCM_SETITEM (BOOL).
+44	src/dockbar.h	333	bounded	none	Return of TCM_GETITEM (BOOL).
+45	src/dockbar.h	339	bounded	none	Return of TCM_GETITEMCOUNT: a count.
+46	src/dockbar.h	341	bounded	none	Return of TCM_SETCURSEL: previous tab index or -1.
+47	src/dockbar.h	343	bounded	none	Return of TCM_GETCURSEL: current tab index or -1.
+48	src/dockbar.h	347	bounded	none	Return of TCM_GETITEMRECT (BOOL).
+49	src/dockbar.h	349	bounded	none	Return of TCM_SETITEMSIZE: previous size packed as MAKELONG (DWORD).
+50	src/dockbar.h	351	bounded	none	Return of TCM_HITTEST: item index or -1.
+51	src/usertool.cc	103	bounded	none	NMHDR idFrom (UINT_PTR) of a TTN_NEEDTEXT, used as a toolbar command id.
+52	src/usertab.cc	142	bounded	none	NMHDR idFrom (UINT_PTR) of a TTN_NEEDTEXT, used as a tab index.
+53	src/usertab.cc	160	bounded	none	Length of the name written into a fixed buffer, a pointer difference.
+54	src/environ.h	113	bounded	none	strlen of a C string value written to the registry, passed as the int size.
+55	src/toplev.cc	621	bounded	none	GWL_STYLE window style bits via GetWindowLongPtr, stored in a DWORD.
+56	src/toplev.cc	757	bounded	none	wParam of WM_KEYUP / WM_SYSKEYUP, a virtual-key code.
+57	src/toplev.cc	766	bounded	none	wParam of WM_SYSKEYDOWN, a virtual-key code.
+58	src/toplev.cc	771	bounded	none	wParam of WM_SYSKEYDOWN stored as app.last_vkeycode.
+59	src/toplev.cc	798	bounded	none	wParam of WM_KEYDOWN, a virtual-key code.
+60	src/toplev.cc	803	bounded	none	wParam of WM_KEYDOWN stored as app.last_vkeycode.
+61	src/toplev.cc	863	bounded	none	wParam of WM_IME_CHAR, a character code passed to kbd_queue::putw (int).
+62	src/toplev.cc	886	bounded	none	wParam of WM_PRIVATE_DELAYED_ACTIVATE, passed to kbd_queue::activate (int).
+63	src/toplev.cc	916	bounded	none	wParam of WM_ACTIVATEAPP / WM_PRIVATE_ACTIVATEAPP, stored as app.toplevel_is_active.
+64	src/syntax.cc	3765	bounded	none	Offset of a position inside a text chunk, a pointer difference.
+65	src/byte-stream.h	86	bounded	none	Count of chars flushed from a fixed Char s_buf[1024].
+66	src/string.cc	305	bounded	low	Length of a narrow C string converted to a UCS-2 Lisp string, stored in int xstring_length.
+67	src/string.cc	315	bounded	low	Caller-supplied length of a narrow string in make_string(const char *, size_t), stored in int xstring_length.
+68	src/string.cc	325	bounded	low	Caller-supplied length in make_string_simple(const char *, size_t), stored in int xstring_length.
+69	src/string.cc	334	bounded	low	Caller-supplied length in make_string(const Char *, size_t), stored in int xstring_length.
+70	src/string.cc	351	bounded	low	Caller-supplied length in make_string(Char c, size_t), stored in int xstring_length.
+71	src/string.cc	376	bounded	low	Caller-supplied length in make_string(size_t), stored in int xstring_length.
+72	src/string.cc	560	bounded	none	Pointer difference p - p0 inside one Char string in string_compare (out-param l)
+73	src/string.cc	565	bounded	none	Pointer difference p - p0 inside one Char string in string_compare
+74	src/string.cc	570	bounded	none	Pointer difference p - p0 inside one Char string in string_compare
+75	src/string.cc	587	bounded	none	Pointer difference p - p0 inside one Char string in string_comparep
+76	src/string.cc	592	bounded	none	Pointer difference p - p0 inside one Char string in string_comparep
+77	src/string.cc	599	bounded	none	Pointer difference p - p0 inside one Char string in string_comparep
+78	src/string.cc	620	bounded	none	Pointer differences pe - p and qe - q passed as int length to string_equalp
+79	src/string.cc	755	bounded	none	left_trim(lisp) returns int offset computed as pointer difference
+80	src/string.cc	763	bounded	none	right_trim(lisp) returns int offset computed as pointer difference
+81	src/string.cc	878	bounded	none	Length argument pe - p0 to left_trim(const Char*, int, lisp) inside trim()
+82	src/string.cc	879	bounded	none	Length argument pe - p0 to right_trim(const Char*, int, lisp) inside trim()
+83	src/string.cc	997	bounded	none	Length pe - p passed to ato_bignum_rep(bignum_rep*&, const Char*, int, int)
+84	src/string.cc	998	bounded	none	Offset p - xstring_contents(string) stored into int end
+85	src/string.cc	1032	bounded	none	strlen of a caller-supplied C-string display buffer (size_t to int)
+86	src/string.cc	1050	bounded	none	Character count re - rb passed to GetTextExtentPoint32 within buf
+87	src/string.cc	1067	bounded	none	Device-prefix length sl - lb + 1 stored in int dev
+88	src/string.cc	1086	bounded	none	Character count rb - slash passed to GetTextExtentPoint32 within buf
+89	src/string.cc	1099	bounded	none	Character count re - rb passed to GetTextExtentPoint32 within buf
+90	src/string.cc	1116	bounded	none	Character count le - lb passed to GetTextExtentPoint32 within buf
+91	src/string.cc	1122	bounded	none	Character count re - rb passed to GetTextExtentPoint32 within buf
+92	src/string.cc	1289	bounded	low	size_t return of w2sl (encoded byte count of a Lisp string substring) passed to make_fixnum(long)
+93	src/encoding.h	152	bounded	none	b_bp - b_bb inside a fixed template buffer (xtemp_buffer length())
+94	src/stream.cc	777	bounded	none	size_t size of write_stream passed as int count to insert_chars
+95	src/stream.cc	1079	bounded	low	int l = w2sl(Lisp string): encoded byte count (size_t) of a Lisp string
+96	src/stream.cc	1885	bounded	none	size_t write size passed as int size to update_column
+97	src/stream.cc	1892	bounded	low	need = xstring_length(string) + size (int + size_t) narrowed to int for growth check
+98	src/stream.cc	1902	bounded	low	xstring_length += size (int += size_t) on a string output stream
+99	src/stream.cc	1903	bounded	none	size_t write size passed as int size to update_column
+100	src/stream.cc	1929	bounded	none	size_t write size passed as int to status_window.puts(const Char*, int)
+101	src/stream.cc	1930	bounded	none	size_t write size passed as int size to update_column
+102	src/stream.cc	1939	bounded	none	size_t write size passed as int to xwstream add(const Char*, int)
+103	src/stream.cc	1947	bounded	none	size_t write size passed as int size to update_column
+104	src/stream.cc	1958	bounded	none	size_t write size passed as int size to update_column
+105	src/StrBuf.cc	10	bounded	none	Chunk pointer difference sb_limit - sb_next stored in int l
+106	src/StrBuf.cc	35	bounded	none	Chunk pointer difference cp->used - cp->contents
+107	src/StrBuf.cc	91	bounded	none	Chunk pointer difference sb_limit - sb_next stored in int rest
+108	src/StrBuf.cc	119	bounded	none	Chunk pointer difference sb_limit - sb_next stored in int rest
+109	src/StrBuf.cc	147	bounded	none	Chunk pointer difference sb_limit - sb_next stored in int rest
+110	src/StrBuf.cc	168	bounded	none	Chunk pointer difference cp->used - cp->contents passed as int size to add()
+111	src/StrBuf.cc	222	bounded	none	Chunk pointer difference cp->used - cp->contents stored in int size
+112	src/stdctl.cc	59	bounded	none	DM_GETDEFID SendMessage result (LRESULT) stored in DWORD
+113	src/stdctl.cc	80	bounded	none	LB_GETCARETINDEX result (LRESULT) stored in int i
+114	src/stdctl.cc	130	bounded	none	WM_KEYDOWN wParam (virtual-key code) passed as int vk
+115	src/stdctl.cc	135	bounded	none	WM_CHAR wParam (character code) passed as int ch
+116	src/stdctl.cc	161	bounded	none	WM_CHAR wParam (character code) passed as int ch
+117	src/stdctl.cc	193	bounded	none	WM_CHAR wParam (character code) passed as int ch
+118	src/statarea.cc	99	bounded	none	strlen of a status-text C string (size_t to int count)
+119	src/sock.cc	292	bounded	none	min(be - b, 65535) passed as int len to send()
+120	src/sock.cc	306	bounded	none	min(be - b, 65535) passed as int len to sendto()
+121	src/sock.cc	448	bounded	none	Socket write-buffer length s_wbuf.b_ptr - s_wbuf.b_base passed as int len to send()
+122	src/sock.cc	500	bounded	none	Return value b - buf of sock::sgets (pointer difference to int)
+123	src/sequence.cc	370	bounded	none	min(ve - v, xvector_length(seq)) assigned to int l
+124	src/sequence.cc	377	bounded	none	min(ve - v, xstring_length(seq)) assigned to int l
+125	src/sequence.cc	426	bounded	none	min(se - s, xvector_length(seq)) assigned to int l
+126	src/sequence.cc	436	bounded	none	min(se - s, xstring_length(seq)) assigned to int l
+127	src/search.cc	175	bounded	none	Chunk pointer difference pe - p subtracted from int delta
+128	src/search.cc	209	bounded	none	Chunk offset p - cp->c_text stored in int point.p_offset
+129	src/search.cc	257	bounded	none	Chunk offset p - cp->c_text subtracted from int delta
+130	src/search.cc	291	bounded	none	Chunk offset p - cp->c_text stored in int point.p_offset
+131	src/search.cc	1095	bounded	none	Count p - p0 - 1 of replacement-string characters passed to insert_chars
+132	src/search.cc	1141	bounded	none	Count p - p0 of replacement-string characters passed to insert_chars
+133	src/resolver.cc	87	bounded	none	LPARAM of wm_asyncsockreq, which is GetCurrentThreadId() (a DWORD) sent by resolver::wait
+134	src/resolver.cc	177	bounded	none	msg.wParam of WM_QUIT, which is the int exit code given to PostQuitMessage
+135	src/regex.cc	235	bounded	none	Pointer difference p - p0 into the compiled regex buffer, printed with %5d (DEBUG-only dump)
+136	src/regex.cc	515	bounded	none	Compiled-pattern offset b - p stored into a Char (u_int16) slot in branch()
+137	src/regex.cc	564	bounded	none	Compiled-pattern offset b - p stored into a Char (u_int16) slot in closure()
+138	src/regex.cc	740	bounded	none	Offset b - r_buffer stored in int stack field buf
+139	src/regex.cc	742	bounded	none	Offset r_branch_start - r_buffer stored in int stack field branch_start
+140	src/regex.cc	946	bounded	none	Compiled length b - r_buffer stored in int r_used
+141	src/process.cc	37	bounded	none	Length eq - b + 1 of one environment-block entry stored in int l
+142	src/process.cc	82	bounded	none	strlen of a device-directory path string (size_t to int)
+143	src/process.cc	110	bounded	none	strlen of the device-directory string returned by get_device_dir(d) (a devdirs entry)
+144	src/process.cc	124	bounded	low	running total of environment-block string lengths accumulated in int l
+145	src/process.cc	625	bounded	none	count of bytes kept after CR removal in the 1024-byte read buffer
+146	src/process.cc	696	bounded	none	byte count of the output buffer flushed by sflush to Process::send
+147	src/process.cc	786	bounded	none	remaining space of the caller's read buffer, passed to ReadFile as DWORD
+148	src/process.cc	795	bounded	none	bytes read so far (b - buf) returned as int from readin
+149	src/process.cc	896	pointer-carrying	high	HANDLE of the event created by CreateEvent (process.cc:891), passed through varargs to sprintf %u
+150	src/process.cc	896	pointer-carrying	high	same expression as row 149: HANDLE event passed to %u in sprintf
+151	src/privctrl/privctlimpl.h	55	bounded	none	GetWindowLongPtr(hwnd, GWL_STYLE) returned as DWORD
+152	src/privctrl/privctlimpl.h	61	bounded	none	SetWindowLongPtr(hwnd, GWL_STYLE, style) return value (previous style) converted to BOOL
+153	src/privctrl/url.cc	55	bounded	none	strlen of one segment of the window text
+154	src/privctrl/url.cc	86	bounded	none	window extra slot (LONG_PTR) that holds a 32-bit MAKELONG range
+155	src/privctrl/url.cc	112	bounded	none	window extra slot (LONG_PTR) holding the 32-bit MAKELONG range, read in WM_NCHITTEST
+156	src/privctrl/privctrl.cc	22	bounded	none	WM_DRAWITEM wparam (control identifier) passed as UINT to the owner-draw proc
+157	src/privctrl/privctrl.cc	41	pointer-carrying	medium	previous window procedure (WNDPROC address) returned by SetWindowLongPtr(GWLP_WNDPROC) and truncated to int by subclass_parent
+158	src/privctrl/listviewex.cc	127	bounded	none	strlen of the item or header text buffer inside paint_text
+159	src/privctrl/listviewex.cc	137	bounded	none	pointer difference se - s within the paint_text buffer
+160	src/privctrl/listviewex.cc	141	bounded	none	pointer difference se - s assigned to int l
+161	src/privctrl/listviewex.cc	203	bounded	none	character count returned by LVM_GETITEMTEXT (LRESULT)
+162	src/privctrl/listviewex.cc	637	bounded	none	strlen of the header text buffer b
+163	src/privctrl/listviewex.cc	699	bounded	none	LRESULT returned by the parent's WM_NOTIFY (LVN_PROCESSKEY) handler, used as a key-processing flag
+164	src/privctrl/listviewex.cc	859	bounded	none	data->icc, a size_t incremental-search length
+165	src/privctrl/listviewex.cc	968	bounded	none	WM_KEYDOWN wparam (virtual-key code) passed as int vkey
+166	src/privctrl/listviewex.cc	974	bounded	none	WM_CHAR wparam (UTF-16 code unit) passed as int cc
+167	src/privctrl/listviewex.cc	1101	bounded	none	DM_GETDEFID result (control ID in the low word, DC_HASDEFID in the high word)
+168	src/privctrl/listviewex.cc	1158	bounded	none	LVM_INSERTCOLUMN wparam (column index) passed as int
+169	src/privctrl/listviewex.cc	1163	bounded	none	LVM_SETEXSTYLE wparam (extended-style mask) passed as DWORD
+170	src/privctrl/listviewex.cc	1198	bounded	none	LVM_ENSUREVISIBLE lparam, used as the partial_ok flag of make_visible
+171	src/privctrl/listviewex.cc	1205	bounded	none	LVM_ISEARCH lparam, used as the wrap flag of isearch
+172	src/privctrl/listviewex.cc	1208	bounded	none	LVM_FORWARDLINE wparam (signed line delta) passed as int nlines
+173	src/privctrl/listviewex.cc	1211	bounded	none	LVM_FORWARDPAGE wparam (signed page delta) passed as int npages
+174	src/privctrl/listviewex.cc	1229	bounded	none	LVM_SETENABLED wparam stored in int pseudo_enable and used as a boolean
+175	src/privctrl/listviewex.cc	1248	bounded	none	LVM_SETSORTMARK lparam (sort direction) passed as int dir
+176	src/printdlg.cc	55	bounded	none	strlen of the menu-item text inserted into the subclassed edit
+177	src/printdlg.cc	195	bounded	none	CB_ADDSTRING return value (item index)
+178	src/printdlg.cc	391	bounded	none	CB_GETCOUNT of a history combo box
+179	src/printdlg.cc	397	bounded	none	CB_GETLBTEXTLEN return value (item text length)
+180	src/printdlg.cc	487	bounded	none	UDM_GETRANGE result, a 32-bit packed pair of 16-bit limits
+181	src/printdlg.cc	493	bounded	none	GWL_ID of the up-down buddy control, a 16-bit control identifier passed as UINT
+182	src/printdlg.cc	561	bounded	none	UDM_GETRANGE result, a 32-bit packed pair of 16-bit limits
+183	src/printdlg.cc	573	bounded	none	CB_GETCURSEL index or CB_ERR
+184	src/printdlg.cc	576	bounded	none	CB_GETITEMDATA of IDC_LANG, an index written by add_lang
+185	src/printdlg.cc	731	bounded	none	CB_FINDSTRINGEXACT index or CB_ERR
+186	src/printdlg.cc	751	bounded	none	CB_GETCURSEL index or CB_ERR
+187	src/printdlg.cc	1020	bounded	none	DialogBoxParam result (INT_PTR) from EndDialog codes
+188	src/print.cc	1164	bounded	none	width of a substring of the 4096-byte header buffer multiplied by the cell width
+189	src/print.cc	1167	bounded	none	substring length (b[i+1] - b[i]) of the 4096-byte header buffer passed to get_extent
+190	src/print.cc	1172	bounded	none	substring length (b[i+1] - b[i]) of the 4096-byte header buffer passed to paint_string
+191	src/print.cc	1409	bounded	none	remaining space be - b in the caller's destination buffer
+192	src/print.cc	1422	bounded	none	remaining space be - b in the caller's destination buffer (fmt_filename_long)
+193	src/print.cc	1430	bounded	none	remaining space be - b in the caller's destination buffer (fmt)
+194	src/print.cc	1470	bounded	none	remaining space be - b in the caller's destination buffer (fmt_month)
+195	src/print.cc	1472	bounded	none	min(3, be - b), a result of at most 3
+196	src/print.cc	1494	bounded	none	remaining space be - b in the caller's destination buffer (fmt_week)
+197	src/print.cc	1496	bounded	none	min(3, be - b), a result of at most 3
+198	src/print.cc	1497	bounded	none	min(2, be - b), a result of at most 2
+199	src/print.cc	1512	bounded	none	min(2, be - b), a result of at most 2
+200	src/preview.cc	644	bounded	none	WM_KEYDOWN wparam (virtual-key code) passed as int c
+201	src/preview.cc	797	bounded	none	CB_ADDSTRING return value (item index) stored in UINT idx
+202	src/preview.cc	856	bounded	none	CB_GETCURSEL index or CB_ERR
+203	src/preview.cc	859	bounded	none	CB_GETITEMDATA of IDC_SCALE, a scale percentage written at setup
+204	src/preview.cc	872	bounded	none	CB_FINDSTRINGEXACT index or CB_ERR
+205	src/preview.cc	976	bounded	none	lparam of WM_PRIVATE_UPDATE_PAGE, the total page count, passed as int total
+206	src/preview.cc	1010	bounded	none	DialogBoxParam result (INT_PTR) from EndDialog codes
+207	src/popupl.cc	20	bounded	none	lparam of WM_KEYDOWN passed to ToAscii as the UINT scan-code argument
+208	src/popupl.cc	31	bounded	none	LB_GETCURSEL index or LB_ERR
+209	src/popupl.cc	35	bounded	none	LB_GETTEXTLEN, the length of a list item whose text is at most 1023 bytes
+210	src/popupl.cc	174	bounded	none	pointer difference of w2s output within the 1024-byte buffer b
+211	src/popup.cc	272	bounded	low	narrow-byte count of a Lisp string from w2sl, stored in int l
+212	src/xstrlist.h	52	bounded	low	strlen of a network-resource name or comment passed to xstring_pair_list::add
+213	src/pathname.cc	125	bounded	none	pointer difference pe - p between two positions in one path string
+214	src/pathname.cc	268	bounded	none	Pointer difference path.deve - path.dev (device-name substring of the pathname being parsed)
+215	src/pathname.cc	338	bounded	none	Pointer difference b - buf, output length of the normalized path in the function's output buffer
+216	src/pathname.cc	346	bounded	none	Character count of s2w conversion of a C path string
+217	src/pathname.cc	746	bounded	none	Length of one path component p - sl between separators while walking the path in truename
+218	src/pathname.cc	760	bounded	none	Character count from s2w(w, truename) with w a fixed buffer
+219	src/pathname.cc	776	bounded	none	strlen of a file-name string passed to match_suffixes
+220	src/pathname.cc	821	bounded	none	strlen of a directory path string in sub_dirp_by_name
+221	src/pathname.cc	825	bounded	none	strlen of a parent directory path string in sub_dirp_by_name
+222	src/pathname.cc	910	bounded	none	Pointer difference type_e - p0 inside the source pathname string
+223	src/pathname.cc	922	bounded	none	Length of the extension substring type..type_e of the pathname
+224	src/pathname.cc	952	bounded	none	strlen of a Lisp pathname converted to a char buffer
+225	src/pathname.cc	1220	bounded	none	Pointer difference tname - fpath, offset of the short name inside the full path
+226	src/pathname.cc	1817	bounded	none	strlen of the path buffer passed to get_disk_usage
+227	src/pathname.cc	2225	bounded	low	strlen of m_server, the heap buffer built from a Lisp server name
+228	src/pane.cc	363	bounded	none	WM_QUIT wParam from GetMessage, which is the exit code given to PostQuitMessage(int)
+229	src/package.cc	707	bounded	none	Length of the package-name prefix before ':' in a symbol string
+230	src/package.cc	718	bounded	none	Remaining length be - xb after the package prefix
+231	src/oledata.cc	18	bounded	none	Character count produced by the ATL W2A conversion macro of a BSTR
+232	src/oledata.cc	970	bounded	none	Length of the ATL A2W conversion of the TLB path
+233	src/msgbox.cc	227	bounded	none	GetWindowLongPtr(hwnd, GWL_EXSTYLE) passed as DWORD dwExStyle to AdjustWindowRectEx
+234	src/msgbox.cc	226	bounded	none	GetWindowLongPtr(hwnd, GWL_STYLE) passed as DWORD dwStyle to AdjustWindowRectEx
+235	src/msgbox.cc	306	bounded	none	DialogBoxParam result (INT_PTR), which is the value given to EndDialog
+236	src/move.cc	181	bounded	none	Chunk-local offset p - cp->c_text
+237	src/move.cc	237	bounded	none	Chunk-local offset p - cp->c_text
+238	src/move.cc	266	bounded	none	Chunk-local count p - p0 + 1 of a newline offset
+239	src/move.cc	309	bounded	none	Chunk-local offset p - cp->c_text
+240	src/move.cc	359	bounded	none	Chunk-local offset p - cp->c_text
+241	src/move.cc	427	bounded	none	Chunk-local offset p - cp->c_text
+242	src/move.cc	1145	bounded	none	Chunk-local offset f.p - f.cp->c_text - 1
+243	src/move.cc	1221	bounded	none	Chunk-local offset f.p - f.cp->c_text - 1
+244	src/mouse.cc	246	bounded	none	WPARAM wParam of a mouse button or move message, stored in UINT ms_modifier
+245	src/mouse.cc	254	bounded	none	C4319: ~button (UINT) zero-extended to WPARAM in the mask test
+246	src/minibuf.cc	22	bounded	none	strlen of the sprintf result for a load-default key name
+247	src/minibuf.cc	135	bounded	none	strlen of the prompt-argument prefix b_prompt_arg
+248	src/minibuf.cc	470	bounded	none	Offset p - xstring_contents(c_item) of the word-boundary scan in the completion item
+249	src/minibuf.cc	696	bounded	none	Length pe - p0 of the directory Lisp string
+250	src/lread.cc	94	bounded	none	Consumed length p - p0 + 1 from ato_bignum_rep over a token of length l
+251	src/lread.cc	1972	bounded	none	Number of characters read into the string, p - xstring_contents(string)
+252	src/lread.cc	2137	bounded	none	Length b - buf of the status-line message built in buf
+253	src/lread.cc	2166	bounded	none	Length b - buf of the status-line message 'done' built in buf
+254	src/lprint.cc	318	bounded	none	Count of retained shared objects q - rep->objs stored in int rep->used
+255	src/lprint.cc	2141	bounded	none	Digit count be - b - 1 of a printed integer in an alloca buffer
+256	src/lprint.cc	2431	bounded	none	strlen of the float text f.buf
+257	src/lprint.cc	2473	bounded	none	Digit count f.be - f.b0 passed as int argument to max
+258	src/lprint.cc	2475	bounded	none	Digit count f.be - f.b0 passed as int argument to max
+259	src/lprint.cc	2485	bounded	none	Digit count and exponent arithmetic in min/max for fixed-format width
+260	src/lprint.cc	2487	bounded	none	Digit count and exponent arithmetic in min/max for fixed-format width
+261	src/lprint.cc	2580	bounded	none	strlen of the float text f.buf
+262	src/lprint.cc	2599	bounded	none	Digit count f.be - f.b0 - 1 of a float
+263	src/lprint.cc	2682	bounded	none	Pointer difference inside the 32-byte local exponent buffer
+264	src/lprint.cc	2707	bounded	none	Digit count f.be - f.b0 of a float
+265	src/lprint.cc	3091	bounded	none	Length pe - p of a format control substring
+266	src/lprint.cc	3180	bounded	none	Length pe - p of a format control substring
+267	src/lprint.cc	3219	bounded	none	Length pe - p of a format control substring passed to format_internal
+268	src/lprint.cc	3241	bounded	none	Length pe - p of a format control substring passed to format_internal
+269	src/lprint.cc	3264	bounded	none	Length pe - p of a format control substring
+270	src/lprint.cc	3282	bounded	none	Length pe - p of a format control substring passed to the Format constructor
+271	src/listen.cc	160	bounded	none	WPARAM carrying the sender's GetCurrentProcessId() (a DWORD), passed to OpenProcess
+272	src/ldialog.cc	88	bounded	none	Byte length be - b of the converted caption passed as int cb to GetTextExtentPoint32
+273	src/ldialog.cc	92	bounded	none	LRESULT of SendDlgItemMessage returned as int from Dialog::send_ltext
+274	src/ldialog.cc	95	bounded	none	LRESULT of SendDlgItemMessage returned as int from Dialog::send_ltext (empty-string branch)
+275	src/ldialog.cc	141	bounded	low	WM_GETTEXTLENGTH result (control text character count) converted to long in max()
+276	src/ldialog.cc	322	bounded	low	WM_GETTEXTLENGTH result (edit control text character count) converted to long in max()
+277	src/ldialog.cc	447	bounded	none	LB_GETCOUNT item count (or LB_ERR) stored in int nitems
+278	src/ldialog.cc	493	bounded	none	LB_GETCOUNT item count (or LB_ERR) stored in int nitems
+279	src/ldialog.cc	529	bounded	none	DM_GETDEFID result: default control id in the low word and DC_HASDEFID in the high word
+280	src/ldialog.cc	541	bounded	low	LB_GETTEXTLEN (or CB_GETLBTEXTLEN) item text length converted to long in max()
+281	src/ldialog.cc	562	bounded	none	LB_GETCOUNT item count (or LB_ERR) stored in int nitems
+282	src/ldialog.cc	572	bounded	none	LB_GETITEMDATA of a non-owner-draw listbox, which holds the list position set at ldialog.cc:478
+283	src/ldialog.cc	579	bounded	none	LB_GETCURSEL index (or LB_ERR) stored in int i
+284	src/ldialog.cc	585	bounded	none	LB_GETITEMDATA of a non-owner-draw listbox in single-select mode, which holds the list position set at ldialog.cc:478
+285	src/ldialog.cc	596	bounded	none	LB_GETCOUNT result: item count of a listbox
+286	src/ldialog.cc	626	bounded	none	CB_GETCOUNT result: item count of a combobox
+287	src/ldialog.cc	649	bounded	none	CB_GETCOUNT result: item count of a combobox
+288	src/ldialog.cc	697	bounded	none	DM_GETDEFID return value, a packed DWORD MAKELONG(id, DC_HASDEFID)
+289	src/ldialog.cc	717	bounded	none	CB_GETCURSEL: selected index or CB_ERR
+290	src/ldialog.cc	720	pointer-carrying	medium	CB_GETITEMDATA of an ownerdraw combobox with the :index keyword; item data there is a Lisp object pointer stored by combobox_init
+291	src/ldialog.cc	725	bounded	none	CB_GETCURSEL: selected index or CB_ERR
+292	src/ldialog.cc	732	bounded	low	WM_GETTEXTLENGTH of a combobox edit control (text length)
+293	src/ldialog.cc	747	bounded	none	CB_GETCURSEL: selected index or CB_ERR
+294	src/ldialog.cc	807	bounded	none	UDM_GETPOS: spin control position
+295	src/ldialog.cc	908	bounded	low	NMHDR.idFrom (UINT_PTR) of a WM_NOTIFY, used as a control id lookup key in get_item(int)
+296	src/ldialog.cc	958	bounded	none	pointer difference b - b0 within the item_string output buffer
+297	src/ldialog.cc	961	bounded	none	be - b (remaining output buffer) passed to min() as int, and goal - col (tab stop distance)
+298	src/ldialog.cc	1002	bounded	none	strlen of the item_string output buffer
+299	src/ldialog.cc	1126	bounded	low	LB_GETTEXTLEN of a listbox item: length of an item string (Lisp string)
+300	src/ldialog.cc	1143	bounded	none	LB_GETCARETINDEX or LB_GETCURSEL: listbox index or -1
+301	src/ldialog.cc	1148	bounded	none	LB_GETCOUNT: listbox item count
+302	src/ldialog.cc	1255	bounded	none	WM_DRAWITEM wParam (control identifier) passed to draw_item(int id)
+303	src/ldialog.cc	1264	bounded	none	WM_PRIVATE_LISTBOX_CHAR lParam: a character code posted by stdctl.cc
+304	src/ldialog.cc	1317	bounded	none	wcslen of the font face name inside a DLGTEMPLATE, compared to LF_FACESIZE before wcscpy
+305	src/ldialog.cc	1713	bounded	none	DialogBoxIndirectParam return (INT_PTR): the EndDialog nResult supplied by this module
+306	src/ldialog.cc	1788	bounded	none	WM_DRAWITEM wParam (control identifier) passed to PropPage::draw_item(int id)
+307	src/ldialog.cc	1797	bounded	none	WM_PRIVATE_LISTBOX_CHAR lParam: a character code posted by stdctl.cc
+308	src/ldialog.cc	1987	bounded	none	PropertySheet return (INT_PTR): small status or button id
+309	src/filer.h	449	bounded	none	LVM_FORWARDLINE result from the custom listview handler (int status or count)
+310	src/filer.h	457	bounded	none	LVM_FORWARDPAGE result from the custom listview handler (int)
+311	src/filer.h	465	bounded	none	LVM_GOTOBOF result from the custom listview handler (int)
+312	src/filer.h	473	bounded	none	LVM_GOTOEOF result from the custom listview handler (int)
+313	src/filer.h	509	bounded	none	LVM_ISEARCH result from the custom listview handler (int item index or status)
+314	src/kbd.cc	512	bounded	none	LPARAM of a WM_KEYDOWN message passed as the UINT wScanCode of ToUnicode
+315	src/kbd.cc	548	bounded	none	msg->lParam of WM_KEYDOWN/WM_SYSKEYDOWN passed as int scan code to to_ascii_char
+316	src/kbd.cc	559	bounded	none	msg->wParam (virtual key code) passed as UINT to exkey_index
+317	src/kbd.cc	563	bounded	none	msg->lParam of WM_KEYDOWN passed as int scan code to to_ascii_char
+318	src/kbd.cc	576	bounded	none	msg->wParam (virtual key code) passed as UINT to exkey_index
+319	src/kbd.cc	660	bounded	none	wparam of WM_CHAR/WM_SYSCHAR (a UTF-16 code unit) or LOWORD of WM_MENUCHAR, passed to lookup_translate_table(lChar)
+320	src/kbd.cc	683	bounded	none	WM_SYSKEYDOWN virtual key (wparam) passed as UINT to pre_decode_vkeys
+321	src/kbd.cc	687	bounded	none	WM_SYSKEYDOWN virtual key (wparam) passed as UINT to decode_vkeys
+322	src/kbd.cc	699	bounded	none	lparam of WM_SYSKEYDOWN passed as UINT scan code to decode_ctlchars
+323	src/kbd.cc	713	bounded	none	WM_KEYDOWN virtual key (wparam) passed as UINT to pre_decode_vkeys
+324	src/kbd.cc	717	bounded	none	WM_KEYDOWN virtual key (wparam) passed as UINT to decode_vkeys
+325	src/kbd.cc	729	bounded	none	WM_KEYDOWN lparam passed as UINT scan code to decode_ctlchars
+326	src/kbd.cc	745	bounded	none	WM_KEYDOWN lparam passed as UINT uScanCode to ToAscii
+327	src/kbd.cc	749	bounded	none	WM_KEYDOWN wparam narrowed into lChar inside a range guard
+328	src/kbd.cc	773	bounded	none	pointer difference b0 + size - b in kbd_queue::copy_queue
+329	src/kbd.cc	852	bounded	low	IME reconvert string size: pointer difference b3 - b0 over the converted selection (region size int at kbd.cc:841)
+330	src/kbd.cc	854	bounded	low	IME reconvert: b3 - b0 (converted selection length)
+331	src/kbd.cc	856	bounded	low	IME reconvert: b2 - b1 (composition span)
+332	src/kbd.cc	857	bounded	low	IME reconvert: b1 - b0 (offset of the composition span)
+333	src/kbd.cc	858	bounded	low	IME reconvert: b2 - b1 (target span)
+334	src/kbd.cc	859	bounded	low	IME reconvert: b1 - b0 (target offset)
+335	src/kbd.cc	864	bounded	low	IME reconvert: b1 - b0 passed as int cbMultiByte to MultiByteToWideChar
+336	src/kbd.cc	865	bounded	low	IME reconvert: b2 - b1 passed as int cbMultiByte
+337	src/kbd.cc	866	bounded	low	IME reconvert: b3 - b2 passed as int cbMultiByte
+338	src/kbd.cc	915	bounded	low	strlen of the document-feed content string (w2s of the Lisp string returned by the hook)
+339	src/kbd.cc	916	bounded	low	strlen of the document-feed before string (w2s of the Lisp string)
+340	src/kbd.cc	941	bounded	low	strlen(content) passed as int cchWideChar to MultiByteToWideChar
+341	src/kbd.cc	1196	bounded	none	store_wcs return: count of Char cells written (at most 2 per input ucs2 unit)
+342	src/kbd.cc	1372	bounded	low	strlen of the UTF-8 buffer (alloca from w2sl of a Lisp string) passed as DWORD dwBufLen to ImmSetCompositionString
+343	src/kbd.cc	1417	unclear	medium	HKL (a 64-bit handle type) from GetKeyboardLayoutList (kbd.cc:1436-1437) or from a Lisp fixnum (kbd.cc:1497), formatted with %08x
+344	src/kbd.cc	1417	unclear	medium	Same expression as row 343: HKL passed to a %x conversion in sprintf (C4313 format/argument conflict)
+345	src/insdel.cc	1269	bounded	low	count_cf_text_length return: length of clipboard CF_TEXT data after CRLF and SJIS adjustment
+346	src/insdel.cc	1307	bounded	low	strlen(ss) of clipboard CF_TEXT data passed as int to detect_char_encoding
+347	src/insdel.cc	1311	bounded	low	strlen(ss) of clipboard CF_TEXT data stored in int sl
+348	src/insdel.cc	1344	bounded	low	b - xstring_contents(lstring): decoded character count stored as the int Lisp string length
+349	src/insdel.cc	1365	bounded	low	count_cf_wtext_length return: length of clipboard CF_UNICODETEXT data
+350	src/encoding.h	57	bounded	low	s_be - s_bp: span of the current input buffer chunk (for string streams, the whole int-sized input)
+351	src/encoding.h	59	bounded	low	Accumulated decoded length over all refills of the input stream (total_length)
+352	src/gzip.cc	35	bounded	none	read_bytes return: b - buf, bounded by the size argument (int)
+353	src/guess.cc	86	bounded	none	siglen (size_t) passed as int size to utf8_signature_p; siglen is the count of bytes kept in the 3-byte sig array
+354	src/glob.cc	33	bounded	low	nbytes accumulator: sum of w2sl(x)+1 over the file mask Lisp strings (int accumulator)
+355	src/glob.cc	67	bounded	low	nbytes accumulator: sum of strlen(*p)+1 over the mask strings (int accumulator)
+356	src/glob.cc	286	bounded	low	strlen of the pattern string pat passed to pathname_match_p (glob.cc:283)
+357	src/glob.cc	309	bounded	none	strlen of the directory path buffer in directory()
+358	src/fnkey.cc	92	bounded	none	strlen of the label buffer buf filled by paint_text
+359	src/fnkey.cc	396	bounded	none	WM_LBUTTONDOWN wParam passed as the flags argument of FKWin::OnLButtonDown (int)
+360	src/fnkey.cc	402	bounded	none	WM_LBUTTONUP wParam passed to OnLButtonUp (int)
+361	src/fnkey.cc	408	bounded	none	WM_MOUSEMOVE wParam passed to OnMouseMove (int)
+362	src/filer.cc	439	bounded	none	GetWindowLongPtr (fv_hwnd, GWL_STYLE) assigned to DWORD style
+363	src/filer.cc	479	bounded	none	strlen of the folder path argument of check_share_folder (filer.cc:469)
+364	src/filer.cc	656	bounded	none	LPARAM param of compare_file, which is the lParamSort value fv_sort
+365	src/filer.cc	665	bounded	none	LPARAM param of compare_file (sort flags, fv_sort)
+366	src/filer.cc	710	bounded	low	strlen of the mask argument of FilerView::set_title (filer.cc:703)
+367	src/filer.cc	898	bounded	none	e - buf offset inside the caller's 128-byte disk-space buffer
+368	src/filer.cc	1351	bounded	none	strlen of fv_icon_path (a file path) sizing an alloca
+369	src/filer.cc	2108	bounded	low	strlen of the text s converted from the Lisp string in paint_text (filer.cc:2099)
+370	src/filer.cc	2477	bounded	none	msg.wParam of the WM_QUIT message returned by GetMessage
+371	src/fileio.cc	131	bounded	none	p - cp->c_text, the used length of one chunk
+372	src/fileio.cc	280	bounded	low	be - bb, the mapped file range size (mf.size() minus read_offset), passed to xinput_strstream
+373	src/fileio.cc	430	bounded	none	strlen of path1 in pathname_equal
+374	src/fileio.cc	431	bounded	none	strlen of path2 in pathname_equal
+375	src/fileio.cc	497	bounded	none	strlen of the extension dot in fatfs_append_suffix
+376	src/fileio.cc	647	bounded	none	sl - orgname, offset of the last slash in the backup path
+377	src/fileio.cc	731	bounded	none	strlen of the backup file name in the version-control path
+378	src/fileio.cc	947	bounded	none	b - buf in Buffer::write_region, with buf[0x10000]
+379	src/fileio.cc	1063	bounded	none	period - backup, offset in the backup path buffer
+380	src/fileio.cc	1065	bounded	none	name - backup + offset, path buffer offset
+381	src/encoding.h	82	bounded	low	s_be - s_bp, remaining chars of an xinput_stream buffer
+382	src/except.cc	159	bounded	none	strlen of the module base name buffer in get_module_base_name
+383	src/except.cc	232	bounded	none	path + sizeof path - p - 1, remaining size of the module path buffer
+384	src/except.cc	405	bounded	none	strlen of the exe path buffer in cleanup_exception
+385	src/except.cc	450	pointer-carrying	medium	app.initial_stack, a void* stack address printed with %08x (C4477 message: argument 1 is void *)
+386	src/except.cc	450	pointer-carrying	medium	Same as row 385: app.initial_stack (void*) printed with %08x (C4313 message)
+387	src/eval.cc	1917	bounded	none	p - p0, length of one prompt segment of the interactive spec string
+388	src/eval.cc	1922	bounded	none	p - p0, prompt segment length (interactive spec)
+389	src/eval.cc	1929	bounded	none	p - p0, prompt segment length (interactive spec)
+390	src/eval.cc	1936	bounded	none	p - p0, prompt segment length (interactive spec)
+391	src/eval.cc	1943	bounded	none	p - p0, prompt segment length (interactive spec)
+392	src/eval.cc	1950	bounded	none	p - p0, prompt segment length (interactive spec)
+393	src/eval.cc	1957	bounded	none	p - p0, prompt segment length (interactive spec)
+394	src/eval.cc	1964	bounded	none	p - p0, prompt segment length (interactive spec)
+395	src/eval.cc	1971	bounded	none	p - p0, prompt segment length (interactive spec)
+396	src/eval.cc	1985	bounded	none	p - p0, prompt segment length (interactive spec)
+397	src/eval.cc	2001	bounded	none	p - p0, prompt segment length (interactive spec)
+398	src/eval.cc	2007	bounded	none	p - p0, prompt segment length (interactive spec)
+399	src/eval.cc	2023	bounded	none	p - p0, prompt segment length (interactive spec)
+400	src/eval.cc	2035	bounded	none	p - p0, prompt segment length (interactive spec)
+401	src/environ.cc	120	bounded	low	w2sl(val), the converted length of a Lisp string written to the registry
+402	src/encoding.h	151	bounded	none	b_be - b_bp, free room in xtemp_buffer
+403	src/encdec.cc	185	bounded	none	size argument of md5 update (size_t to u_int for MD5Update)
+404	src/encdec.cc	198	bounded	none	size argument of sha1 update (size_t to u_int for SHA1Update)
+405	src/encdec.cc	304	bounded	low	w2sl (lkey), the converted length of the HMAC key Lisp string
+406	src/dockbar.cc	518	bounded	none	GetWindowLongPtr (hwnd_spin, GWL_STYLE) assigned to DWORD style
+407	src/dockbar.cc	522	bounded	none	GetWindowLongPtr (hwnd_spin, GWL_EXSTYLE) passed as the DWORD dwExStyle of CreateWindowEx
+408	src/dockbar.cc	663	bounded	none	se - s0, length of a tab label text passed to GetTextExtentPoint32 (cch)
+409	src/dockbar.cc	667	bounded	none	se - s0 + 3, length of the abbreviated tab label returned as int
+410	src/dockbar.cc	1152	bounded	none	LRESULT of SendMessage (UDM_GETRANGE) assigned to DWORD range
+411	src/dockbar.cc	1308	bounded	none	msg.wParam of WM_QUIT passed to PostQuitMessage (int)
+412	src/dockbar.cc	1387	bounded	none	msg.wParam of WM_QUIT passed to PostQuitMessage (int)
+413	src/dockbar.cc	2191	bounded	none	msg.wParam of WM_QUIT passed to PostQuitMessage (int)
+414	src/DnD.cc	569	bounded	none	wcslen (w) * 2 + 1, size of a drop file-name buffer
+415	src/DnD.cc	646	bounded	none	wcslen (w) * 2 + 1, size of a drop file-name buffer
+416	src/DnD.cc	687	bounded	none	wcslen (w) * 2 + 1, size of a drop base-path buffer
+417	src/binfo.h	23	bounded	none	be - b, remaining size of the caller's mode-line output buffer
+418	src/binfo.h	32	bounded	none	be - b, remaining size of the caller's output buffer (eol_code)
+419	src/disp.cc	592	bounded	none	(be - buf) * cell.cx, pixel width of one glyph run added to r.right
+420	src/disp.cc	619	bounded	none	r.left + (b - buf) * cell.cx, pixel x coordinate
+421	src/disp.cc	633	bounded	none	be - b, character count of a glyph run passed to paint_chars
+422	src/disp.cc	632	bounded	none	r.left + (b - buf) * cell.cx, pixel x argument of paint_chars
+423	src/disp.cc	668	bounded	none	x + (g0 - gfrom) * cell.cx + 1, pixel left edge assigned to LONG r.left
+424	src/disp.cc	669	bounded	none	x + (g - gfrom) * cell.cx + 1, pixel right edge assigned to LONG r.right
+425	src/disp.cc	696	bounded	none	be - buf, character count of a glyph run passed to paint_chars
+426	src/disp.cc	718	bounded	none	x + (g0 - gfrom) * cell.cx, pixel left edge assigned to LONG r.left
+427	src/disp.cc	719	bounded	none	Glyph-count difference (g - gfrom) within one display row, times cell width, plus x pixel offset
+428	src/disp.cc	788	bounded	none	Difference of two glyph-row pointers (new and old row) giving a glyph-count delta
+429	src/disp.cc	794	bounded	none	Column index within a glyph row times cell width (pixel x of paint_glyphs)
+430	src/disp.cc	805	bounded	none	Column index within a glyph row times cell width (pixel x of paint_glyphs)
+431	src/disp.cc	822	bounded	none	Column index within a glyph row times cell width (RECT.left)
+432	src/disp.cc	865	bounded	none	Column index within a glyph row times cell width (RECT.right)
+433	src/disp.cc	870	bounded	none	Column index within a glyph row times cell width (pixel x of paint_glyphs)
+434	src/disp.cc	934	bounded	none	Remaining glyph slots in a row (ge - g) times cell width added to pixel x
+435	src/disp.cc	1809	bounded	none	Offset of a point inside its text chunk (p - cp->c_text) stored in int p_offset
+436	src/disp.cc	1987	bounded	low	Glyph count of one display row stored in a short
+437	src/disp.cc	2004	bounded	none	Remaining glyph slots in row (ge - g) passed to int min
+438	src/disp.cc	2099	bounded	none	Remaining glyph slots in row (ge - g), capped at 5 by min
+439	src/disp.cc	2176	bounded	none	Offset of a point inside its text chunk (p - cp->c_text) stored in int p_offset
+440	src/disp.cc	2233	bounded	none	Column from w_top_column plus glyph count within row (g - g0)
+441	src/disp.cc	2236	bounded	none	Tab expansion width (goal - col) capped by remaining row slots (ge - g)
+442	src/disp.cc	2273	bounded	none	Column from w_top_column plus glyph count within row (g - g0)
+443	src/disp.cc	2276	bounded	none	Tab expansion width (goal - col) capped by remaining row slots (ge - g)
+444	src/disp.cc	2403	bounded	low	Glyph count of one display row stored in a short
+445	src/disp.cc	2416	bounded	none	Offset of a point inside its text chunk (p - cp->c_text) stored in int p_offset
+446	src/disp.cc	3182	bounded	none	Glyph count of minibuffer prompt in row 0 stored in int
+447	src/disp.cc	3187	bounded	low	Glyph count of one minibuffer row stored in a short
+448	src/disp.cc	3257	bounded	none	Width of a formatted point string, returned as int
+449	src/disp.cc	3297	bounded	none	strlen of a percent string formatted into a 32-byte buffer
+450	src/disp.cc	3338	bounded	none	Width of a formatted point string in the modeline cache
+451	src/disp.cc	3354	bounded	none	Character indices into a 32-byte formatted point string
+452	src/disp.cc	3373	bounded	none	Length of a formatted point substring passed as ExtTextOut nCount (UINT)
+453	src/disp.cc	3458	bounded	none	Length of the mode-line text buffer passed as ExtTextOut nCount (UINT)
+454	src/disp.cc	3476	bounded	none	Length of a mode-line segment (posp - b1) passed as int count to GetTextExtentPoint32
+455	src/disp.cc	3482	bounded	none	Length of a mode-line segment (posp - b1) passed as ExtTextOut nCount (UINT)
+456	src/disp.cc	3491	bounded	none	Length of the trailing mode-line segment (b - b1) passed as ExtTextOut nCount (UINT)
+457	src/dialogs.cc	559	bounded	none	DialogBoxParam INT_PTR result (dialog end code) stored in int r
+458	src/dialogs.cc	578	bounded	low	Sum of byte lengths of filter name and pattern strings (w2sl returns size_t) accumulated into int size
+459	src/dialogs.cc	643	bounded	none	LRESULT from CB_ADDSTRING, a list index or CB_ERR/CB_ERRSPACE, stored in int j
+460	src/dialogs.cc	666	bounded	none	LRESULT from CB_ADDSTRING, a list index or CB_ERR, stored in int j
+461	src/dialogs.cc	769	bounded	none	LRESULT from CB_GETCURSEL, a selection index or CB_ERR, stored in int n
+462	src/dialogs.cc	951	bounded	none	strlen of the initial directory buffer, stored in int l
+463	src/dialogs.cc	1154	bounded	none	strlen of a path buffer, stored in int l
+464	src/dialogs.cc	1156	bounded	none	LRESULT from CB_FINDSTRING, a list index or CB_ERR, stored in int i
+465	src/dialogs.cc	1197	bounded	none	WPARAM of WM_COMMAND-style selection message (control id), narrowed to int id of ODN::selch
+466	src/dialogs.cc	1554	bounded	none	strlen of a drive volume-name string, passed as int count to GetTextExtentPoint32
+467	src/dialogs.cc	1653	bounded	none	LPARAM lParam of a list item, narrowed to int drive in DriveDialog::result
+468	src/dde.cc	128	bounded	low	Byte length of a Lisp string converted for DDE execute (w2sl returns size_t) stored in int l
+469	src/dde.cc	143	bounded	low	Byte length of a Lisp string converted for DDE poke (w2sl returns size_t) stored in int l
+470	src/dde.cc	250	bounded	none	strlen of static DDE topic names summed into int nbytes
+471	src/dde.cc	290	bounded	none	strlen of static DDE item names summed into int nbytes
+472	src/dde.cc	411	bounded	low	Byte length of serialized result string (w2sl returns size_t) passed as DWORD cbOff to DdeCreateDataHandle
+473	src/conf.cc	213	bounded	none	strlen of a configuration string (registry REG_SZ copy or fixed print header buffer), stored in int l
+474	src/com.cc	32	bounded	low	strlen of an AppUserModelID buffer built from a Lisp string (alloca of xstring_length*2+1), stored in int l
+475	src/com.cc	92	bounded	none	strlen of a path buffer after pathname2cstr, stored in int l
+476	src/com.cc	122	bounded	none	strlen of a path buffer after pathname2cstr, stored in int l
+477	src/com.cc	195	bounded	none	strlen of a shortcut path buffer, stored in int l
+478	src/com.cc	231	bounded	none	size_t to int narrowing inside the ATL A2W conversion macro applied to a path buffer
+479	src/com.cc	242	bounded	none	strlen of a directory path buffer, stored in int maxl
+480	src/Filer.h	449	bounded	none	LRESULT of ListView_ForwardLine (custom LVM_FORWARDLINE), an item index clamped by the handler
+481	src/Filer.h	457	bounded	none	LRESULT of ListView_ForwardPage (custom LVM_FORWARDPAGE), an item index clamped by the handler
+482	src/Filer.h	465	bounded	none	LRESULT of ListView_GotoBOF, the index 0 after clamping by set_focus
+483	src/Filer.h	473	bounded	none	LRESULT of ListView_GotoEOF, the index nitems-1 after clamping by set_focus
+484	src/Filer.h	509	bounded	none	LRESULT of ListView_ISearch (custom LVM_ISEARCH), a boolean-style result returned as int
+485	src/ColorDialog.cc	26	bounded	none	strlen of a color-name string, passed as UINT nCount to ExtTextOut
+486	src/ColorDialog.cc	128	bounded	none	LRESULT from CB_GETCURSEL, a selection index or CB_ERR, stored in int i
+487	src/ColorDialog.cc	131	bounded	none	LRESULT from CB_GETITEMDATA, a resource id stored in int i
+488	src/ColorDialog.cc	178	bounded	none	ULONG_PTR itemData (a resource id) narrowed to UINT uID of LoadString
+489	src/ColorDialog.cc	180	bounded	none	ULONG_PTR itemData minus IDS_COLOR_SCROLLBAR narrowed to int nIndex of GetSysColor
+490	src/ColorDialog.cc	254	bounded	none	LRESULT from CB_ADDSTRING, a list index or CB_ERR, stored in int j
+491	src/ColorDialog.cc	297	bounded	none	WPARAM of WM_DRAWITEM (a control id) narrowed to int id of draw_button
+492	src/ColorDialog.cc	318	bounded	none	WPARAM of WM_MEASUREITEM (a control id) narrowed to int id of measure_item
+493	src/ColorDialog.cc	375	bounded	none	WPARAM of WM_MEASUREITEM (a control id) narrowed to int id of measure_item
+494	src/ColorDialog.cc	438	bounded	none	LRESULT from LB_GETCURSEL, a selection index or LB_ERR, stored in int n
+495	src/ColorDialog.cc	498	bounded	none	ULONG_PTR itemData (a list index) narrowed to int x of prop_fg_p
+496	src/ColorDialog.cc	501	bounded	low	Not a narrowing: sprintf %d given a ULONG_PTR expression (dis->itemData - PROP_FG_OFFSET + 1); the warning code is C4477 (format mismatch), not C4244/C4267
+497	src/ColorDialog.cc	504	bounded	none	ULONG_PTR itemData (a list index) narrowed to int x of prop_bg_p
+498	src/ColorDialog.cc	507	bounded	none	dis->itemData (ULONG_PTR) list-item index, stored by LB_ADDSTRING lParam i in init_dialog
+499	src/ColorDialog.cc	510	bounded	none	dis->itemData (ULONG_PTR) list-item index
+500	src/ColorDialog.cc	511	bounded	none	dis->itemData (ULONG_PTR) list-item index minus MISC_OFFSET
+501	src/ColorDialog.cc	546	bounded	none	WM_DRAWITEM wParam (WPARAM), which is the control identifier by the Win32 contract
+502	src/ColorDialog.cc	549	bounded	none	WM_NOTIFY wParam (WPARAM), which is the control identifier by the Win32 contract
+503	src/ColorDialog.cc	610	bounded	none	SendDlgItemMessage BM_GETCHECK result (BST_UNCHECKED/CHECKED/INDETERMINATE)
+504	src/ColorDialog.cc	617	bounded	none	SendDlgItemMessage BM_GETCHECK result
+505	src/ColorDialog.cc	743	bounded	none	SendDlgItemMessage BM_GETCHECK result passed to EnableWindow as BOOL
+506	src/ColorDialog.cc	763	bounded	none	SendDlgItemMessage BM_GETCHECK result
+507	src/ColorDialog.cc	772	bounded	none	SendDlgItemMessage BM_GETCHECK result
+508	src/ColorDialog.cc	780	bounded	none	SendDlgItemMessage BM_GETCHECK result
+509	src/chunk.cc	89	bounded	low	w2sl() result: size_t byte count of a Lisp string (size + number of DBCS chars)
+510	src/chunk.cc	160	bounded	none	pointer difference pe - p within a chunk
+511	src/ChooseFont.cc	26	bounded	none	CB_ADDSTRING return value, a combo-box item index
+512	src/ChooseFont.cc	40	bounded	none	LB_ADDSTRING return value, a list-box item index
+513	src/ChooseFont.cc	120	bounded	none	LB_GETCURSEL return value, a list-box index
+514	src/ChooseFont.cc	130	bounded	none	LB_GETCOUNT return value, an item count
+515	src/ChooseFont.cc	166	bounded	none	CB_GETCURSEL return value, a combo-box index
+516	src/ChooseFont.cc	169	bounded	none	CB_GETITEMDATA, which returns the value stored by CB_SETITEMDATA with the index i < FONT_MAX
+517	src/ChooseFont.cc	173	bounded	none	LB_FINDSTRINGEXACT return value, a list-box index or LB_ERR
+518	src/ChooseFont.cc	190	bounded	none	LB_GETCURSEL return value, a list-box index
+519	src/ChooseFont.cc	205	bounded	none	CB_GETCURSEL return value, a combo-box index
+520	src/ChooseFont.cc	208	bounded	none	CB_GETITEMDATA, the stored index < FONT_MAX
+521	src/ChooseFont.cc	212	bounded	none	LB_GETCURSEL return value, a list-box index
+522	src/ChooseFont.cc	219	bounded	none	LB_GETCURSEL return value, a list-box index
+523	src/ChooseFont.cc	249	bounded	none	BM_GETCHECK result (0..2)
+524	src/ChooseFont.cc	254	bounded	none	LB_GETCURSEL return value, a list-box index
+525	src/ChooseFont.cc	296	bounded	none	strlen of a fixed-size local name buffer
+526	src/ChooseFont.cc	328	bounded	none	LB_GETCURSEL return value, a list-box index
+527	src/ChooseFont.cc	345	bounded	none	strlen of a string literal selected from the samples[] table
+528	src/ces.cc	819	bounded	none	pointer difference p - xstring_contents(string), an index into a Lisp string
+529	src/bytecode.cc	309	bounded	none	ByteCode::stack_depth(): bc_stackp - bc_stackb
+530	src/byte-stream.cc	59	bounded	none	pointer difference w - wbuf into a fixed local buffer
+531	src/Buffer.cc	516	bounded	none	pointer difference p - p0 inside a Lisp buffer-name string
+532	src/Buffer.cc	722	bounded	none	remaining capacity be - b of a caller-supplied output buffer, passed to stpncpy(int size)
+533	src/Buffer.cc	733	bounded	none	remaining capacity be - b of a caller-supplied output buffer, passed to stpncpy(int size)
+534	src/Buffer.cc	1314	bounded	low	alloca size for the title bar: xstring_length(x) * 2 plus strlen(TitleBarString) plus constants
+535	src/buffer-bar.cc	103	bounded	none	TOOLTIPTEXT hdr.idFrom (UINT_PTR), the tab item index from the tab control's tooltip
+536	src/buffer-bar.cc	164	bounded	none	strlen of a fixed local name buffer
+537	src/binfo.cc	60	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+538	src/binfo.cc	83	bounded	none	remaining capacity de - d of a caller buffer, passed to stpncpy(int)
+539	src/binfo.cc	135	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+540	src/binfo.cc	139	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+541	src/binfo.cc	153	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+542	src/binfo.cc	165	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+543	src/binfo.cc	173	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+544	src/binfo.cc	183	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+545	src/binfo.cc	193	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+546	src/binfo.cc	202	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+547	src/binfo.cc	219	bounded	none	remaining capacity be - b of a caller buffer, passed to stpncpy(int)
+548	src/bignum.cc	106	bounded	none	pointer difference d - br_data, the number of 16-bit digits produced from a 32-bit long
+549	src/bignum.cc	120	bounded	none	pointer difference d - br_data from a u_long source
+550	src/bignum.cc	222	bounded	none	pointer difference d - r->br_data from a u_long source
+551	src/bignum.cc	250	bounded	none	pointer difference d - r->br_data from a uint64_t source
+552	src/archiver.cc	123	bounded	none	strlen of a static suffix string from a NUL-terminated list
+553	src/archiver.cc	142	bounded	none	WM_ARCEXTRACT wParam, a stage code (0, 1 or 4) that is not a pointer
+554	src/archiver.cc	303	bounded	none	sum of strlen of path, destdir, dir_opt, opt and respfile plus 128, used as alloca size
+555	src/archiver.cc	307	bounded	none	strlen of respopt added to the alloca length
+556	src/archiver.cc	318	bounded	none	pointer difference b - b0 into the alloca(len) command buffer
+557	src/archiver.cc	341	bounded	none	sum of strlen of path, respfile, opt plus 128, used as alloca size in create
+558	src/archiver.cc	343	bounded	none	strlen of respopt added to the alloca length in create
+559	src/archiver.cc	350	bounded	none	pointer difference b - b0 into the alloca(len) command buffer in create
+560	src/archiver.cc	431	bounded	none	strlen of dest, a suffix of path copied into alloca(strlen(path)+16)
+561	src/archiver.cc	464	bounded	none	strlen of a path string in Tar::create
+562	src/archiver.cc	777	bounded	none	strlen of a path string in Archiver::get_creator
+563	src/archiver.cc	808	bounded	none	strlen of a path string in Archiver::get_extractor
+564	src/archiver.cc	821	bounded	none	strlen of a path string in Archiver::get_remover
+565	src/archiver.cc	846	bounded	none	strlen of a path string in Archiver::create_sfx

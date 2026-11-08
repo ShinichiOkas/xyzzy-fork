@@ -1,6 +1,8 @@
 # バグ票（x64 版の残件）
 
-対象: feature/x64-only。見たことだけを書く（症状・実測・再現手順）。調査と修正は担当者が行う。
+対象: feature/x64-only。見たことだけを書く（症状・実測・再現手順・場所）。修正は修正役が行い、票の状態を更新する。
+
+監査の分類表（565 行、ポインタ幅の縮小警告の判定）: [audit/x64-pointer-width-2026-11-09.tsv](audit/x64-pointer-width-2026-11-09.tsv)
 
 | 票 | 題 | 状態 |
 |---|---|---|
@@ -21,3 +23,11 @@
 | [BUG-0015](BUG-0015-pane-address-truncated.md) | pane.cc の戻り値が 64bit のアドレスを 32bit に切り詰める | 要検証 |
 | [BUG-0016](BUG-0016-zlib-libs-tracked-in-git.md) | src/zlib の zlib.lib / zlib.pdb が Git に追跡されている | 方針待ち（リポジトリ方針） |
 | [BUG-0017](BUG-0017-etc-binaries-tracked-overwritten.md) | etc/ の DLL・EXE が Git に追跡され、ビルドで上書きされる | 方針待ち |
+| [BUG-0018](BUG-0018-winhelp-htmlhelp-dword-arg.md) | winhelp.cc: HtmlHelp の第4引数が DWORD のため、64bit のスタックアドレスが切り詰められる | 修正済み |
+| [BUG-0019](BUG-0019-ldialog-combobox-index-ownerdraw.md) | ldialog.cc: コンボボックスの :index 経路で、owner-draw の項目データを 32bit に切り詰める | 要判断（設計） |
+| [BUG-0020](BUG-0020-privctrl-subclass-parent-int.md) | privctrl: subclass_parent が int を返し、旧 WNDPROC（64bit）を切り詰める | 修正済み |
+| [BUG-0021](BUG-0021-except-crash-report-pointer-format.md) | クラッシュレポートの書式 %08x に 64bit のポインタを渡している（表示のみ） | 修正済み |
+| [BUG-0022](BUG-0022-wheel-timer-id-uint.md) | wheel.cc: SetTimer の戻り値（UINT_PTR）を UINT に格納している | 修正済み |
+| [BUG-0023](BUG-0023-kbd-hkl-roundtrip.md) | kbd.cc: HKL を fixnum に変換して戻すとき、上位 32bit の扱いが未確認 | 要確認（この PC では問題になる値を確認できず） |
+| [BUG-0024](BUG-0024-format-mismatch-varargs.md) | 書式指定子と可変引数の型が一致しない箇所（C4477 / C4313 / C4309 / C4319） | 修正済み |
+| [BUG-0025](BUG-0025-gen-syms-dump-version-int.md) | gen-syms: 画像の版番号 dump_version が int（time(0) 由来）で、2038 年に折り返す | 未修正（低重大度） |
