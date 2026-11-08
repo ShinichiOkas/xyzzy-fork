@@ -1571,14 +1571,10 @@ listen_stream (lisp stream)
         case st_file_io:
         case st_file_input:
           {
-#ifdef _MSC_VER
-            if (xfile_stream_input (stream)->_cnt > 0)
-              return 1;
-#else
-# error "Not Supported"
-#endif
-            if (WaitForSingleObject (HANDLE (_get_osfhandle (_fileno (xfile_stream_input (stream)))),
-                                     0) == WAIT_TIMEOUT)
+            // UCRT hides FILE internals (no _cnt); regular files never block.
+            HANDLE h = HANDLE (_get_osfhandle (_fileno (xfile_stream_input (stream))));
+            if (GetFileType (h) != FILE_TYPE_DISK
+                && WaitForSingleObject (h, 0) == WAIT_TIMEOUT)
               return 0;
 
             int c = getc (xfile_stream_input (stream));

@@ -139,7 +139,7 @@ find_last_slash (const char *p)
 }
 
 long
-log2 (u_long x)
+xlog2 (u_long x)
 {
   long l;
   for (l = 0; x; x >>= 1, l++)
