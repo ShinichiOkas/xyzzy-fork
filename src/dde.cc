@@ -169,7 +169,7 @@ req_type (lisp type)
     return dr_int16;
   if (type == Kint32)
     return dr_int32;
-  return dde_reqtype (int (FEprogram_error (Edde_undefined_return_type, type)));
+  return dde_reqtype (int (INT_PTR (FEprogram_error (Edde_undefined_return_type, type))));
 }
 
 template <class T>
@@ -252,12 +252,12 @@ topic_list_callback (DdeCallbackInfo *dci)
   HDDEDATA hdata = DdeCreateDataHandle (Dde::instance (), 0, 0, nbytes,
                                         dci->item, dci->fmt, 0);
   if (!hdata)
-    return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+    return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
   char *data = (char *)DdeAccessData (hdata, 0);
   if (!hdata)
     {
       DdeFreeDataHandle (hdata);
-      return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+      return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
     }
   for (DdeTopicList *t = DdeServerTopicList; t->topic; t++)
     {
@@ -282,7 +282,7 @@ item_list_callback (DdeCallbackInfo *dci)
     if (!DdeCmpStringHandles (dci->topic, t->hsz_topic))
       break;
   if (!t->topic)
-    return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+    return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
 
   int nbytes = 0;
   for (DdeItemList *il = t->items; il->item; il++)
@@ -292,12 +292,12 @@ item_list_callback (DdeCallbackInfo *dci)
   HDDEDATA hdata = DdeCreateDataHandle (Dde::instance (), 0, 0, nbytes,
                                         dci->item, dci->fmt, 0);
   if (!hdata)
-    return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+    return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
   char *data = (char *)DdeAccessData (hdata, 0);
   if (!hdata)
     {
       DdeFreeDataHandle (hdata);
-      return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+      return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
     }
   for (DdeItemList *il = t->items; il->item; il++)
     if (il->item != DDE_EXECUTE_ITEM)
@@ -320,12 +320,12 @@ formats_callback (DdeCallbackInfo *dci)
   HDDEDATA hdata = DdeCreateDataHandle (Dde::instance (), 0, 0, sizeof "CF_TEXT",
                                         dci->item, dci->fmt, 0);
   if (!hdata)
-    return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+    return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
   char *data = (char *)DdeAccessData (hdata, 0);
   if (!hdata)
     {
       DdeFreeDataHandle (hdata);
-      return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+      return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
     }
   strcpy (data, "CF_TEXT");
   DdeUnaccessData (hdata);
@@ -339,7 +339,7 @@ help_callback (DdeCallbackInfo *dci)
     return HDDEDATA (1);
   if (dci->type != XTYP_REQUEST && dci->type != XTYP_ADVREQ)
     return 0;
-  return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+  return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
 }
 
 static int
@@ -411,12 +411,12 @@ eval_callback (DdeCallbackInfo *dci)
                                               w2sl (result) + 1,
                                               dci->item, dci->fmt, 0);
         if (!hdata)
-          return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+          return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
         char *data = (char *)DdeAccessData (hdata, 0);
         if (!hdata)
           {
             DdeFreeDataHandle (hdata);
-            return HDDEDATA (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0);
+            return HDDEDATA (UINT_PTR (dci->type == XTYP_REQUEST ? DDE_FNOTPROCESSED : 0));
           }
         w2s (data, result);
         DdeUnaccessData (hdata);

@@ -2121,7 +2121,7 @@ win9x_unlock_media (HANDLE hvwin32, int drive)
   regs.reg_EAX = 0x440d;
   regs.reg_EBX = drive;
   regs.reg_ECX = MAKEWORD (0x48, 0x08);
-  regs.reg_EDX = DWORD (&pb);
+  regs.reg_EDX = DWORD (uintptr_t (&pb));
 
   DWORD nbytes;
   if (!DeviceIoControl (hvwin32, VWIN32_DIOC_DOS_IOCTL,
@@ -2137,7 +2137,7 @@ win9x_unlock_media (HANDLE hvwin32, int drive)
       regs.reg_EAX = 0x440d;
       regs.reg_EBX = drive;
       regs.reg_ECX = MAKEWORD (0x48, 0x08);
-      regs.reg_EDX = DWORD (&pb);
+      regs.reg_EDX = DWORD (uintptr_t (&pb));
 
       if (!DeviceIoControl (hvwin32, VWIN32_DIOC_DOS_IOCTL,
                             &regs, sizeof regs, &regs, sizeof regs,

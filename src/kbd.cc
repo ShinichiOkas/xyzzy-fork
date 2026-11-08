@@ -975,7 +975,7 @@ kbd_queue::get_kbd_layout () const
 
   char b[KL_NAMELENGTH];
   if (GetKeyboardLayoutName (b))
-    return HKL (strtol (b, 0, 16));
+    return HKL (LONG_PTR (strtol (b, 0, 16)));
   return HKL (MAKELANGID (LANG_JAPANESE, SUBLANG_DEFAULT));
 }
 
@@ -1444,7 +1444,7 @@ Flist_kbd_layout ()
       char buf[256];
       if (get_kbd_layout_name (h[i], buf, sizeof buf)
           || get_kbd_layout_name (HKL (HIWORD (h[i])), buf, sizeof buf))
-        r = xcons (xcons (make_fixnum (int (h[i])),
+        r = xcons (xcons (make_fixnum (int (LONG_PTR (h[i]))),
                           make_string (buf)),
                    r);
     }
@@ -1494,7 +1494,7 @@ Fselect_kbd_layout (lisp layout)
     {
       if (!fixnump (layout))
         FEtype_error (layout, xsymbol_value (Qor_string_integer));
-      hkl = HKL (fixnum_value (layout));
+      hkl = HKL (LONG_PTR (fixnum_value (layout)));
     }
   if (!ActivateKeyboardLayout (hkl, 0))
     FEsimple_win32_error (GetLastError ());
@@ -1508,8 +1508,8 @@ Fcurrent_kbd_layout ()
   char buf[256];
   if (get_kbd_layout_name (hkl, buf, sizeof buf)
       || get_kbd_layout_name (HKL (HIWORD (hkl)), buf, sizeof buf))
-    return xcons (make_fixnum (int (hkl)), make_string (buf));
-  return xcons (make_fixnum (int (hkl)), Qnil);
+    return xcons (make_fixnum (int (LONG_PTR (hkl))), make_string (buf));
+  return xcons (make_fixnum (int (LONG_PTR (hkl))), Qnil);
 }
 
 int

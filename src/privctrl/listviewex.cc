@@ -528,7 +528,7 @@ send_keydown (HWND hwnd, int vkey)
     {
       LV_KEYDOWN lv;
       lv.hdr.hwndFrom = hwnd;
-      lv.hdr.idFrom = GetWindowLong (hwnd, GWL_ID);
+      lv.hdr.idFrom = GetWindowLongPtr (hwnd, GWL_ID);
       lv.hdr.code = LVN_KEYDOWN;
       lv.wVKey = WORD (vkey);
       lv.flags = 0;
@@ -689,7 +689,7 @@ send_process_key (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam,
     return 0;
   LV_PROCESSKEY lv;
   lv.hdr.hwndFrom = hwnd;
-  lv.hdr.idFrom = GetWindowLong (hwnd, GWL_ID);
+  lv.hdr.idFrom = GetWindowLongPtr (hwnd, GWL_ID);
   lv.hdr.code = LVN_PROCESSKEY;
   lv.message = msg;
   lv.wparam = wparam;
@@ -839,7 +839,7 @@ process_keydown (HWND hwnd, int vkey, listview_item_data *data)
   send_keydown (hwnd, vkey);
 }
 
-#define upcase(c) CharUpper (LPSTR (c & 0xff))
+#define upcase(c) CharUpper (LPSTR (UINT_PTR (c & 0xff)))
 #define eql(c1, c2) (upcase (c1) == upcase (c2))
 
 static int

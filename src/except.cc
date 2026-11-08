@@ -107,7 +107,7 @@ se_handler (u_int code, EXCEPTION_POINTERS *ep)
 static int
 get_section_name (void *base, void *p, char *buf, int size)
 {
-  DWORD nread;
+  SIZE_T nread;
   IMAGE_DOS_HEADER dos;
   if (!ReadProcessMemory (GetCurrentProcess (),
                           base, &dos, sizeof dos, &nread))
@@ -124,7 +124,7 @@ get_section_name (void *base, void *p, char *buf, int size)
   if (nt.Signature != IMAGE_NT_SIGNATURE)
     return 0;
 
-  DWORD rva = DWORD (p) - DWORD (base);
+  DWORD rva = DWORD (uintptr_t (p) - uintptr_t (base));
 
   IMAGE_SECTION_HEADER *section =
     (IMAGE_SECTION_HEADER *)((char *)base + dos.e_lfanew
@@ -163,7 +163,7 @@ get_module_base_name (HMODULE h, LPSTR buf, DWORD size)
 }
 
 static int
-get_module_name (DWORD addr, MEMORY_BASIC_INFORMATION *bi, char *buf)
+get_module_name (uintptr_t addr, MEMORY_BASIC_INFORMATION *bi, char *buf)
 {
   switch (bi->AllocationProtect & ~(PAGE_GUARD | PAGE_NOCACHE))
     {
@@ -198,16 +198,16 @@ find_module_name (void *addr, char *buf)
 {
   SYSTEM_INFO si;
   GetSystemInfo (&si);
-  addr = (void *)(DWORD (addr) & ~si.dwPageSize);
+  addr = (void *)(uintptr_t (addr) & ~uintptr_t (si.dwPageSize - 1));
 
   MEMORY_BASIC_INFORMATION bi;
   memset (&bi, 0, sizeof bi);
   return (VirtualQuery (addr, &bi, sizeof bi)
-          && get_module_name (DWORD (addr), &bi, buf));
+          && get_module_name (uintptr_t (addr), &bi, buf));
 }
 
 static void
-print_modules (FILE *fp, DWORD addr, MEMORY_BASIC_INFORMATION *bi)
+print_modules (FILE *fp, uintptr_t addr, MEMORY_BASIC_INFORMATION *bi)
 {
   switch (bi->AllocationProtect & ~(PAGE_GUARD | PAGE_NOCACHE))
     {
@@ -231,20 +231,20 @@ print_modules (FILE *fp, DWORD addr, MEMORY_BASIC_INFORMATION *bi)
   char *p = path + lstrlen (path);
   if (get_section_name (bi->AllocationBase, bi->BaseAddress, p + 1, path + sizeof path - p - 1))
     *p = '!';
-  fprintf (fp, "%08x - %08x: %s\n", addr, addr + bi->RegionSize, path);
+  fprintf (fp, "%p - %p: %s\n", (void *)addr, (char *)addr + bi->RegionSize, path);
 }
 
 static void
 print_module_allocation (FILE *fp)
 {
-  for (DWORD addr = 0; addr < 0xffffffff;)
+  for (uintptr_t addr = 0; addr < ~uintptr_t (0);)
     {
       MEMORY_BASIC_INFORMATION bi;
       if (VirtualQuery ((void *)addr, &bi, sizeof bi))
         print_modules (fp, addr, &bi);
       else
         bi.RegionSize = 0;
-      DWORD oaddr = addr;
+      uintptr_t oaddr = addr;
       addr += bi.RegionSize ? bi.RegionSize : 64 * 1024;
       if (addr < oaddr)
         break;
@@ -442,7 +442,10 @@ cleanup_exception ()
       x86_print_registers (fp, Win32Exception::c);
       x86_stack_dump (fp, Win32Exception::c);
 #else
-# error "yet"
+      fprintf (fp, "RIP: %016llx  RSP: %016llx  RBP: %016llx\n\n",
+               (unsigned long long)Win32Exception::c.Rip,
+               (unsigned long long)Win32Exception::c.Rsp,
+               (unsigned long long)Win32Exception::c.Rbp);
 #endif
       fprintf (fp, "Initial stack: %08x  GC: %d\n\n",
                app.initial_stack, app.in_gc);

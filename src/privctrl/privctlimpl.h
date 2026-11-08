@@ -52,13 +52,13 @@ get_ctl_style (HWND hwnd)
 inline DWORD
 get_window_style (HWND hwnd)
 {
-  return GetWindowLong (hwnd, GWL_STYLE);
+  return GetWindowLongPtr (hwnd, GWL_STYLE);
 }
 
 inline BOOL
 set_window_style (HWND hwnd, DWORD style)
 {
-  return SetWindowLong (hwnd, GWL_STYLE, style);
+  return SetWindowLongPtr (hwnd, GWL_STYLE, style);
 }
 
 typedef LONG (WINAPI *OWNERDRAWPROC)(UINT, DRAWITEMSTRUCT *);

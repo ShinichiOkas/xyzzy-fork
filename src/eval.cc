@@ -461,45 +461,50 @@ call_special_form (lisp f, lisp arg, lex_env &lex)
   return ((lisp (*)(lisp, lex_env &))xfunction_fn (f))(arg, lex);
 }
 
+// x64 Windows has one calling convention, and the caller reserves and
+// releases the argument area.  Calling through a prototype with more
+// parameters than the callee declares is therefore harmless, which lets
+// one call site serve every builtin arity.
+enum { BUILTIN_MAX_ARGS = 16 };
+typedef lisp (__stdcall *lfunction_proc_max) (lisp, lisp, lisp, lisp,
+                                              lisp, lisp, lisp, lisp,
+                                              lisp, lisp, lisp, lisp,
+                                              lisp, lisp, lisp, lisp);
+
 lisp
 funcall_builtin (lisp f, lisp arglist)
 {
   assert (functionp (f));
-#ifdef _M_IX86
-  int nargs = xfunction_nargs (f) + xfunction_nopts (f) + (need_rest_p (f) ? 1 : 0);
-  lisp *stack = (lisp *)alloca (sizeof (lisp) * nargs);
-  for (int i = xfunction_nargs (f); i > 0; i--)
+  assert (xfunction_nargs (f) + xfunction_nopts (f)
+          + (need_rest_p (f) ? 1 : 0) <= BUILTIN_MAX_ARGS);
+  lisp args[BUILTIN_MAX_ARGS] = {};
+  int n = 0;
+  for (int i = xfunction_nargs (f); i > 0; i--, n++)
     {
       if (!consp (arglist))
         FEtoo_few_arguments ();
-      *stack++ = xcar (arglist);
+      args[n] = xcar (arglist);
       arglist = xcdr (arglist);
     }
 
-  for (int i = xfunction_nopts (f); i > 0; i--)
-    {
-      if (!consp (arglist))
-        {
-          for (; i > 0; i--)
-            *stack++ = 0;
-          break;
-        }
-      *stack++ = xcar (arglist);
-      arglist = xcdr (arglist);
-    }
+  for (int i = xfunction_nopts (f); i > 0; i--, n++)
+    if (consp (arglist))
+      {
+        args[n] = xcar (arglist);
+        arglist = xcdr (arglist);
+      }
 
   if (need_rest_p (f))
-    *stack = consp (arglist) ? arglist : Qnil;
+    args[n] = consp (arglist) ? arglist : Qnil;
   else if (consp (arglist))
     FEtoo_many_arguments ();
 
 #ifdef DEBUG_GC
   MARK_FUNCALL (f);
 #endif
-  return lfunction_proc_0 (xfunction_fn (f))();
-#else
-# error "Not tested"
-#endif
+  return lfunction_proc_max (xfunction_fn (f))
+    (args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7],
+     args[8], args[9], args[10], args[11], args[12], args[13], args[14], args[15]);
 }
 
 static lisp

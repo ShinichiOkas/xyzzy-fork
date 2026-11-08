@@ -424,7 +424,7 @@ funcall_dll (lisp fn, lisp arglist)
       throw;
     }
 #else
-# error "yet"
+  return FEsimple_error (Ex64_ffi_unsupported);
 #endif
 }
 
@@ -629,6 +629,13 @@ init_c_callable (lisp cc)
       insn[0xb] = 0xcc;
       insn[0xc] = 0xcc;
     }
+}
+#else
+
+void
+init_c_callable (lisp)
+{
+  FEsimple_error (Ex64_ffi_unsupported);
 }
 #endif
 

@@ -51,6 +51,19 @@ coerce_to_long_error (lisp object)
 }
 
 /*GENERIC_FUNCTION:INTEGER*/
+pointer_t
+unsigned_pointer_value (lisp x)
+{
+  if (bignump (x))
+    {
+      int64_t val = coerce_to_int64 (x);
+      if (val < 0)
+        FErange_error (x);
+      return pointer_t (val);
+    }
+  return unsigned_long_value (x);
+}
+
 u_long
 unsigned_long_value (lisp x)
 {

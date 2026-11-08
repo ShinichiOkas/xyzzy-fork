@@ -23,7 +23,7 @@ HSZ Dde::hsz_server;
 
 static HDDEDATA CALLBACK
 dde_callback (UINT type, UINT fmt, HCONV hconv, HSZ sz1, HSZ sz2,
-              HDDEDATA dde_data, DWORD data1, DWORD data2)
+              HDDEDATA dde_data, ULONG_PTR data1, ULONG_PTR data2)
 {
   switch (type)
     {
@@ -158,7 +158,7 @@ Dde::verify_context (CONVCONTEXT *cc)
 HDDEDATA
 Dde::doprocess (DdeCallbackInfo &dci)
 {
-  HDDEDATA result = HDDEDATA (dci.type == XTYP_REQUEST ? 0 : DDE_FNOTPROCESSED);
+  HDDEDATA result = HDDEDATA (UINT_PTR (dci.type == XTYP_REQUEST ? 0 : DDE_FNOTPROCESSED));
   if (dci.fmt && dci.fmt != CF_TEXT)
     return result;
 
