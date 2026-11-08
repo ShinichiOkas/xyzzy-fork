@@ -433,7 +433,7 @@ cleanup_exception ()
                sysdep.os_ver.szCSDVersion);
 
       fprintf (fp, "%08x: %s\n", Win32Exception::code, desc);
-      fprintf (fp, "at %08x", Win32Exception::r.ExceptionAddress);
+      fprintf (fp, "at %p", Win32Exception::r.ExceptionAddress);
       if (*module)
         fprintf (fp, " (%s)", module);
       fprintf (fp, "\n\n");
@@ -447,7 +447,7 @@ cleanup_exception ()
                (unsigned long long)Win32Exception::c.Rsp,
                (unsigned long long)Win32Exception::c.Rbp);
 #endif
-      fprintf (fp, "Initial stack: %08x  GC: %d\n\n",
+      fprintf (fp, "Initial stack: %p  GC: %d\n\n",
                app.initial_stack, app.in_gc);
 
       print_module_allocation (fp);
@@ -460,7 +460,7 @@ cleanup_exception ()
     }
 
   char msg[1024], *p = msg;
-  p += sprintf (p, "致命的な例外(%s)が発生しました。\nat %08x",
+  p += sprintf (p, "致命的な例外(%s)が発生しました。\nat %p",
                 desc, Win32Exception::r.ExceptionAddress);
   if (*module)
     p += sprintf (p, " (%s)", module);

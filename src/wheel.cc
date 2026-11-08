@@ -150,7 +150,7 @@ struct auto_scroll_param
   int state;
   int interval;
   HCURSOR hcur[3];
-  UINT timer_id;
+  UINT_PTR timer_id;
   void (__stdcall *callback)(int, void *);
   void *arg;
 };

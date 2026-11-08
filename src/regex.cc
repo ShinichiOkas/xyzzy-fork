@@ -232,7 +232,7 @@ regexp_compile::dump (const Char *p0, int size)
 {
   for (const Char *p = p0, *pe = p + size; p < pe;)
     {
-      printf ("%5d: ", p - p0);
+      printf ("%5d: ", int (p - p0));
       Char c = *p++;
       switch (c)
         {

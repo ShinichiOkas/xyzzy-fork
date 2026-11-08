@@ -397,7 +397,7 @@ Ffind_winhelp_path (lisp index_file, lisp ltopic)
   return make_string (is.is_match->ih_file);
 }
 
-typedef HWND (WINAPI *HTMLHELPPROC)(HWND, LPCSTR, UINT, DWORD);
+typedef HWND (WINAPI *HTMLHELPPROC)(HWND, LPCSTR, UINT, DWORD_PTR);
 
 #define HH_KEYWORD_LOOKUP 0xd
 #define HH_GET_LAST_ERROR 0x14

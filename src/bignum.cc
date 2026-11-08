@@ -358,7 +358,7 @@ bignum_rep::to_long () const
     return plusp () ? LONG_MAX : LONG_MIN;
   t = up (t) + br_data[SHORT_PER_LONG - 2];
   if (SHORT_PER_LONG > 2)
-    for (int i = SHORT_PER_LONG - 3; i >= 0; i--)
+    for (int i = int (SHORT_PER_LONG) - 3; i >= 0; i--)
       t = up (t) + br_data[i];
   return plusp () ? t : -long (t);
 }

@@ -139,7 +139,7 @@ NotifyWndProc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         {
 #ifdef __XYZZY__
 # ifdef DEBUG
-          printf ("%d: %s %s %d/%d\n", wparam, i->szSourceFileName,
+          printf ("%d: %s %s %d/%d\n", int (wparam), i->szSourceFileName,
                   i->szDestFileName, i->dwWriteSize, i->dwFileSize);
 # endif
           char buf[1024];

@@ -27,7 +27,7 @@ ParentWndProc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                          hwnd, msg, wparam, lparam);
 }
 
-int
+LONG_PTR
 subclass_parent (HWND hwnd)
 {
   HWND parent = GetParent (hwnd);

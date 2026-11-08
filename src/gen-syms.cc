@@ -3051,7 +3051,7 @@ process_interactive ()
 static void
 print_version ()
 {
-  printf ("int dump_version = %d;\n", time (0));
+  printf ("int dump_version = %lld;\n", (long long) time (0));
 }
 
 void

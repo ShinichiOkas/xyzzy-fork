@@ -251,7 +251,7 @@ mouse_state::down (Window *wp, WPARAM wparam, LPARAM lparam, UINT button)
 {
   if (!ms_kbdq.idlep ())
     return;
-  if (wp->w_bufp && !((wparam & ~button) & MK_BUTTON_MASK))
+  if (wp->w_bufp && !((wparam & ~WPARAM (button)) & MK_BUTTON_MASK))
     {
       ms_hwnd = wp->w_hwnd;
       SetCapture (ms_hwnd);
