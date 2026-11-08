@@ -487,9 +487,6 @@
     <ClInclude Include="..\src\vfs.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\vwin32.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\waitobj.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

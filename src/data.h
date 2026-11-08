@@ -20,7 +20,7 @@ struct ldata_rep
   int dr_type;
   u_long dr_used[LDATA_MAX_OBJECTS_PER_LONG];
   u_long dr_gc[LDATA_MAX_OBJECTS_PER_LONG];
-  char dr_data[1];
+  alignas (sizeof (void *)) char dr_data[1];
 };
 
 class ldataP
@@ -50,6 +50,8 @@ public:
 template <class T, u_int F>
 class ldata: public ldataP
 {
+  // A freed slot holds a free-list link in its first pointer-sized bytes.
+  static_assert (sizeof (T) >= sizeof (void *), "ldata object smaller than a free-list link");
   static int l_nuses;
   static int l_nfrees;
   static ldataP l_ld;

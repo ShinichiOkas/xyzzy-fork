@@ -125,7 +125,7 @@ alloc_page::free (void *p)
       pointer_t base = pointer_t (p);
       assert (!(base & (ap_unit_size - 1)));
 
-      u_long mask = ~(ap_block_size - 1);
+      pointer_t mask = ~pointer_t (ap_block_size - 1);
       base &= mask;
 
       alloc_page_rep *r, *prev = 0;
@@ -213,7 +213,7 @@ fixed_heap::free (void *p)
   pointer_t base = pointer_t (p);
   assert (!(base & (fh_heap_size - 1)));
 
-  u_long mask = ~(fh_ap.ap_page_size - 1);
+  pointer_t mask = ~pointer_t (fh_ap.ap_page_size - 1);
   base &= mask;
 
   u_int count = 1;

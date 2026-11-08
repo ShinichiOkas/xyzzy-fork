@@ -8,6 +8,7 @@ class llong_int: public lisp_object
 {
 public:
   long value;
+  long pad_;             // heap slot must hold a free-list link (see ldata)
 };
 
 # define long_int_p(X) typep ((X), Tlong_int)
@@ -181,6 +182,7 @@ class lsingle_float: public lisp_object
 {
 public:
   float value;
+  float pad_;            // heap slot must hold a free-list link (see ldata)
 };
 
 class ldouble_float: public lisp_object

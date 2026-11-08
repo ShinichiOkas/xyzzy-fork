@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "ed.h"
 #include "dyn-handle.h"
-#include "vwin32.h"
 
 class NetPassDlg
 {
@@ -279,46 +278,6 @@ WINFS::FindNextFile (HANDLE hFindFile, LPWIN32_FIND_DATAA lpFindFileData)
               && *lpFindFileData->cFileName));
 }
 
-static BOOL WINAPI
-GetDiskFreeSpaceFAT32 (LPCSTR lpRootPathName, LPDWORD lpSectorsPerCluster,
-                       LPDWORD lpBytesPerSector, LPDWORD lpNumberOfFreeClusters,
-                       LPDWORD lpTotalNumberOfClusters)
-{
-  char buf[PATH_MAX + 1];
-  if (!lpRootPathName)
-    {
-      if (!GetCurrentDirectory (sizeof buf, buf))
-        return 0;
-      lpRootPathName = root_path_name (buf, buf);
-    }
-
-  dyn_handle hvwin32 (CreateFile ("\\\\.\\vwin32", 0, 0, 0, 0,
-                                  FILE_FLAG_DELETE_ON_CLOSE, 0));
-  if (!hvwin32.valid ())
-    return 0;
-
-  ExtGetDskFreSpcStruc dfs = {0};
-  DIOC_REGISTERS regs = {0};
-  regs.reg_EAX = 0x7303;
-  regs.reg_ECX = sizeof dfs;
-  regs.reg_EDX = DWORD (uintptr_t (lpRootPathName));
-  regs.reg_EDI = DWORD (uintptr_t (&dfs));
-
-  DWORD nbytes;
-  if (!DeviceIoControl (hvwin32, VWIN32_DIOC_DOS_DRIVEINFO,
-                        &regs, sizeof regs, &regs, sizeof regs,
-                        &nbytes, 0)
-      || regs.reg_Flags & X86_CARRY_FLAG)
-    return 0;
-
-  *lpSectorsPerCluster = dfs.SectorsPerCluster;
-  *lpBytesPerSector = dfs.BytesPerSector;
-  *lpNumberOfFreeClusters = dfs.AvailableClusters;
-  *lpTotalNumberOfClusters = dfs.TotalClusters;
-
-  return 1;
-}
-
 BOOL WINAPI
 WINFS::GetDiskFreeSpace (LPCSTR lpRootPathName, LPDWORD lpSectorsPerCluster,
                          LPDWORD lpBytesPerSector, LPDWORD lpNumberOfFreeClusters,
@@ -346,12 +305,6 @@ WINFS::GetDiskFreeSpace (LPCSTR lpRootPathName, LPDWORD lpSectorsPerCluster,
 
   if (GetDiskFreeSpaceEx)
     {
-      if (!sysdep.WinNTp ()
-          && GetDiskFreeSpaceFAT32 (lpRootPathName, lpSectorsPerCluster,
-                                    lpBytesPerSector, lpNumberOfFreeClusters,
-                                    lpTotalNumberOfClusters))
-        return 1;
-
       uint64_t FreeBytesAvailableToCaller;
       uint64_t TotalNumberOfBytes;
       uint64_t TotalNumberOfFreeBytes;
