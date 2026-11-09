@@ -34,6 +34,6 @@
 | [BUG-0026](BUG-0026-etc-targets-win32-condition.md) | etc.targets の後処理コピーが Release\|Win32 の条件のままで、x64 のビルドでは etc/ が更新されず、etc/ の実行ファイルは x86 のまま | 保留（オーナーの判断待ち。BUG-0017 と連動） |
 | [BUG-0027](BUG-0027-duplicate-projectguid.md) | ProjectGuid {2C956011-ED51-4699-BAC1-B7687910AF1D} が extract.vcxproj と xyzzyenv.vcxproj で重複している（現状は害なし） | 未修正（低重大度） |
 | [BUG-0028](BUG-0028-foreign-size-t-ptrdiff-t-time-t-4byte-on-x64.md) | lisp/foreign.l の size_t・ptrdiff_t・time_t が x64 で 4 バイトに写像されている（MSVC の x64 では 8 バイト） | 未修正（重大度: 中。実害は未確認） |
-| [BUG-0029](BUG-0029-editor-config-path-tests-intermittent.md) | editor-tests の設定場所の試験（xyzzy-ini-path・user-config-path-*）が断続的に失敗する | 未修正（断続的。原因の仮説あり、未確定） |
+| [BUG-0029](BUG-0029-editor-config-path-tests-intermittent.md) | 空の環境変数 XYZZYINIFILE・XYZZYCONFIGPATH が「設定あり」として扱われ、設定場所の試験が失敗する | 未修正（原因を確定。引き金は試験の実行環境の設定。本体の扱いが誤り） |
 | [BUG-0030](BUG-0030-wip-winapi-x64-type-widths.md) | lisp/wip/winapi.l の WPARAM・LPARAM・LRESULT と MSG が x64 で 4 バイトに写像されている（MSG は Win64 より小さく、GetMessage が超えて書く） | 未修正（重大度: 高。ヒープの超過書き込みを含む。WIP のモジュール） |
 | [BUG-0031](BUG-0031-define-c-struct-alignment-x64.md) | lisp/foreign.l の define-c-struct の整列が先頭のメンバーだけで決まり、入れ子の構造体の整列も誤る（x64 の配置がずれる） | 未修正（重大度: 中） |

@@ -1,37 +1,33 @@
-# BUG-0029 editor-tests の設定場所の試験（xyzzy-ini-path・user-config-path-*）が断続的に失敗する
+# BUG-0029 空の環境変数 XYZZYINIFILE・XYZZYCONFIGPATH が「設定あり」として扱われ、設定場所の試験が失敗する
 
-- 状態: 未修正（断続的。原因の仮説あり、未確定）
-- 対象: x64 版（feature/x64-only）。x64 固有ではない（推定）
-- 起票: 2026-11-10（BUG-0001 の全件テストで見つけた）
+- 状態: 未修正（原因を確定。引き金は試験の実行環境の設定。本体の扱いが誤り）
+- 対象: x64 版（feature/x64-only）。x64 固有ではない
+- 起票: 2026-11-10（BUG-0001 の全件テストで見つけた。最初は断続的に見えたが、原因は環境変数の設定の違い）
 
 ## 症状
-- 全件テストで、次の 4 件が失敗することがあった。unittest/editor-tests.l:1028-1096。
+- 全件テストで、unittest/editor-tests.l の次の 3 件が失敗する（4 件のうち 1 件が xyzzy-ini-path、残りの 3 件が user-config-path-*）。
   - xyzzy-ini-path
   - user-config-path-startup-option
   - user-config-path-XYZZYCONFIGPATH
   - user-config-path-startup-option-and-XYZZYCONFIGPATH
-- xyzzy-ini-path: `(path-equal (merge-pathnames "xyzzy.ini" (user-config-path)) (xyzzy-ini-path))` が nil になった。
-- user-config-path-*: 別プロセス（eval-in-another-xyzzy）の後で、`(delete-file "xyzzy.ini")`（一時フォルダ内）が file-not-found になった。
+- xyzzy-ini-path: (xyzzy-ini-path) が <repo>/usr/shini/wxp/（フォルダ）を返し、(merge-pathnames "xyzzy.ini" (user-config-path)) と一致しない。
+- user-config-path-*: 子プロセスが一時フォルダに xyzzy.ini を作らず、delete-file が file-not-found になる。
+- XYZZYINIFILE を明示する 3 件（xyzzy-ini-path-startup-option、xyzzy-ini-path-XYZZYINIFILE、xyzzy-ini-path-startup-option-and-XYZZYINIFILE）は通る。
 
-## 実測（2026-11-10）
-- 全件テストは 5 回中 2 回（最初の 2 回。その間、独立レビューの役が並列で動いていた）で、この 4 件が失敗した。残りの 3 回は通った。
-- editor-tests.l 単独では、124 件すべて通った。
-- foreign-tests.l を外した全件では通った（530/533。失敗は c-callable 2 件と、ole の環境依存 1 件）。
-- 次の組み合わせでも通った: editor-tests.l と foreign-tests.l、先頭側（array・common-lisp・complete・defun-builtin・environ・eval）を加えた組み合わせ、後半（glob・lisp・nanri・num-arith・ole・pathnames・random・sequence・stream・system）を加えた組み合わせ。typespec-tests.l を含む全件は、3 回のうち 2 回だけ失敗した。組み合わせの原因は特定できていない。
-- 本体の値は、診断用の起動では一致した（user-config-path = <repo>/usr/shini/wxp/、xyzzy-ini-path = <repo>/usr/shini/wxp/xyzzy.ini）。
+## 原因（確認済み）
+- 失敗した 2 回の全件実行は、PowerShell で `$env:XYZZYINIFILE = ''` と `$env:XYZZYCONFIGPATH = ''` を設定して起動していた。このとき、子プロセスには値が空の変数が存在した（[Environment]::GetEnvironmentVariable は ""）。
+- 本体の扱い（src/init.cc）: init_user_inifile_path は getenv("XYZZYINIFILE") が NULL でなければ、値が空でもその値を使う（init.cc:211-236）。空の値では ini のファイル名が空になり、設定場所のフォルダそのものが ini の場所になる。init_user_config_path も、空の XYZZYCONFIGPATH を先に評価する（init.cc:173-175）。
+- 再現（diag-config.l）: この設定で起動すると、xyzzy-ini-path は <repo>/usr/shini/wxp/（末尾が / のフォルダ）になった。XYZZYINIFILE と XYZZYCONFIGPATH は、どちらも ""。
+- それ以降の全件実行は `Remove-Item Env:` で変数を消して起動したので、通った。断続的だったのではなく、起動の設定が違っていた。
+- 公式の実行経路（run-tests.bat）は cmd の `set VAR=` を使う。cmd では、これは変数を消すので、この不具合は起きない。
+- 補足: path-equal（src/fileio.cc:442 の same_file_p）は、文字列が一致しても、ファイルが存在しなければ nil を返す。これは本件の原因ではないが、この試験は ini ファイルの存在に依存している。
 
-## 仮説（コードで確認した部分）
-- src/pathname.cc:810 の Fpath_equal は same_file_p（src/fileio.cc:442）を使う。文字列が一致しても、ファイルが存在しなければ nil を返す（GetFileAttributes(path1) != -1 の判定）。
-- つまり xyzzy-ini-path の試験は、<repo>/usr/shini/wxp/xyzzy.ini が存在する間だけ通る。失敗した回では、そのファイルが無かった可能性が高い。ただし、なぜ無くなったかは確かめていない。
-- user-config-path-* の失敗は、子プロセスが一時フォルダに xyzzy.ini を作らなかったことを示す。手で同じ起動（-config を付けて -e で評価）をすると、xyzzy.ini は作られた。子プロセスが ini を書く条件は確かめていない。
-
-## 直す方向（案）
-1. 試験を、ファイルの存在に依存させない（パスを文字列として比べる）。path-equal は、存在しないファイルでは使えない。
-2. xyzzy.ini が消える経路を調べる（本体の起動・終了時の書き出し、子プロセスの終了の仕方）。
-3. 負荷をかけた状態で 4 件を繰り返し実行し、再現させてから直す。
+## 直す方向
+1. src/init.cc: 値が空（""）の XYZZYINIFILE と XYZZYCONFIGPATH を、未設定として扱う（init_user_inifile_path と init_user_config_path）。
+2. 試験を足す: 空の XYZZYINIFILE を子プロセスに渡しても、xyzzy-ini-path が既定の xyzzy.ini を返す（unittest/editor-tests.l）。
+3. 全件テストの起動は、変数を消して行う（run-tests.bat は既にそうしている）。PowerShell で `$env:X = ''` を使わない。
 
 ## 参照箇所
+- src/init.cc:171-237（init_user_config_path、init_user_inifile_path）
+- src/fileio.cc:442（same_file_p）、src/pathname.cc:810（Fpath_equal）
 - unittest/editor-tests.l:1028-1096
-- unittest/simple-test.l:1036-1058（eval-in-another-xyzzy）
-- src/pathname.cc:810（Fpath_equal）、src/fileio.cc:442（same_file_p）
-- src/init.cc:171-237（user-config-path と xyzzy-ini-path の決め方）
