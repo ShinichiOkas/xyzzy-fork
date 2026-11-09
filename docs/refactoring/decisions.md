@@ -1,0 +1,13 @@
+# x64 リファクタリングの決定事項（2026-11-10）
+
+1. 対象は x64 のみ。Windows 11 を基準にする。Windows 10 は保証しない。
+2. 文字は内部で UTF-16（W 系 API）に統一する。ファイルは今までどおり cp932 と UTF-8 を読み書きする。
+3. アプリのマニフェストで Per-Monitor DPI 対応と長いパス対応を宣言する。
+4. IME は当面 IMM32 のまま。IME との連携は一つの層にまとめる。
+5. VC++ ランタイムは静的リンク（/MT）のまま。ビルドは Visual Studio 2022。
+6. 32bit の拡張 DLL は対象外。
+7. Den8 関係を削除する: lisp/den8view.l、src/etc/den8util.cc、projects/den8util.vcxproj（と .filters）、etc/den8util.dll、jdwrap（etc/jdwrap.exe、projects/jdwrap.vcxproj）。理由: 使っていない。エディターの起動に不要。
+8. DDE を廃止する: 起動時に作る DDE サーバー「Xyzzy」（src/init.cc の Dde::initialize 呼び出し、src/dde.cc、src/xdde.cc、src/xdde.h）、DDE の Lisp 関数、dde-server-died の条件。WinHelp の表示（lisp/winhelp.l と関係する C++）も廃止する。理由: 他のソフトから操作していない。将来必要になったら、DDE や OLE ではなく、名前付きパイプと簡単な JSON 形式などのモダンな方式で新しく設計する。
+9. c-callable を廃止する（利用者は den8view と wip のサンプルだけ）。wip のサンプルは samples/ に移すか、削除する。（7 と「必須でないものは不要」という方針からの帰結。オーナーが 2026-11-10 に「進めてください」と確認済み）
+10. 設定ファイルは ~/.xyzzy/（Windows では C:\Users\<name>\.xyzzy\）に置く。上書きの手段は残す: -config オプションと XYZZYCONFIGPATH（空の値は未設定扱い）。初回起動時に、旧い場所（実行ファイルの隣の usr\ 以下）の設定を一度だけコピーする。テストは必ず一時フォルダを指定し、利用者の ~/.xyzzy/ を書き換えない。
+11. 未決定: コード署名（推奨は当面しない）。外部アーカイバーの方針（LZH の作成は行わない方向で推奨。読みは未決定）。
