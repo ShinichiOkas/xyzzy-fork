@@ -19,3 +19,6 @@
 ## 参照箇所
 - src/ldialog.cc:623、715-728
 
+## 追記（2026-11-10）
+- owner-draw の combobox を持つテンプレートは src/xyzzy.rc にある: MULTIFILEOPENORD（85 行）、FILEOPENORD（122 行）、IDD_DIRECTORY（151 行）。いずれも C++ 側のファイルを開くダイアログで、Lisp の dialog 仕様から `combobox_result` を通る経路は見つからなかった（grep）。
+- lisp/ には、owner-draw の combobox を指定している箇所は見つからなかった（lisp/gentempl.l は様式の名前の対応表のみ）。

@@ -1,6 +1,6 @@
 # BUG-0006 projects/extract.vcxproj が UNLHA32.LIB を要求し、リンクできない
 
-- 状態: 未修正
+- 状態: 保留（オーナーの判断待ち）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-09
 
