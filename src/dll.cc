@@ -343,6 +343,104 @@ push_vaarg (char *stack, lisp vaarg)
   return push_arg (stack, t, Fcadr (vaarg));
 }
 
+#ifndef _M_IX86
+
+// x64 has one calling convention. Arguments 1-4 go in RCX/RDX/R8/R9 or XMM0-3 by
+// position, the rest on the stack. Passing every argument as a double through a
+// variadic prototype makes the compiler copy a floating-point argument into the
+// integer register as well, so each callee finds its argument in whichever register
+// it reads. An argument travels as its 64-bit pattern (a float in the low 32 bits).
+// The caller cleans up the stack, so the unused trailing slots are harmless, as in
+// funcall_builtin (eval.cc).
+enum { DLL_MAX_ARGS = 16 };
+
+typedef uint64_t (*x64_proc_int) (...);
+typedef double (*x64_proc_double) (...);
+
+static void
+check_x64_arg_count (int n)
+{
+  if (n >= DLL_MAX_ARGS)
+    FEsimple_error (Ex64_ffi_too_many_args);
+}
+
+static double
+x64_arg_bits (u_char type, lisp a)
+{
+  uint64_t bits = 0;
+  switch (type)
+    {
+    default:
+      assert (0);
+    case CTYPE_INT8:
+    case CTYPE_UINT8:
+    case CTYPE_INT16:
+    case CTYPE_UINT16:
+    case CTYPE_INT32:
+    case CTYPE_UINT32:
+      bits = uint64_t (int64_t (cast_to_long (a)));
+      break;
+
+    case CTYPE_INT64:
+    case CTYPE_UINT64:
+      bits = uint64_t (cast_to_int64 (a));
+      break;
+
+    case CTYPE_FLOAT:
+      {
+        float f = coerce_to_single_float (a);
+        uint32_t lo;
+        memcpy (&lo, &f, sizeof lo);
+        bits = lo;
+      }
+      break;
+
+    case CTYPE_DOUBLE:
+      {
+        double d = coerce_to_double_float (a);
+        memcpy (&bits, &d, sizeof bits);
+      }
+      break;
+    }
+
+  double arg;
+  memcpy (&arg, &bits, sizeof arg);
+  return arg;
+}
+
+static uint64_t
+call_proc_x64_int (FARPROC proc, const double *args)
+{
+  uint64_t r = reinterpret_cast <x64_proc_int> (proc) (
+    args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7],
+    args[8], args[9], args[10], args[11], args[12], args[13], args[14], args[15]);
+  save_last_error ();
+  return r;
+}
+
+static double
+call_proc_x64_double (FARPROC proc, const double *args)
+{
+  double r = reinterpret_cast <x64_proc_double> (proc) (
+    args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7],
+    args[8], args[9], args[10], args[11], args[12], args[13], args[14], args[15]);
+  save_last_error ();
+  return r;
+}
+
+static float
+float_from_low_bits (double d)
+{
+  uint64_t bits;
+  memcpy (&bits, &d, sizeof bits);
+  uint32_t lo = uint32_t (bits);
+  float f;
+  memcpy (&f, &lo, sizeof f);
+  return f;
+}
+
+#endif
+
 lisp
 funcall_dll (lisp fn, lisp arglist)
 {
@@ -424,7 +522,82 @@ funcall_dll (lisp fn, lisp arglist)
       throw;
     }
 #else
-  return FEsimple_error (Ex64_ffi_unsupported);
+  double args[DLL_MAX_ARGS] = {};
+  int n = 0;
+  for (const u_char *at = xdll_function_arg_types (fn),
+       *ae = at + xdll_function_nargs (fn);
+       at < ae; at++, arglist = xcdr (arglist))
+    {
+      if (!consp (arglist))
+        FEtoo_few_arguments ();
+      check_x64_arg_count (n);
+      args[n++] = x64_arg_bits (*at, xcar (arglist));
+    }
+
+  if (consp (arglist) && xdll_function_vaarg_p (fn))
+    {
+      lisp vaargs = xcar (arglist);
+      check_vaargs (vaargs);
+      for (; consp (vaargs); vaargs = xcdr (vaargs))
+        {
+          lisp vaarg = xcar (vaargs);
+          check_x64_arg_count (n);
+          args[n++] = x64_arg_bits (check_vaarg_type (xcar (vaarg)), Fcadr (vaarg));
+        }
+      arglist = xcdr (arglist);
+    }
+
+  if (consp (arglist))
+    FEtoo_many_arguments ();
+
+  FARPROC proc = xdll_function_proc (fn);
+  try
+    {
+      switch (xdll_function_return_type (fn))
+        {
+        default:
+          assert (0);
+
+        case CTYPE_VOID:
+          call_proc_x64_int (proc, args);
+          return Qnil;
+
+        case CTYPE_INT8:
+          return make_fixnum (char (call_proc_x64_int (proc, args)));
+
+        case CTYPE_UINT8:
+          return make_fixnum (u_char (call_proc_x64_int (proc, args)));
+
+        case CTYPE_INT16:
+          return make_fixnum (short (call_proc_x64_int (proc, args)));
+
+        case CTYPE_UINT16:
+          return make_fixnum (u_short (call_proc_x64_int (proc, args)));
+
+        case CTYPE_INT32:
+          return make_fixnum (long (call_proc_x64_int (proc, args)));
+
+        case CTYPE_UINT32:
+          return make_integer (u_long (call_proc_x64_int (proc, args)));
+
+        case CTYPE_INT64:
+          return make_integer (int64_t (call_proc_x64_int (proc, args)));
+
+        case CTYPE_UINT64:
+          return make_integer (call_proc_x64_int (proc, args));
+
+        case CTYPE_FLOAT:
+          return make_single_float (float_from_low_bits (call_proc_x64_double (proc, args)));
+
+        case CTYPE_DOUBLE:
+          return make_double_float (call_proc_x64_double (proc, args));
+        }
+    }
+  catch (Win32Exception &e)
+    {
+      e.throw_lisp_error ();
+      throw;
+    }
 #endif
 }
 

@@ -71,6 +71,9 @@
 
   (defvar *c-typedef-auto-export* nil)
 
+  (defun c-pointer-type ()
+    (if (member :x64 *features*) ':uint64 ':uint32))
+
   (defun c-typespec-p (type)
     (cond ((symbolp type)
 	   (let ((x (get type 'c-type-specifier)))
@@ -80,7 +83,7 @@
 	   (and (null (cddr type))
 		(c-typespec-p (car type))
 		(eq (cadr type) '*)
-		(get ':uint32 'c-type-specifier)))))
+		(get (c-pointer-type) 'c-type-specifier)))))
 
   (defun expand-c-type (type)
     (let ((x (c-typespec-p type)))
@@ -129,7 +132,7 @@
 (*define-c-type long clock_t)
 (*define-c-type long off_t)
 
-(*define-c-type long void*)
+(*define-c-type (void *) void*)
 (*define-c-type void* char*)
 (*define-c-type char* string)
 
@@ -270,7 +273,7 @@
 			 (when (endp slot)
 			   (error "不正なスロットの形式です"))
 			 (when (eq (car slot) '*)
-			   (setq type (expand-c-type ':int32))
+			   (setq type (expand-c-type (c-pointer-type)))
 			   (pop slot)
 			   (when (endp slot)
 			     (error "不正なスロットの形式です")))
