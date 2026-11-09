@@ -679,10 +679,7 @@ reg_delete_tree ()
     EnumRegistry r (HKEY_CURRENT_USER, "Software\\Free Software");
     if (r.fail ())
       return;
-    if (sysdep.WinNTp ())
-      delete_sub_tree (r, "xyzzy");
-    else
-      RegDeleteKey (r, "xyzzy");
+    delete_sub_tree (r, "xyzzy");
     if (!reg_empty_tree_p (r))
       return;
   }

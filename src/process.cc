@@ -724,14 +724,6 @@ protected:
       if (!SetEvent (p_event))
         FEsimple_win32_error (GetLastError ());
     }
-  void signal_win95 ();
-
-  struct dos_prompt
-    {
-      HWND hwnd;
-      DWORD pid;
-    };
-  static BOOL CALLBACK find_tty (HWND, LPARAM);
 
 public:
   NormalProcess (Buffer *bp, lisp pl, lisp marker) : Process (bp, pl, marker) {}
@@ -739,10 +731,7 @@ public:
   virtual void wait_terminate ();
   virtual void signal ()
     {
-      if (sysdep.WinNTp ())
-        signal_nt ();
-      else
-        signal_win95 ();
+      signal_nt ();
     }
   virtual void kill ()
     {
@@ -819,47 +808,6 @@ NormalProcess::wait_process ()
 
   notify_term ();
   return 0;
-}
-
-BOOL CALLBACK
-NormalProcess::find_tty (HWND hwnd, LPARAM arg)
-{
-  DWORD pid;
-  GetWindowThreadProcessId (hwnd, &pid);
-  if (pid != ((dos_prompt *)arg)->pid)
-    return 1;
-  char name[32];
-  if (!GetClassName (hwnd, name, sizeof name)
-      || lstrcmp (name, "tty"))
-    return 1;
-  ((dos_prompt *)arg)->hwnd = hwnd;
-  return 0;
-}
-
-void
-NormalProcess::signal_win95 ()
-{
-  dos_prompt tty;
-  tty.hwnd = 0;
-  tty.pid = p_process_id;
-  EnumWindows (find_tty, LPARAM (&tty));
-  if (!tty.hwnd)
-    return;
-
-  SuspendThread (p_read_thread);
-
-  UINT c = MapVirtualKey ('C', 0);
-  UINT ctrl = MapVirtualKey (VK_CONTROL, 0);
-  ShowWindow (tty.hwnd, SW_RESTORE);
-  ForceSetForegroundWindow (tty.hwnd);
-  keybd_event (VK_CONTROL, ctrl, 0, 0);
-  keybd_event ('C', c, 0, 0);
-  keybd_event ('C', c, KEYEVENTF_KEYUP, 0);
-  keybd_event (VK_CONTROL, ctrl, KEYEVENTF_KEYUP, 0);
-
-  ResumeThread (p_read_thread);
-  Sleep (100);
-  ShowWindow (tty.hwnd, SW_MINIMIZE);
 }
 
 void

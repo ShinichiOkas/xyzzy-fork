@@ -405,23 +405,6 @@ big5_state::update (int c)
 }
 
 static int
-simple_unicode_p (const ucs2_t *w, int l)
-{
-  if (!l)
-    return 0;
-  for (const ucs2_t *we = w + l; w < we; w++)
-    switch (*w)
-      {
-      case 0xffff:
-      case 0xfffe:
-      case 0x00ff:
-      case 0x0a0d:
-        return 0;
-      }
-  return 1;
-}
-
-static int
 simple_rev_unicode_p (const ucs2_t *w, int l)
 {
   if (!l)
@@ -490,9 +473,7 @@ detect_char_encoding_xyzzy (const char *string, int size, int real_size)
   if (size >= 2 && !(real_size & 1))
     {
       if (*(u_short *)string == UNICODE_BOM
-          && (!sysdep.WinNTp ()
-              ? simple_unicode_p ((const ucs2_t *)string, size / sizeof (ucs2_t))
-              : IsTextUnicode ((void *)string, size, 0)))
+          && IsTextUnicode ((void *)string, size, 0))
         return symbol_value_char_encoding (Vencoding_default_utf16le_bom);
       else if (*(u_short *)string == UNICODE_REVBOM
                && simple_rev_unicode_p ((const ucs2_t *)string, size / sizeof (ucs2_t)))

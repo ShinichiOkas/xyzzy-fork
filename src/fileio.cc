@@ -1039,52 +1039,9 @@ Buffer::write_region (const char *filename, point_t p1, point_t p2,
   return r;
 }
 
-/* ïÖÇÍ95Ç≈ÅAMoveFile ("foo.txt", "foo.txt~") ÇµÇΩÇ∆Ç´Ç…ÅA
-   AlternateFileName Ç™ ``FOO.TXT'' Ç…Ç»ÇÈÇÃÇ…ëŒâû */
-
 static int
-make_backup_file (const char *filename, char *backup, int &result)
+make_backup_file (const char *filename, char *backup)
 {
-  if (!sysdep.WinNTp ())
-    {
-      char *name = find_last_slash (backup);
-      if (name && name[1] != '.')
-        {
-          name++;
-          char *period = jindex (name, '.');
-          if (!period
-              || (period - name <= 8
-                  && !jindex (period + 1, '.')
-                  && strlen (period) > 4))
-            {
-              char tem[PATH_MAX + 1];
-              if (!period)
-                period = name + strlen (name);
-              int l = period - backup;
-              if (period - name >= 8)
-                l = name - backup + (check_kanji2 (name, 7) ? 6 : 7);
-              memcpy (tem, backup, l);
-              memset (tem + l, '~', 7);
-              l += 7;
-              for (int i = 0;; i++)
-                {
-                  sprintf (tem + l, "%x%s", i, period);
-                  if (WINFS::MoveFile (filename, tem))
-                    break;
-                  int e = GetLastError ();
-                  if (e != ERROR_ALREADY_EXISTS)
-                    return 0;
-                }
-              if (!WINFS::MoveFile (tem, backup))
-                {
-                  strcpy (backup, tem);
-                  if (!result)
-                    result = Mclumsy_backup_filename;
-                }
-              return 1;
-            }
-        }
-    }
   return WINFS::MoveFile (filename, backup);
 }
 
@@ -1284,7 +1241,7 @@ Buffer::save_buffer (lisp encoding, lisp eol)
                   WINFS::DeleteFile (tmpname);
                   file_error (message_code (backup_result));
                 }
-              if (!make_backup_file (filename, backup, backup_result))
+              if (!make_backup_file (filename, backup))
                 {
                   error = GetLastError ();
                   WINFS::DeleteFile (tmpname);

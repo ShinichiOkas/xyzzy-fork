@@ -1520,9 +1520,7 @@ Fget_clipboard_data ()
 lisp
 Fclipboard_empty_p ()
 {
-  return boole (!IsClipboardFormatAvailable (CF_TEXT)
-                && (sysdep.WinNTp ()
-                    || !IsClipboardFormatAvailable (CF_UNICODETEXT)));
+  return boole (!IsClipboardFormatAvailable (CF_TEXT));
 }
 
 textprop *

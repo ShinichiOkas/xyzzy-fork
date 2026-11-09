@@ -1388,13 +1388,8 @@ Fime_register_word_dialog (lisp lcomp, lisp lread)
   if (lread && lread != Qnil)
     {
       check_string (lread);
-      rw.lpReading = (char *)alloca (w2sl (lread) + 2);
-      char *e = w2s (rw.lpReading, lread);
-      if (sysdep.Win95p ())
-        {
-          *e++ = ' ';
-          *e = 0;
-        }
+      rw.lpReading = (char *)alloca (w2sl (lread) + 1);
+      w2s (rw.lpReading, lread);
     }
   return boole (app.kbdq.gime.ImmConfigureIME (GetKeyboardLayout (0), app.toplev,
                                                IME_CONFIG_REGISTERWORD, &rw));
