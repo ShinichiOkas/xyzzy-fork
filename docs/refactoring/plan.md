@@ -151,8 +151,8 @@
 
 ### 4.10 Lisp ライブラリ
 
-- 削除: den8view、WinHelp（winhelp.l と dexplorer.l、起動の経路の変数）、c-callable の関数と型、DDE の条件と関数、wip の winapi・fractal・hellowin・turtle（c-callable を使う）。
-- 移動: wip の oletest と ftp は samples/ へ。
+- 削除: den8view、WinHelp（winhelp.l と dexplorer.l、起動の経路の変数）、c-callable の関数と型、DDE の条件と関数、wip の winapi・fractal・hellowin・turtle（c-callable を使う）、ispell、niftylog、NEC・富士通のキー名（判断 7）。
+- 移動: wip の oletest と ftp、遊びとデモ（hanoi、life、gomoku、c-curve、tarai、pi、Gates）は samples/ へ（判断 7）。
 - 版判定: featurep の古い版（:windows-nt、:windows-vista、:windows-7、:windows-8）を削除し、:windows-10 と :windows-11 を追加する（ビルド番号で判定）。
 - 公開の変更（文書に書く）: 文字の値（4.2）、ダンプイメージの形式、削除した関数の一覧。
 
@@ -264,7 +264,7 @@
 | 4 | 自己更新（verup） | 決定: 削除（オーナーが 2026-11-10 に承認。新版はオーナーが作るときだけ存在する） | 手順書による更新にする。 |
 | 5 | アーカイバー | 決定: Windows 標準の tar.exe だけを使う（7-Zip は使わない）。LZH は作成しない。SFX は廃止（オーナーが 2026-11-10 に推奨で承認） | — |
 | 6 | HtmlHelp（CHM 形式のヘルプ） | 決定: 削除（オーナーが 2026-11-10 に承認） | — |
-| 7 | 古い Lisp モジュール（niftylog、ゲーム類、ispell、NEC・富士通の鍵配列） | 削除する | samples/ へ移す。 |
+| 7 | 古い Lisp モジュール（niftylog、ゲーム類、ispell、NEC・富士通の鍵配列） | 決定: 遊びとデモは samples/ へ移し、ispell・niftylog・NEC/富士通のキー名は削除（オーナーが 2026-11-10 に承認） | — |
 | 8 | XPI（32bit のプラグイン） | 削除する（どこからも使われていない） | x64 のプラグインの仕組みを新しく作る（今は要らない）。 |
 | 9 | ソースの文字コード | UTF-8 に変換し、/utf-8 でビルドする | cp932 のまま /source-charset:932 を付ける（日本語の Windows でだけ通る）。 |
 | 10 | コード署名 | 当面しない。配布の案内に警告の注意書きを書く | 有料の証明書で署名する（警告が出なくなる）。 |
