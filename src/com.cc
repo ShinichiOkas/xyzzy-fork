@@ -23,9 +23,6 @@ set_args (IShellLink *sl, lisp largs)
 static void
 set_appid (IShellLink *sl, lisp lappid)
 {
-  if (!sysdep.Win6_1p ())
-    return;
-
   char *b = (char *)alloca (xstring_length (lappid) * 2 + 1);
   w2s (b, lappid);
 

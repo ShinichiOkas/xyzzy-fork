@@ -148,23 +148,11 @@ Sysdep::init_wintype ()
 void
 Sysdep::init_machine_type ()
 {
-  SYSTEM_INFO info;
-  GetNativeSystemInfo(&info);
-  switch (info.wProcessorArchitecture)
-    {
-    case PROCESSOR_ARCHITECTURE_INTEL:
-      machine_type = MACHINETYPE_X86;
-      break;
-    case PROCESSOR_ARCHITECTURE_AMD64:
-      machine_type = MACHINETYPE_X64;
-      break;
-    case PROCESSOR_ARCHITECTURE_IA64:
-      machine_type = MACHINETYPE_IA64;
-      break;
-    case PROCESSOR_ARCHITECTURE_UNKNOWN:
-      machine_type = MACHINETYPE_UNKNOWN;
-      break;
-    }
+#if defined (_M_X64)
+  machine_type = MACHINETYPE_X64;
+#else
+# error xyzzy is built for x64 only (docs/refactoring/decisions.md, decision 6)
+#endif
 }
 
 void

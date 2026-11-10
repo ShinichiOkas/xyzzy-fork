@@ -12,9 +12,15 @@ del /S /Q lisp\*.lc samples\*.lc >nul 2>&1
 del /S /Q xyzzy.wxp >nul 2>&1
 set XYZZYHOME=%~dp0
 set XYZZYINIFILE=
-set XYZZYCONFIGPATH=
+rem The build uses a fresh temporary config folder: the user's settings are not touched.
+set BC_CONFIG=%TEMP%\xyzzy-bc-%RANDOM%%RANDOM%
+mkdir "%BC_CONFIG%"
+type nul > "%BC_CONFIG%\xyzzy.ini"
+set XYZZYCONFIGPATH=%BC_CONFIG%
 "%~dp0xyzzy.exe" -q -trace -load misc/makelc.l -e "(makelc:makelc-and-exit t)"
-if not %ERRORLEVEL%==0 goto error
+set BC_RESULT=%ERRORLEVEL%
+rd /s /q "%BC_CONFIG%"
+if not %BC_RESULT%==0 goto error
 del /S /Q xyzzy.wxp 2> nul
 goto :eof
 

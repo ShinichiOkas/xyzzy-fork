@@ -722,21 +722,18 @@ init_environ ()
               xsymbol_value (Vfeatures) = xcons (Kwindows_xp, xsymbol_value (Vfeatures));
             }
         }
-      if (sysdep.Win6p ())
-        {
-          xsymbol_value (Vos_platform) = Vwindows_vista;
-          xsymbol_value (Vfeatures) = xcons (Kwindows_vista, xsymbol_value (Vfeatures));
-          if (sysdep.version () >= Sysdep::WIN7_VERSION)
-            {
-              xsymbol_value (Vos_platform) = Vwindows_7;
-              xsymbol_value (Vfeatures) = xcons (Kwindows_7, xsymbol_value (Vfeatures));
-            }
-          if (sysdep.version () >= Sysdep::WIN8_VERSION)
-            {
-              xsymbol_value (Vos_platform) = Vwindows_8;
-              xsymbol_value (Vfeatures) = xcons (Kwindows_8, xsymbol_value (Vfeatures));
-            }
-        }
+        xsymbol_value (Vos_platform) = Vwindows_vista;
+        xsymbol_value (Vfeatures) = xcons (Kwindows_vista, xsymbol_value (Vfeatures));
+        if (sysdep.version () >= Sysdep::WIN7_VERSION)
+          {
+            xsymbol_value (Vos_platform) = Vwindows_7;
+            xsymbol_value (Vfeatures) = xcons (Kwindows_7, xsymbol_value (Vfeatures));
+          }
+        if (sysdep.version () >= Sysdep::WIN8_VERSION)
+          {
+            xsymbol_value (Vos_platform) = Vwindows_8;
+            xsymbol_value (Vfeatures) = xcons (Kwindows_8, xsymbol_value (Vfeatures));
+          }
       break;
 
     default:
@@ -744,30 +741,12 @@ init_environ ()
       break;
     }
 
-  switch (sysdep.machine_type)
-    {
-    case Sysdep::MACHINETYPE_X86:
-      xsymbol_value (Vfeatures) = xcons (Kx86, xsymbol_value (Vfeatures));
-      xsymbol_value (Vmachine_type) = make_string ("x86");
-      break;
-    case Sysdep::MACHINETYPE_X64:
-      xsymbol_value (Vfeatures) = xcons (Kx64, xsymbol_value (Vfeatures));
-      xsymbol_value (Vmachine_type) = make_string ("x64");
-      break;
-    case Sysdep::MACHINETYPE_IA64:
-      xsymbol_value (Vfeatures) = xcons (Kia64, xsymbol_value (Vfeatures));
-      xsymbol_value (Vmachine_type) = make_string ("IA64");
-    case Sysdep::MACHINETYPE_UNKNOWN:
-      xsymbol_value (Vmachine_type) = Qnil;
-      break;
-    }
-
-  switch (sysdep.process_type)
-    {
-    case Sysdep::PROCESSTYPE_WOW64:
-      xsymbol_value (Vfeatures) = xcons (Kwow64, xsymbol_value (Vfeatures));
-      break;
-    }
+#if defined (_M_X64)
+  xsymbol_value (Vfeatures) = xcons (Kx64, xsymbol_value (Vfeatures));
+  xsymbol_value (Vmachine_type) = make_string ("x64");
+#else
+# error xyzzy is built for x64 only (docs/refactoring/decisions.md, decision 6)
+#endif
 }
 
 lisp

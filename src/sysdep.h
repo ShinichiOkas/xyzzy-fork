@@ -121,8 +121,6 @@ public:
     {return os_ver.dwMajorVersion >= 5;}
   int Win6p () const
     {return os_ver.dwMajorVersion >= 6;}
-  int Win6_1p () const
-    {return os_ver.dwMajorVersion >= 6 && os_ver.dwMinorVersion >= 1;}
   int Win98p () const
     {return wintype == WINTYPE_WINDOWS_98;}
 };

@@ -3,20 +3,8 @@
 #include "clipboard.h"
 
 clipboard::clipboard ()
-       : AddClipboardFormatListenerProc (nullptr),
-         RemoveClipboardFormatListenerProc (nullptr)
+  : use_newapi_p (true)
 {
-  HMODULE user32 = GetModuleHandle ("user32");
-  if (!user32)
-    user32 = LoadLibrary ("user32");
-  if (!user32)
-    return;
-
-  AddClipboardFormatListenerProc =
-    (AddClipboardFormatListener) GetProcAddress (user32, "AddClipboardFormatListener");
-  RemoveClipboardFormatListenerProc =
-    (RemoveClipboardFormatListener) GetProcAddress (user32, "RemoveClipboardFormatListener");
-  use_newapi_p = (AddClipboardFormatListenerProc != nullptr && RemoveClipboardFormatListenerProc != nullptr);
 }
 
 
@@ -39,19 +27,13 @@ clipboard::remove_clipboard_chain (HWND hwnd)
 void
 clipboard::add_listener (HWND hwnd)
 {
-  if (use_newapi_p)
-    AddClipboardFormatListenerProc (hwnd);
-  else
-    add_clipboard_chain (hwnd);
+  AddClipboardFormatListener (hwnd);
 }
 
 void
 clipboard::remove_listener (HWND hwnd)
 {
-  if (use_newapi_p)
-    RemoveClipboardFormatListenerProc (hwnd);
-  else
-    remove_clipboard_chain (hwnd);
+  RemoveClipboardFormatListener (hwnd);
 }
 
 void

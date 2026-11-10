@@ -10,6 +10,9 @@
 #include "afxres.h"
 #include "version.h"
 
+// application manifest: DPI awareness, long paths, Windows 10/11, comctl32 v6
+1 24 "xyzzy.manifest"
+
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
