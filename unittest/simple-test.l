@@ -809,6 +809,27 @@ Returns list of failures."
                (push (cons example failures) (finished))
                :run-current-test))))))
 
+;; run-tests.bat sets XYZZY_TEST_LOG to a file path. Then write the report
+;; there and quit with exit code 0 (all passed) or 1, so that the batch can
+;; print the report and return the result. Without it, the report stays in
+;; the buffer as before.
+(defun write-batch-report-and-exit (report-stream all-passed-p)
+  (let ((log (si:getenv "XYZZY_TEST_LOG")))
+    (when (and log (plusp (length log)))
+      ;; An error here must not open a modal dialog (the batch would wait
+      ;; forever), so it is caught and reported through the exit code.
+      (handler-case
+          (let ((text (save-excursion
+                        (set-buffer (buffer-stream-buffer report-stream))
+                        (buffer-substring (point-min) (point-max)))))
+            (with-open-file (out log :direction :output
+                                 :if-does-not-exist :create)
+              (format out "~A" text)))
+        (error ()
+          (setf all-passed-p nil)))
+      (dolist (buffer (buffer-list))
+        (set-buffer-modified-p nil buffer))
+      (kill-xyzzy all-passed-p))))
 (defun continue-run-tests ()
   (interactive)
   (loop
@@ -842,6 +863,7 @@ Returns list of failures."
              (goto-char (point-max))
              (unless (interactive-p)
                (refresh-screen))))
+         (write-batch-report-and-exit (ssn-report-output) (zerop (ssn-fail-count)))
          (while (stop-timer 'continue-run-tests))
          (null (setf *current-session* nil))
          :finish)))
@@ -980,11 +1002,18 @@ Returns list of failures."
 ;;; - 戻り値も readable に印字できないものはアウト
 ;;; - レキシカル変数を持ち込めない...
 
+(defun eval-in-another-xyzzy--options (options)
+  ;; The child must not read the user's init file, so it runs with -q.
+  ;; -q has to come right after the -config/-ini/-image pairs; put it first.
+  (if (member "-q" (split-string options #\Space) :test (function string=))
+      options
+    (concatenate 'string "-q " options)))
+
 (defun eval-in-another-xyzzy--make-command-string (form options result-filename)
   (let ((out (gensym "tmpfile-stream-")))
     (format nil "~A ~A -e ~S"
             (merge-pathnames "xyzzy.exe" (si:system-root))
-            options
+            (eval-in-another-xyzzy--options options)
             (let ((*print-circle* t))
               (prin1-to-string
                `(progn
@@ -995,7 +1024,9 @@ Returns list of failures."
                         (let ((values (multiple-value-list ,form)))
                           (format ,out ":return~%~{~S~%~}" values))
                       (error (error)
-                        (format ,out ":error~%~S" error))))
+                        ;; send the message as a string: a printed condition
+                        ;; may contain objects that cannot be read back
+                        (format ,out ":error~%~S" (princ-to-string error)))))
                   (kill-xyzzy)))))))
 
 (defun eval-in-another-xyzzy--read-results (result-filename)
@@ -1006,10 +1037,8 @@ Returns list of failures."
                  (while (not (eq (setq r (read in nil '#1#)) '#1#))
                    (push r values))
                  (values-list (nreverse values))))
-      (:error  (let ((error (read in nil nil)))
-                 (if (si:*structurep error)
-                   (error error)
-                   (error "unknown error~@[: ~S~]" error))))
+      (:error  (let ((message (read in nil nil)))
+                 (error "~A" (or message "unknown error"))))
       (#1#     (error "result not sent.")))))
 
 (defun eval-in-another-xyzzy--delete-tmpbuf (tmpbuf time-limit)
