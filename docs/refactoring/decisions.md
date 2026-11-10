@@ -6,7 +6,7 @@
 4. IME は当面 IMM32 のまま。IME との連携は一つの層にまとめる。
 5. VC++ ランタイムは静的リンク（/MT）のまま。ビルドは Visual Studio 2022。
 6. 32bit の拡張 DLL は対象外。
-7. Den8 関係を削除する: lisp/den8view.l、src/etc/den8util.cc、projects/den8util.vcxproj（と .filters）、etc/den8util.dll、jdwrap（etc/jdwrap.exe、projects/jdwrap.vcxproj）。理由: 使っていない。エディターの起動に不要。
+7. Den8 関係を削除する: lisp/den8view.l、src/etc/den8util.cc、projects/den8util.vcxproj（と .filters）、etc/den8util.dll、etc/dxflush.dxa（Den8 のキャッシュ更新用の古い DLL。2026-11-10 に削除を承認）、jdwrap（etc/jdwrap.exe、projects/jdwrap.vcxproj）。理由: 使っていない。エディターの起動に不要。
 8. DDE を廃止する: 起動時に作る DDE サーバー「Xyzzy」（src/init.cc の Dde::initialize 呼び出し、src/dde.cc、src/xdde.cc、src/xdde.h）、DDE の Lisp 関数、dde-server-died の条件。WinHelp の表示（lisp/winhelp.l と関係する C++）も廃止する。理由: 他のソフトから操作していない。将来必要になったら、DDE や OLE ではなく、名前付きパイプと簡単な JSON 形式などのモダンな方式で新しく設計する。
 9. c-callable を廃止する（利用者は den8view と wip のサンプルだけ）。wip のサンプルは samples/ に移すか、削除する。（7 と「必須でないものは不要」という方針からの帰結。オーナーが 2026-11-10 に「進めてください」と確認済み）
 10. 設定ファイルは ~/.xyzzy/（Windows では C:\Users\<name>\.xyzzy\）に置く。上書きの手段は残す: -config オプションと XYZZYCONFIGPATH（空の値は未設定扱い）。初回起動時に、旧い場所（実行ファイルの隣の usr\ 以下）の設定を一度だけコピーする。テストは必ず一時フォルダを指定し、利用者の ~/.xyzzy/ を書き換えない。
@@ -29,7 +29,7 @@
 - 判断 8（XPI）: B を採用（x64 向けに作り直して残す）。オーナーが 2026-11-10 に承認。
   - 理由: このプロジェクトの意図の一つに、AI コーディングツールとの連携がある。その連携に必要な機構と考える。
   - 影響: 決定 8（DDE 廃止）で先送りした「外部からの操作の窓口」も、設計の対象になる。
-  - 未確認: etc\dxflush.dxa のソースと用途（作り直せるかどうか）。
+  - 確認済み（2026-11-10）: etc\dxflush.dxa は Den8 のキャッシュを更新する古い 32bit の DLL（2009 年の配布物に同梱）。どこからも参照されず、ソースもない。オーナーが 2026-11-10 に「削除して良い」と承認し、削除した。XPI の作り直しとは別の話。
 - 判断 9（ソースの文字コード）: A を採用（UTF-8 に変換し、/utf-8 でビルドする）。オーナーが 2026-11-10 に「推奨でよい」と承認。
   - 未確認: Lisp のファイルを UTF-8 にする場合の、読み込み側の対応（実装のときに確かめる）。
 - 判断 10（コード署名）: しない（決定 11）。オーナーが 2026-11-10 に承認。
