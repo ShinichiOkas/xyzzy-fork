@@ -21,6 +21,8 @@
 
 (provide "life")
 
+(in-package "editor")
+
 (defconstant life-patterns
   #(("@@@" " @@" "@@@")
     ("@@@ @@@" "@@  @@ " "@@@ @@@")

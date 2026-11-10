@@ -1,6 +1,6 @@
 # BUG-0011 unittest/foreign-test.l が全テスト実行の対象になっていない
 
-- 状態: 修正済み（foreign テストを全テストに含めた。c-callable を使う 2 件は x64 で失敗のまま）
+- 状態: 修正済み（foreign テストを全テストに含めた。c-callable の試験は S1 で削除）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-09
 - 更新: 2026-11-10

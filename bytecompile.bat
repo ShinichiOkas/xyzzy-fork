@@ -7,6 +7,8 @@ rem startup.lc だけ「存在するファイルを作成することは出来ません」と言われて
 rem たまにエラーになるので削除
 del /S /Q lisp\startup.lc >nul 2>&1
 
+rem Stale compiled files (lisp\*.lc) must go first: a .lc of a removed definition breaks the load.
+del /S /Q lisp\*.lc samples\*.lc >nul 2>&1
 del /S /Q xyzzy.wxp >nul 2>&1
 set XYZZYHOME=%~dp0
 set XYZZYINIFILE=

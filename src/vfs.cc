@@ -239,7 +239,7 @@ WINFS::CreateFile (LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode,
                            dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
   if (r != INVALID_HANDLE_VALUE)
     return r;
-  if (!sysdep.WinNTp () || !(dwFlagsAndAttributes & FILE_FLAG_BACKUP_SEMANTICS))
+  if (!(dwFlagsAndAttributes & FILE_FLAG_BACKUP_SEMANTICS))
     {
       int e = GetLastError ();
       if (e == ERROR_ACCESS_DENIED)

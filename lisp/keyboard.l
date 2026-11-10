@@ -270,12 +270,6 @@
 	  *vk-f24*
 	  *vk-numlock*
 	  *vk-scroll*
-	  *vk-oem-nec-equal*
-	  *vk-oem-fj-jisho*
-	  *vk-oem-fj-masshou*
-	  *vk-oem-fj-touroku*
-	  *vk-oem-fj-loya*
-	  *vk-oem-fj-roya*
 	  *vk-lshift*
 	  *vk-rshift*
 	  *vk-lcontrol*
@@ -508,21 +502,7 @@
 (defconstant *vk-scroll*         #x91)
 
 ;;
-;; NEC PC-9800 kbd definitions
-;;
-(defconstant *vk-oem-nec-equal*  #x92)   ; '=' key on numpad
-
-;;
-;; Fujitsu/OASYS kbd definitions
-;;
-(defconstant *vk-oem-fj-jisho*   #x92)   ; 'Dictionary' key
-(defconstant *vk-oem-fj-masshou* #x93)   ; 'Unregister word' key
-(defconstant *vk-oem-fj-touroku* #x94)   ; 'Register word' key
-(defconstant *vk-oem-fj-loya*    #x95)   ; 'Left OYAYUBI' key
-(defconstant *vk-oem-fj-roya*    #x96)   ; 'Right OYAYUBI' key
-
-;;
-;; #x97 - #x9F : unassigned
+;; #x92 - #x9F : unassigned
 ;;
 
 ;;

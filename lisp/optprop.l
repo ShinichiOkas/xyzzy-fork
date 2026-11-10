@@ -680,70 +680,22 @@
    *fill-kinsoku-mode*))
 
 (add-option-prop-page
- 'directory
- '(dialog 0 0 255 169
-   (:caption "ディレクトリ")
-   (:control
-    (:button nil "MSVC2.xヘルプ" #x50000007 7 7 242 45)
-    (:static nil "ディレクトリ(&D):" #x50020000 12 21 45 8)
-    (:edit vc2dir nil #x50810480 82 18 130 14)
-    (:button vc2ref "参照..." #x50010000 216 18 28 14)
-    (:static nil "idxファイル(&I)" #x50020000 12 37 40 8)
-    (:edit idx nil #x50810480 82 34 130 14)
-    (:button nil "MSDN Info viewer" #x50000007 7 54 242 45)
-    (:static nil "ビューワ(&V):" #x50020000 13 67 36 8)
-    (:edit ivpath nil #x50810480 82 64 130 14)
-    (:button ivref "参照..." #x50010000 216 64 28 14)
-    (:static nil "mvbファイル(&M):" #x50020000 13 82 47 8)
-    (:edit mvb nil #x50810480 82 79 130 14)
-    (:button mvbref "参照..." #x50010000 216 79 28 14)
-    (:button nil "HTMLヘルプ" #x50000007 7 101 242 27)
-    (:static nil "COL/CHMファイル(&H):" #x50020000 13 113 65 8)
-    (:edit html nil #x50810480 82 110 130 14)
-    (:button htmlref "参照..." #x50010000 216 110 28 14)
-    (:button nil "辞書" #x50000007 7 131 242 27)
-    (:static nil "ディレクトリ(&C):" #x50020000 13 143 44 8)
-    (:edit dic nil #x50810480 82 140 130 14)
-    (:button dicref "参照..." #x50010000 216 140 28 14)))
- #'(lambda ()
-     (list (cons 'vc2dir *winhelp-directory*)
-	   (cons 'idx (format nil "~{~A~^;~}" *winhelp-index-files*))
-	   (cons 'ivpath *info-viewer-file-name*)
-	   (cons 'mvb *info-viewer-title*)
-	   (cons 'html *html-help-path*)
-	   (cons 'dic *edict-dictionary-path*)))
- '((vc2ref :related vc2dir :directory-name-dialog (:title "参照"))
-   (ivref :related ivpath
-	  :file-name-dialog (:title "参照"
-			     :filter (("実行ファイル(*.exe)" . "*.exe")
-				      ("すべてのファイル(*.*)" . "*.*"))
-			     :must-exist t))
-   (mvbref :related mvb
-	   :file-name-dialog (:title "参照"
-			      :filter (("mvbファイル(*.mvb)" . "*.mvb")
-				       ("すべてのファイル(*.*)" . "*.*"))
-			      :must-exist t))
-   (htmlref :related html
-	   :file-name-dialog (:title "参照"
-			      :filter (("HTMLHELPファイル(*.chm;*.col)" . "*.chm;*.col")
-				       ("すべてのファイル(*.*)" . "*.*"))
-			      :must-exist t))
-   (dicref :related dic :directory-name-dialog (:title "参照")))
- #'(lambda (data)
-     (setq *winhelp-directory* (cdr (assoc 'vc2dir data)))
-     (let ((f (cdr (assoc 'ivpath data))))
-       (setq *info-viewer-file-name* (and f (not (string-match "^ *$" f)) f)))
-     (let ((f (cdr (assoc 'mvb data))))
-       (setq *info-viewer-title* (and f (file-namestring f))))
-     (let ((f (cdr (assoc 'idx data))))
-       (setq *winhelp-index-files* (and f (split-string f #\; t " "))))
-     (setq *html-help-path* (cdr (assoc 'html data)))
-     (setq *edict-dictionary-path* (cdr (assoc 'dic data)))))
+  'directory
+  '(dialog 0 0 255 45
+    (:caption "ディレクトリ")
+    (:control
+     (:button nil "辞書" #x50000007 7 7 242 27)
+     (:static nil "ディレクトリ(&C):" #x50020000 13 19 44 8)
+     (:edit dic nil #x50810480 82 16 130 14)
+     (:button dicref "参照..." #x50010000 216 16 28 14)))
+  #'(lambda ()
+      (list (cons 'dic *edict-dictionary-path*)))
+  '((dicref :related dic :directory-name-dialog (:title "参照")))
+  #'(lambda (data)
+      (setq *edict-dictionary-path* (cdr (assoc 'dic data)))))
 
 (register-history-variable
- '(*winhelp-directory* *info-viewer-file-name* *info-viewer-title*
-   *winhelp-index-files* *edict-dictionary-path*
-   *html-help-path*))
+  '(*edict-dictionary-path*))
 
 (add-option-prop-page
  'filer

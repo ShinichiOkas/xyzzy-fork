@@ -170,13 +170,6 @@
 (autoload 'make-tags-file-dialog "maketags" t)
 (defvar *maketags-list* nil)
 
-(export 'hanoi)
-(autoload 'hanoi "hanoi" t)
-
-(export '(life life-mode))
-(autoload 'life "life" t)
-(autoload 'life-mode "life" t)
-
 (export '(search-dialog replace-dialog count-matches-dialog
 	  goto-line-dialog open-file-dialog
 	  close-selected-buffer
@@ -208,16 +201,6 @@
 
 (export 'grep-dialog)
 (autoload 'grep-dialog "grepd" t)
-
-(export '(c-curve dragon-curve))
-(autoload 'c-curve "ccurve" t)
-(autoload 'dragon-curve "ccurve" t)
-
-(export 'gomoku)
-(autoload 'gomoku "gomoku" t)
-
-(export 'view-nifty-log)
-(autoload 'view-nifty-log "niftylog" t)
 
 (export '(gresreg re-gresreg query-gresreg query-gresreg-regexp))
 (autoload 'gresreg "gresreg" t)
@@ -295,10 +278,6 @@
 (autoload 'hh-keyword-call "hh-call" t)
 (autoload 'hh-sensitive-call "hh-call" t)
 
-(export '(*ispell-command* *ispell-option* ispell-buffer ispell-region))
-(autoload 'ispell-buffer "ispell" t)
-(autoload 'ispell-region "ispell" t)
-
 (export 'compare-windows)
 (autoload 'compare-windows "comparew" t)
 
@@ -310,6 +289,3 @@
 
 (export 'tail-f)
 (autoload 'tail-f "tail-f" t)
-
-(export 'show-dexplorer)
-(autoload 'show-dexplorer "dexplorer" t)

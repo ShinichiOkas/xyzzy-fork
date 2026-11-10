@@ -375,7 +375,6 @@ cleanup_lisp_objects ()
 #ifndef DEBUG
   ldata <lstream, Tstream>::cleanup ();
   ldata <lwin32_menu, Twin32_menu>::cleanup ();
-  ldata <lwin32_dde_handle, Twin32_dde_handle>::cleanup ();
   ldata <loledata, Toledata>::cleanup ();
   ldata <lwait_object, Twait_object>::cleanup ();
 #else
@@ -587,7 +586,6 @@ gc_mark_object (lisp object)
         case Tsyntax_table:
         case Tmarker:
         case Terror:
-        case Twin32_dde_handle:
         case Twait_object:
           return;
 
@@ -688,10 +686,6 @@ gc_mark_object (lisp object)
         case Tdll_function:
           gc_mark_object (xdll_function_module (object));
           object = xdll_function_name (object);
-          break;
-
-        case Tc_callable:
-          object = xc_callable_function (object);
           break;
 
         case Tenvironment:
@@ -2251,21 +2245,6 @@ rdump_object (FILE *fp, lwin32_menu *d, int n,
       }
 }
 
-static inline void
-dump_object (FILE *, const lwin32_dde_handle *, int,
-             const u_long [LDATA_MAX_OBJECTS_PER_LONG])
-{
-}
-
-static void
-rdump_object (FILE *fp, lwin32_dde_handle *d, int n,
-              const u_long used[LDATA_MAX_OBJECTS_PER_LONG])
-{
-  for (lwin32_dde_handle *de = d + n; d < de; d++)
-    if (bitisset (used, bit_index (d)))
-      d->hconv = 0;
-}
-
 #define HT_EQ 0
 #define HT_EQL 1
 #define HT_EQUAL 2
@@ -2581,40 +2560,6 @@ rdump_object (FILE *fp, ldll_function *d, int n,
         readf (fp, &d->return_type, sizeof d->return_type);
         readf (fp, &d->vaarg_p, sizeof d->vaarg_p);
         d->proc = load_dyn_function (d);
-      }
-}
-
-static void
-dump_object (FILE *fp, const lc_callable *d, int n,
-             const u_long used[LDATA_MAX_OBJECTS_PER_LONG])
-{
-  for (const lc_callable *de = d + n; d < de; d++)
-    if (bitisset (used, bit_index (d)))
-      {
-        writef (fp, d->function);
-        writef (fp, &d->nargs, sizeof d->nargs);
-        writef (fp, d->arg_types, d->nargs);
-        writef (fp, &d->arg_size, sizeof d->arg_size);
-        writef (fp, &d->return_type, sizeof d->return_type);
-        writef (fp, &d->convention, sizeof d->convention);
-      }
-}
-
-static void
-rdump_object (FILE *fp, lc_callable *d, int n,
-              const u_long used[LDATA_MAX_OBJECTS_PER_LONG])
-{
-  for (lc_callable *de = d + n; d < de; d++)
-    if (bitisset (used, bit_index (d)))
-      {
-        d->function = readl (fp);
-        readf (fp, &d->nargs, sizeof d->nargs);
-        d->arg_types = (u_char *)xmalloc (d->nargs);
-        readf (fp, d->arg_types, d->nargs);
-        readf (fp, &d->arg_size, sizeof d->arg_size);
-        readf (fp, &d->return_type, sizeof d->return_type);
-        readf (fp, &d->convention, sizeof d->convention);
-        init_c_callable (d);
       }
 }
 

@@ -90,9 +90,6 @@
     <ClCompile Include="..\src\conf.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\dde.cc">
-      <Filter>ソース ファイル\ed</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\dialogs.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
@@ -303,9 +300,6 @@
     <ClCompile Include="..\src\Window.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\winhelp.cc">
-      <Filter>ソース ファイル\ed</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\xlist.cc">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -357,13 +351,7 @@
     <ClCompile Include="..\src\data.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ctl3d.cc">
-      <Filter>ソース ファイル\ed</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\archiver.cc">
-      <Filter>ソース ファイル\ed</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\xdde.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
     <ClCompile Include="..\src\hashpjw.cc">
@@ -503,9 +491,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\xcolor.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\xdde.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\xlist.h">

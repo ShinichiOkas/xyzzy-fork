@@ -1359,15 +1359,6 @@ se_error (lisp lpath, int e)
     case SE_ERR_ASSOCINCOMPLETE:
       FEsimple_error (Eassoc_incomplete, lpath);
 
-    case SE_ERR_DDEBUSY:
-      FEdde_busy ();
-
-    case SE_ERR_DDEFAIL:
-      FEdde_error (lpath);
-
-    case SE_ERR_DDETIMEOUT:
-      FEdde_busy ();
-
     case SE_ERR_NOASSOC:
       FEsimple_error (Eno_assoc, lpath);
 

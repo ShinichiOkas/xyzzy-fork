@@ -121,9 +121,6 @@ Ftype_of (lisp object)
         case Twin32_menu:
           return Qmenu;
 
-        case Twin32_dde_handle:
-          return Qdde_handle;
-
         case Terror:
           return Qerror;
 
@@ -135,9 +132,6 @@ Ftype_of (lisp object)
 
         case Tdll_function:
           return Qsi_c_function;
-
-        case Tc_callable:
-          return Qsi_c_callable;
 
         case Toledata:
           return Qoledata;
@@ -319,8 +313,7 @@ lisp
 Ffunctionp (lisp object)
 {
   return boole (functionp (object) || closurep (object)
-                || dll_function_p (object)
-                || c_callable_p (object));
+                || dll_function_p (object));
 }
 
 lisp
@@ -328,8 +321,7 @@ Fcompiled_function_p (lisp object)
 {
   return boole (functionp (object)
                 || (closurep (object) && compiled_function_p (object))
-                || dll_function_p (object)
-                || c_callable_p (object));
+                || dll_function_p (object));
 }
 
 lisp
@@ -348,12 +340,6 @@ lisp
 Fsi_dll_function_p (lisp object)
 {
   return boole (dll_function_p (object));
-}
-
-lisp
-Fsi_c_callable_p (lisp object)
-{
-  return boole (c_callable_p (object));
 }
 
 lisp
@@ -408,12 +394,6 @@ lisp
 Fmenup (lisp object)
 {
   return boole (win32_menu_p (object));
-}
-
-lisp
-Fdde_handle_p (lisp object)
-{
-  return boole (win32_dde_handle_p (object));
 }
 
 lisp

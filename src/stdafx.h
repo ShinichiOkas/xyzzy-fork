@@ -11,7 +11,6 @@
 
 #include <commctrl.h>
 #include <ctype.h>
-#include <ddeml.h>
 #include <eh.h>
 #include <errno.h>
 #include <fcntl.h>

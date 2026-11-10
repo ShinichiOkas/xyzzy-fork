@@ -256,8 +256,6 @@
 		 (princ "built-in function."))))
 	    ((si:*dll-function-p def)
 	     (princ "a DLL function."))
-	    ((si:*c-callable-p def)
-	     (princ "a c-callable Lisp function."))
 	    ((eq (safe-car def) 'lambda)
 	     (let ((commandp (commandp def))
 		   (autoloadp (autoload-function-p def)))

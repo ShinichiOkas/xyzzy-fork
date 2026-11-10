@@ -144,14 +144,6 @@ init_condition ()
   E1 (      too_many_arguments, QCerror, Etoo_many_arguments, 1, Kdatum);
   E1 (      bad_type_specifier, QCerror, Ebad_type_specifier, 1, Kdatum);
   E0 (      read_only_buffer, QCerror, Eread_only_buffer, 1);
-  E1 (      dde_error, QCerror, Edde_error, 1, Kdatum);
-  E0 (        dde_timeout, QCdde_error, Edde_timeout, 1);
-  E0 (        dde_busy, QCdde_error, Edde_busy, 1);
-  E0 (        dde_low_memory, QCdde_error, Edde_low_memory, 1);
-  E0 (        dde_no_conv, QCdde_error, Edde_no_conv, 1);
-  E0 (        dde_not_processed, QCdde_error, Edde_not_processed, 1);
-  E0 (        dde_server_died, QCdde_error, Edde_server_died, 1);
-  E0 (        dde_terminated_transaction, QCdde_error, Edde_terminated_transaction, 1);
   D2 (      socket_error, QCerror, Ssi_report_socket_error, 1, Kdatum, Koperation);
   E0 (    storage_condition, QCserious_condition, Estorage_condition, 1);
   E0 (    stack_overflow, QCserious_condition, Estack_overflow, 1);
@@ -642,54 +634,6 @@ FEpower_number_too_large ()
 }
 
 lisp
-FEdde_timeout ()
-{
-  COND1 (dde_timeout, Quninitialized);
-}
-
-lisp
-FEdde_busy ()
-{
-  COND1 (dde_busy, Quninitialized);
-}
-
-lisp
-FEdde_low_memory ()
-{
-  COND1 (dde_low_memory, Quninitialized);
-}
-
-lisp
-FEdde_no_conv ()
-{
-  COND1 (dde_no_conv, Quninitialized);
-}
-
-lisp
-FEdde_not_processed ()
-{
-  COND1 (dde_not_processed, Quninitialized);
-}
-
-lisp
-FEdde_server_died ()
-{
-  COND1 (dde_server_died, Quninitialized);
-}
-
-lisp
-FEdde_error (lisp v)
-{
-  COND1 (dde_error, v);
-}
-
-lisp
-FEdde_terminated_transaction ()
-{
-  COND1 (dde_terminated_transaction, Quninitialized);
-}
-
-lisp
 FEnetwork_error (lisp n, lisp v)
 {
   COND2 (network_error, n, v);
@@ -820,14 +764,6 @@ check_condition_def ()
   try {FElog_domain_error ();} catch (nonlocal_jump &) {}
   try {FEbignum_overflow ();} catch (nonlocal_jump &) {}
   try {FEpower_number_too_large ();} catch (nonlocal_jump &) {}
-  try {FEdde_timeout ();} catch (nonlocal_jump &) {}
-  try {FEdde_busy ();} catch (nonlocal_jump &) {}
-  try {FEdde_low_memory ();} catch (nonlocal_jump &) {}
-  try {FEdde_no_conv ();} catch (nonlocal_jump &) {}
-  try {FEdde_not_processed ();} catch (nonlocal_jump &) {}
-  try {FEdde_server_died ();} catch (nonlocal_jump &) {}
-  try {FEdde_error (Qnil);} catch (nonlocal_jump &) {}
-  try {FEdde_terminated_transaction ();} catch (nonlocal_jump &) {}
   try {FEnetwork_error (Qnil, Qnil);} catch (nonlocal_jump &) {}
   try {FEsimple_package_error (Qnil, e, Qnil);} catch (nonlocal_jump &) {}
   try {FEfile_lost_error (Qnil, Qnil);} catch (nonlocal_jump &) {}

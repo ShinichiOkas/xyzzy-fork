@@ -5,6 +5,8 @@
 
 (provide "hanoi")
 
+(in-package "editor")
+
 (defun hanoi-setup-screen (nrings ring)
   (let* ((width (window-columns))
 	 (height (window-height))

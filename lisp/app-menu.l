@@ -111,13 +111,13 @@
 	  (:item :tag-command "文字列で置き換え(&S)"
 	   'string-rectangle-selection :modify-rectangle)))
 
-  (or *command-bar-popup-menu*
-      (setq *command-bar-popup-menu* (create-popup-menu ':command-bar-popup)))
+  (setq *command-bar-popup-menu*
+	(create-popup-menu ':command-bar-popup))
 
-  (or *recent-file-popup-menu*
-      (setq *recent-file-popup-menu* (create-popup-menu ':recent-file-popup)))
-  (or *recent-session-popup-menu*
-      (setq *recent-session-popup-menu* (create-popup-menu ':recent-session-popup)))
+  (setq *recent-file-popup-menu*
+	(create-popup-menu ':recent-file-popup))
+  (setq *recent-session-popup-menu*
+	(create-popup-menu ':recent-session-popup))
 
   (setq *app-menu*
 	(define-menu
@@ -448,22 +448,10 @@
 	    #'(lambda () (if (null *global-mark-list*) :disable)))
 	   (:sep :|above-(>_<)|)
 	   (:popup :|(>_<)-popup| "(>&_<)"
-	    (:item :tag-command "ニフティのログを読む(&N)"
-	     'view-nifty-log)
 	    (:item :tag-command "電卓(&T)"
 	     'calc)
 	    (:item :tag-command "カレンダー(&A)"
-	     'calendar)
-	    (:item :tag-command "ハノイの塔(&H)"
-	     'hanoi)
-	    (:item :tag-command "五目(&G)"
-	     'gomoku)
-	    (:item :tag-command "ライフ(&L)"
-	     'life)
-	    (:item :tag-command "C曲線(&C)"
-	     'c-curve)
-	    (:item :tag-command "ドラゴン曲線(&R)"
-	     'dragon-curve)))
+	     'calendar)))
 	  (:popup 'help "ヘルプ(&?)"
 	   (:item :tag-command "キー割り当て一覧(&K)"
 	    'describe-bindings)

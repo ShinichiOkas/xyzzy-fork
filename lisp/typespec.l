@@ -119,7 +119,6 @@
     (ed:regexp . ed:regexpp)
     (ed:syntax-table . ed:syntax-table-p)
     (ed:menu . ed:menup)
-    (ed:dde-handle . ed:dde-handle-p)
     (ed:window . ed:windowp)
     (ed:oledata . ed:oledatap)
     (ed:wait-object . ed:wait-object-p)
@@ -128,7 +127,6 @@
     (si:structure-definition . si:*structure-definition-p)
     (si:dll-module . si:*dll-module-p)
     (si:c-function . si:*dll-function-p)
-    (si:c-callable . si:*c-callable-p)
     (si:environment . si:*environmentp)
     ))
 

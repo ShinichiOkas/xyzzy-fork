@@ -98,7 +98,6 @@
 #define IDB_BITMAP1                     102
 #define IDS_FOOTER_OFFSET_TOO_LARGE     102
 #define IDI_XYZZY                       103
-#define IDD_HELPDLG                     104
 #define IDB_FILESEL                     106
 #define IDD_FONT                        108
 #define IDI_TT                          109

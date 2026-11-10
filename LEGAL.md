@@ -36,7 +36,7 @@
 
 ----
 
-### lisp/life.l
+### samples/life.l
 
     Conway's `Life' for GNU Emacs
     Copyright (C) 1988 Free Software Foundation, Inc.

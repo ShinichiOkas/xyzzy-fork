@@ -431,7 +431,7 @@ Window::init (int minibufp, int temporary)
 
   lwp = make_window ();
 
-  if (!CreateWindowEx (sysdep.Win4p () ? WS_EX_CLIENTEDGE : 0,
+  if (!CreateWindowEx (WS_EX_CLIENTEDGE,
                        Application::ClientClassName, "",
                        (WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE
                         | WS_VSCROLL | WS_HSCROLL),

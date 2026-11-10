@@ -106,9 +106,6 @@ Ffunction (lisp arg, lex_env &lex)
         if (xcar (fn) == Qlambda)
           return make_closure (fn, lex.lex_var, lex.lex_fns, lex.lex_frame);
         break;
-
-      case Tc_callable:
-        return xc_callable_function (fn);
       }
   return FEinvalid_function (fn);
 }
@@ -679,16 +676,6 @@ eval (lisp arg, lex_env &lex)
       return funcall_dll (f, arglist);
     }
 
-  if (c_callable_p (type))
-    {
-      trace.set (stack_trace::eval_args, real_name, Qnil);
-      arglist = eval_args (arglist, lex);
-      if (call_applyhook (f, arglist, r))
-        return r;
-      trace.set (stack_trace::apply, real_name, arglist);
-      return funcall_c_callable (f, arglist);
-    }
-
   if (consp (type))
     {
       if (xcar (f) == Qlambda)
@@ -794,12 +781,6 @@ Ffuncall (lisp fn, lisp args)
     {
       trace.set (stack_trace::apply, fn, args);
       return funcall_dll (f, args);
-    }
-
-  if (c_callable_p (type))
-    {
-      trace.set (stack_trace::apply, fn, args);
-      return funcall_c_callable (f, args);
     }
 
   if (consp (type) && xcar (f) == Qlambda)

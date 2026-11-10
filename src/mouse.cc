@@ -151,7 +151,7 @@ mouse_state::dispatch (Window *wp, WPARAM wparam, LPARAM lparam, int op)
         return;
     }
 
-  int wm_mouse_last = sysdep.Win5p () ? WM_MOUSELAST_WIN5 : WM_MOUSELAST;
+  int wm_mouse_last = WM_MOUSELAST_WIN5;
 
   int x = short (LOWORD (lparam));
   int y = short (HIWORD (lparam));
@@ -189,13 +189,10 @@ mouse_state::dispatch (Window *wp, WPARAM wparam, LPARAM lparam, int op)
 
           if (GetAsyncKeyState (VK_MBUTTON) < 0)
             status |= MK_MBUTTON;
-          if (sysdep.Win5p ())
-            {
-              if (GetAsyncKeyState (VK_XBUTTON1) < 0)
-                status |= MK_XBUTTON1;
-              if (GetAsyncKeyState (VK_XBUTTON2) < 0)
-                status |= MK_XBUTTON2;
-            }
+          if (GetAsyncKeyState (VK_XBUTTON1) < 0)
+            status |= MK_XBUTTON1;
+          if (GetAsyncKeyState (VK_XBUTTON2) < 0)
+            status |= MK_XBUTTON2;
 
           if (status)
             {

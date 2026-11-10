@@ -40,8 +40,7 @@ FilerView::FilerView (lisp dir, lisp last_path)
   fv_llastdir = last_path;
   fv_lmask = Qnil;
   fv_lfile_mask = Qnil;
-  fv_retrieve_icon =
-    sysdep.Win4p () && xsymbol_value (Vfiler_retrieve_icon) != Qnil;
+  fv_retrieve_icon = xsymbol_value (Vfiler_retrieve_icon) != Qnil;
 
   if (fv_retrieve_icon)
     {
@@ -1551,33 +1550,6 @@ add_file_name_histories (HWND combo)
       add_combo (combo, xcar (p));
 }
 
-static void
-expand_combobox (int n, int d)
-{
-  for (HWND hwnd = GetTopWindow (0); hwnd;
-       hwnd = GetNextWindow (hwnd, GW_HWNDNEXT))
-    {
-      char name[16];
-      if (GetClassName (hwnd, name, 10) == 9
-          && !strcmp (name, "ComboLBox"))
-        {
-          DWORD pid;
-          GetWindowThreadProcessId (hwnd, &pid);
-          if (pid == GetCurrentProcessId ())
-            {
-              RECT r;
-              GetWindowRect (hwnd, &r);
-              if (r.left)
-                {
-                  MoveWindow (hwnd, r.left, r.top,
-                              (r.right - r.left) * n / d, r.bottom - r.top, 0);
-                  break;
-                }
-            }
-        }
-    }
-}
-
 void
 Filer::save_geometry_p (int &posp, int &sizep) const
 {
@@ -1672,10 +1644,7 @@ Filer::InitDialog ()
       HWND combo = GetDlgItem (id_hwnd, IDC_NAME);
       add_file_name_histories (combo);
       GetClientRect (combo, &r);
-      if (sysdep.Win4p ())
-        SendMessage (combo, CB_SETDROPPEDWIDTH, r.right * 3 / 2, 0);
-      else
-        expand_combobox (3, 2);
+      SendMessage (combo, CB_SETDROPPEDWIDTH, r.right * 3 / 2, 0);
     }
   SetTimer (id_hwnd, TID_GC, 30000, 0);
   SetFocus (f_pview->fv_hwnd);
@@ -3024,7 +2993,7 @@ ViewerWindow::init (HWND parent, ViewerBuffer *bp)
   w_point.p_point = 0;
   w_point.p_chunk = bp->b_chunkb;
   w_point.p_offset = 0;
-  return (int)(INT_PTR)CreateWindowEx (sysdep.Win4p () ? WS_EX_CLIENTEDGE : 0,
+  return (int)(INT_PTR)CreateWindowEx (WS_EX_CLIENTEDGE,
                               vw_classname, "",
                               WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE,
                               0, 0, 0, 0, parent, 0, app.hinst, this);

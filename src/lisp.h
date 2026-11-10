@@ -119,7 +119,6 @@ enum lisp_object_type
   Tchunk,                // 汎用バッファ領域
   Tdll_module,           // DLL
   Tdll_function,         // DLL内の関数
-  Tc_callable,           // Cから呼べる関数
   Twindow,               // ウィンドウ
   Tbuffer,               // バッファ
   Tmarker,               // マーカ
@@ -127,7 +126,7 @@ enum lisp_object_type
   Tprocess,              // プロセス
   Tregexp,               // コンパイルした正規表現
   Twin32_menu,           // メニュー
-  Twin32_dde_handle,     // DDE
+  Tvacant,               // 欠番（旧 DDE handle。以降の番号を変えないため空けてある）
   Terror,                // エラーオブジェクト
   Toledata,              // IDispatch
   Treadtable,            // readtable

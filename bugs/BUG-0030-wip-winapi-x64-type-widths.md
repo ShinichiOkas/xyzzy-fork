@@ -1,6 +1,6 @@
 # BUG-0030 lisp/wip/winapi.l の WPARAM・LPARAM・LRESULT と MSG が x64 で 4 バイトに写像されている（MSG は Win64 より小さく、GetMessage が超えて書く）
 
-- 状態: 未修正（重大度: 高。ヒープの超過書き込みを含む。WIP のモジュール）
+- 状態: 修正済み（2026-11-10、S1。lisp/wip を削除。決定 9）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-10（BUG-0001 の型幅レビューで見つけた。独立レビューの確定指摘）
 

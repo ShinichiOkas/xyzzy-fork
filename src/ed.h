@@ -200,35 +200,6 @@ xwin32_menu_command (lisp x)
 
 void check_popup_menu (lisp lmenu);
 
-class lwin32_dde_handle: public lisp_object
-{
-public:
-  HCONV hconv;
-  ~lwin32_dde_handle ();
-};
-
-# define win32_dde_handle_p(X) typep ((X), Twin32_dde_handle)
-
-inline
-lwin32_dde_handle::~lwin32_dde_handle ()
-{
-  if (hconv)
-    DdeDisconnect (hconv);
-}
-
-inline void
-check_win32_dde_handle (lisp x)
-{
-  check_type (x, Twin32_dde_handle, Qdde_handle);
-}
-
-inline HCONV &
-xwin32_dde_handle_hconv (lisp x)
-{
-  assert (win32_dde_handle_p (x));
-  return ((lwin32_dde_handle *)x)->hconv;
-}
-
 inline lwindow *
 make_window ()
 {
@@ -259,14 +230,6 @@ make_regexp ()
   lregexp *p = ldata <lregexp, Tregexp>::lalloc ();
   p->pattern = 0;
   p->source = Qnil;
-  return p;
-}
-
-inline lwin32_dde_handle *
-make_win32_dde_handle ()
-{
-  lwin32_dde_handle *p = ldata <lwin32_dde_handle, Twin32_dde_handle>::lalloc ();
-  p->hconv = 0;
   return p;
 }
 

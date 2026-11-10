@@ -13,8 +13,8 @@ static int f_first_time;
 #define XPAD 2
 #define YPAD 1
 
-#define TEXTCOLOR (!sysdep.Win4p () ? RGB (0, 0, 128) : GetSysColor (COLOR_INFOTEXT))
-#define BACKCOLOR (!sysdep.Win4p () ? RGB (255, 255, 0) : GetSysColor (COLOR_INFOBK))
+#define TEXTCOLOR (GetSysColor (COLOR_INFOTEXT))
+#define BACKCOLOR (GetSysColor (COLOR_INFOBK))
 
 #define TIMER_ID 1
 

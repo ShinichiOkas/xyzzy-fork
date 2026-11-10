@@ -14,7 +14,6 @@
 (export '(expand-c-type define-c-type *define-c-type))
 (export '(define-dll-entry *define-dll-entry
 	  expand-c-vaargs c-vaargs
-	  defun-c-callable *defun-c-callable
 	  define-c-struct *define-c-struct
 	  c-struct-size-of c-struct-offset-of
 	  define *define *define-c-macro
@@ -201,26 +200,6 @@
 (defmacro *define-dll-entry (return-type name (&rest args) dll-name &optional export-name)
   `(progn
      (define-dll-entry ,return-type ,name ,args ,dll-name ,export-name)
-     (export ',name)))
-
-(setf (get 'defun-c-callable 'ed:lisp-indent-hook) 'defun)
-(setf (get '*defun-c-callable 'ed:lisp-indent-hook) 'defun)
-
-(defmacro defun-c-callable (return-type name-and-options (&rest args) &body body)
-  (multiple-value-bind (name options)
-      (parse-func-name-and-options name-and-options)
-    `(setf (symbol-function ',name)
-	   (si:make-c-callable #'(lambda ,(mapcar #'cadr args)
-				   (block ,name ,@body))
-			       ',(mapcar #'(lambda (arg)
-					     (c-argument-type (car arg)))
-					 args)
-			       ',(c-return-type return-type)
-			       ,@options))))
-
-(defmacro *defun-c-callable (return-type name (&rest args) &body body)
-  `(progn
-     (defun-c-callable ,return-type ,name ,args ,@body)
      (export ',name)))
 
 (defun parse-func-name-and-options (name-and-options)

@@ -117,20 +117,14 @@ public:
   DWORD version () const
     {return PACK_VERSION (os_ver.dwMajorVersion, os_ver.dwMinorVersion);}
 
-  int Win4p () const
-    {return os_ver.dwMajorVersion >= 4;}
   int Win5p () const
     {return os_ver.dwMajorVersion >= 5;}
   int Win6p () const
     {return os_ver.dwMajorVersion >= 6;}
   int Win6_1p () const
     {return os_ver.dwMajorVersion >= 6 && os_ver.dwMinorVersion >= 1;}
-  int Win95p () const
-    {return wintype == WINTYPE_WINDOWS_95;}
   int Win98p () const
     {return wintype == WINTYPE_WINDOWS_98;}
-  int WinNTp () const
-    {return os_ver.dwPlatformId == VER_PLATFORM_WIN32_NT;}
 };
 
 

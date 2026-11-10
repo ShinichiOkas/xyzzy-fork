@@ -722,11 +722,10 @@ preview_page_window::create (HWND hwnd, const RECT &r)
   if (!register_wndclass (app.hinst))
     return 0;
 
-  if (!CreateWindowEx (sysdep.Win4p () ? WS_EX_CLIENTEDGE : 0,
+  if (!CreateWindowEx (WS_EX_CLIENTEDGE,
                        PageClassName, "",
                        (WS_HSCROLL | WS_VSCROLL | WS_VISIBLE | WS_CHILD
-                        | WS_CLIPSIBLINGS | WS_TABSTOP
-                        | (sysdep.Win4p () ? 0 : WS_BORDER)),
+                        | WS_CLIPSIBLINGS | WS_TABSTOP),
                        r.left, r.top, r.right - r.left, r.bottom - r.top,
                        hwnd, 0, app.hinst, this))
     return 0;

@@ -241,13 +241,11 @@ print_circle::setup1 (lisp object)
         case Tprocess:
         case Tregexp:
         case Twin32_menu:
-        case Twin32_dde_handle:
         case Terror:
         case Tstruct_def:
         case Tchunk:
         case Tdll_module:
         case Tdll_function:
-        case Tc_callable:
         case Toledata:
         case Treadtable:
         case Twait_object:
@@ -1550,12 +1548,6 @@ print_win32_menu (wStream &stream, const print_control &, lisp object)
 }
 
 static inline void
-print_win32_dde_handle (wStream &stream, const print_control &, lisp object)
-{
-  print_unreadable_object (stream, object, "DDE handle");
-}
-
-static inline void
 print_chunk (wStream &stream, const print_control &pc, lisp object)
 {
   char buf[32];
@@ -1586,18 +1578,6 @@ print_dll_function (wStream &stream, const print_control &, lisp object)
 {
   stream.add ("#<c-function: ");
   simple_print_string (stream, xdll_function_name (object));
-  stream.add ('>');
-}
-
-static void
-print_c_callable (wStream &stream, const print_control &pc, lisp object)
-{
-  stream.add ("#<c-callable: ");
-  if (xc_callable_convention (object) == CALLING_CONVENTION_STDCALL)
-    stream.add ("stdcall ");
-  else
-    stream.add ("cdecl ");
-  print_sexp (stream, pc, xc_callable_function (object), 0);
   stream.add ('>');
 }
 
@@ -1784,10 +1764,6 @@ print_sexp (wStream &stream, const print_control &pc, lisp object, int level)
           print_win32_menu (stream, pc, object);
           break;
 
-        case Twin32_dde_handle:
-          print_win32_dde_handle (stream, pc, object);
-          break;
-
         case Tchunk:
           print_chunk (stream, pc, object);
           break;
@@ -1798,10 +1774,6 @@ print_sexp (wStream &stream, const print_control &pc, lisp object, int level)
 
         case Tdll_function:
           print_dll_function (stream, pc, object);
-          break;
-
-        case Tc_callable:
-          print_c_callable (stream, pc, object);
           break;
 
         case Toledata:

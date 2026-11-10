@@ -117,28 +117,6 @@
   !! type-error)
 
 
-(deftest c-callable-typep ()
-  (values
-   (typep (si:make-c-callable #'car :void :void)
-          'si:c-callable)
-   (typep nil 'si:c-callable)
-   (typep 0 'si:c-callable)
-   (typep "" 'si:c-callable))
-  => t
-  => nil
-  => nil
-  => nil)
-
-(deftest c-callable-check-type-1 ()
-  (check-type (si:make-c-callable #'car :void :void)
-              si:c-callable)
-  => nil)
-
-(deftest c-callable-check-type-2 ()
-  (check-type "" si:c-callable)
-  !! type-error)
-
-
 (deftest environment-typep ()
   (values
    (typep (macrolet ((env (&environment env)

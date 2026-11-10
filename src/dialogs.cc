@@ -872,7 +872,7 @@ Ffile_name_dialog (lisp keys)
   int save = find_keyword_bool (Ksave, keys);
   int multiple = find_keyword_bool (Kmultiple, keys);
   int must_exist = find_keyword_bool (Kmust_exist, keys);
-  int explorer = sysdep.Win4p () && find_keyword_bool (Kexplorer, keys, 1);
+  int explorer = find_keyword_bool (Kexplorer, keys, 1);
   int hide_read_only = find_keyword_bool (Khide_read_only, keys, 1);
   int overwrite = find_keyword_bool (Koverwrite, keys);
   int read_only = find_keyword_bool (Kread_only, keys);
@@ -899,9 +899,7 @@ Ffile_name_dialog (lisp keys)
   OFN ofn;
   bzero (&ofn, sizeof ofn);
 
-  ofn.lStructSize = (sysdep.Win5p ()
-                     ? OPENFILENAME_SIZE_VERSION_500
-                     : OPENFILENAME_SIZE_VERSION_400);
+  ofn.lStructSize = OPENFILENAME_SIZE_VERSION_500;
   ofn.hwndOwner = get_active_window ();
   ofn.hInstance = app.hinst;
   ofn.lCustData = LPARAM (&ofn);
@@ -935,8 +933,7 @@ Ffile_name_dialog (lisp keys)
   if (read_only)
     ofn.Flags |= OFN_READONLY;
 
-  if (sysdep.Win5p ())
-    ofn.Flags |= OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN;
+  ofn.Flags |= OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN;
 
   char *filter = 0;
   if (filter_size)
@@ -1228,8 +1225,7 @@ Fdirectory_name_dialog (lisp keys)
   odn.Flags = (OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST | OFN_LONGNAMES
                | OFN_ENABLEHOOK | OFN_HIDEREADONLY | OFN_ENABLETEMPLATE
                | OFN_NOVALIDATE);
-  if (sysdep.Win5p ())
-    odn.Flags |= OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN;
+  odn.Flags |= OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN;
   odn.lpfnHook = directory_name_dialog_hook;
   odn.lpTemplateName = MAKEINTRESOURCE (IDD_DIRECTORY);
 

@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "ed.h"
 #include "appid.h"
-#include "ctl3d.h"
 #include "environ.h"
 #include "fnkey.h"
 #include "mainframe.h"
@@ -670,7 +669,6 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
     case WM_SYSCOLORCHANGE:
       sysdep.load_colors ();
-      Ctl3d::color_change ();
       Window::init_colors ();
       reload_caret_colors ();
       Window::update_last_caret ();
@@ -684,7 +682,6 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
     case WM_WININICHANGE:
     /*case WM_SETTINGCHANGE:*/
-      Ctl3d::ini_change ();
       sysdep.load_settings ();
       g_frame.reload_settings ();
       {
@@ -715,11 +712,6 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         else
           app.stat_area.resize ();
       }
-      if (!sysdep.Win4p ())
-        {
-          app.kbdq.init_kbd_encoding ();
-          ime_open_status (hwnd);
-        }
       return 0;
 
     case WM_ERASEBKGND:
@@ -1063,17 +1055,6 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     default:
       if (msg == wm_private_xyzzysrv)
         return read_listen_server (wparam, lparam);
-
-      if (!sysdep.Win98p () && !sysdep.Win5p ())
-        {
-          static const UINT msime = RegisterWindowMessage (WM_MSIME_RECONVERT);
-          static const UINT atok = RegisterWindowMessage (WM_ATOK_RECONVERT);
-          if ((msg == msime || msg == atok)
-              && wparam == IMR_RECONVERTSTRING)
-            return app.kbdq.reconvert ((RECONVERTSTRING *)lparam, 1);
-          if (wparam == IMR_DOCUMENTFEED)
-            return app.kbdq.documentfeed ((RECONVERTSTRING *)lparam, 1);
-        }
 
       wheel_info wi;
       if (xsymbol_value (Vsupport_mouse_wheel) != Qnil

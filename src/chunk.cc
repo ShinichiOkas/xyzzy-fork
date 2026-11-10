@@ -408,9 +408,6 @@ cast_to_int64 (lisp object)
 
       case Tdll_function:
         return int64_t (xdll_function_proc (object));
-
-      case Tc_callable:
-        return int64_t (xc_callable_insn (object));
       }
   return coerce_to_int64 (object);
 }

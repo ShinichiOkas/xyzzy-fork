@@ -1,6 +1,6 @@
 # BUG-0003 den8view が 32bit の etc/den8util.dll と x86 の装飾名に依存する
 
-- 状態: 未対応（方針待ち）
+- 状態: 修正済み（2026-11-10、S1。den8view と etc/den8util.dll を削除。決定 7）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-09
 

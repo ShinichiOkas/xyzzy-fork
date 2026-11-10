@@ -1,10 +1,8 @@
 #include "stdafx.h"
 #include "ed.h"
-#include "ctl3d.h"
 #include "environ.h"
 #include "except.h"
 #include "privctrl.h"
-#include "xdde.h"
 #include "fnkey.h"
 #include "syntaxinfo.h"
 #include "ipc.h"
@@ -485,7 +483,6 @@ init_symbol_value_once ()
   xsymbol_value (Vdefault_kinsoku_bol_chars) = Qnil;
   xsymbol_value (Vdefault_kinsoku_eol_chars) = Qnil;
 
-  xsymbol_value (Vdde_timeout) = make_fixnum (30000);
   xsymbol_value (Vbrackets_is_wildcard_character) = Qt;
 
   init_char_encoding ();
@@ -799,8 +796,6 @@ init_app (HINSTANCE hinst, int passed_cmdshow, int &ole_initialized)
   copy_handle (STD_OUTPUT_HANDLE, 1);
   copy_handle (STD_ERROR_HANDLE, 2);
 
-  Ctl3d::enable (hinst);
-
   _set_new_handler (handle_new_failure);
   _set_se_translator (se_handler);
 
@@ -910,15 +905,12 @@ init_app (HINSTANCE hinst, int passed_cmdshow, int &ole_initialized)
   Fbegin_wait_cursor ();
 
   ShowWindow (app.toplev, cmdshow);
-  if (sysdep.Win5p ())
-    UpdateWindow (app.toplev);
+  UpdateWindow (app.toplev);
 
   app.modeline_param.init (HFONT (SendMessage (app.hwnd_sw, WM_GETFONT, 0, 0)));
 
   if (!init_editor_objects ())
     return 0;
-
-  try {Dde::initialize ();} catch (Dde::Exception &) {}
 
   return 1;
 }
