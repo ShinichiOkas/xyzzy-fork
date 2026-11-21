@@ -11,6 +11,24 @@
 - [x] S4-2 `lisp/ole.l` 削除（`ed6e77d`）
 - [x] S4-3 `lisp/builtin.l` の `ole-*`/`oledatap` 宣言 14 件削除（`ed6e77d`）
 - [x] S4-4 `src/gen-syms.cc` の OLE DEFUN/MAKE_SYMBOL2Q 16 行削除（`d315a03`）
+- [x] S4-5〜14（2026-11-22 再開）
+  - S4-5 `src/gen/` は git 管理外。gen-src1 がビルド時に gen-syms.cc から再生成するので手作業なし
+  - S4-6 `oledata.cc`/`oledata.h`/`oleconv.h` 削除
+  - S4-7 `data.cc`（cleanup・GC マーク・dump/rdump）、`dataP.h` の `loledata` 削除。`lisp.h` は `Toledata` → `Tvacant2`（欠番）
+  - S4-8 `pred.cc`（`type-of` の分岐・`Foledatap`）、`lprint.cc`（`print_oledata`）、`ed.h`（include）。`lisp/typespec.l` の `oledata` 行も削除
+  - S4-9 `msgdef.h` の OLE 専用メッセージ 8 件削除（oledata.cc 以外の参照ゼロを確認）
+  - S4-10 `init.cc` は `OleInitialize` だけで OLE Automation 固有の初期化なし（D&D が要るので残す）
+  - 追加: `src/com.cc` に残っていた `Fole_drop_files` の本体と `oleconv.h` の include を削除（`com.h` の `safe_vidl` は DnD.cc が使うので残す）
+  - S4-11 vcxproj・filters から 3 項目削除
+  - S4-12〜14 unittest の OLE 部分削除
+- [x] S4-15 確かめ（2026-11-22）
+  - `install.bat`（ビルド＋バイトコンパイル）: 終了コード 0。ビルドは 0 エラー（警告は既存の C4244/C4267 のみ）
+  - `run-tests.bat`: 558 件全件合格。S3 の 570 件（569 合格・1 失敗）から 12 件減 = `ole-tests.l` の 11 件 + `fix-ole-method`
+  - `src/gen/*` と `xyzzy.exe` に `ole-create-object`・`ole-method`・`oledatap`・`ole-drop-files`・`#<oledata` の文字列なし
+  - ショートカット: `*create-shortcut` → `resolve-shortcut` の往復で行き先・説明が一致
+  - D&D: 起動したメインウィンドウに `OleDropTargetInterface` が付いている（`OleInitialize`＋`RegisterDragDrop` が効いている）
+
+**S4 は閉じた。**
 
 ## 残 — 上流 API が落ち着いたら順に実行
 

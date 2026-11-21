@@ -1,7 +1,7 @@
 {
   "workcopy": { "host": "ANCIENT", "path": "S:/work/develop/xyzzy-fork", "key": "a9495dbe" },
-  "sprint_id": "e792e26f-cd81-4c6c-9cba-7fe31b38e9e4",
-  "status": "executing",
-  "journal": ".pair-agent/sprints/e792e26f-cd81-4c6c-9cba-7fe31b38e9e4.json",
-  "updated_at": "2026-11-21T21:51:29+09:00"
+  "sprint_id": null,
+  "status": "idle",
+  "journal": null,
+  "updated_at": "2026-11-22T00:04:51+09:00"
 }

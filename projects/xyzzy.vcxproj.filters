@@ -201,9 +201,6 @@
     <ClCompile Include="..\src\number.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\oledata.cc">
-      <Filter>ソース ファイル\ed</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\package.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
@@ -548,12 +545,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ofn.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\oleconv.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\oledata.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\package.h">

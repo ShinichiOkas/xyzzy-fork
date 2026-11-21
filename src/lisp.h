@@ -128,7 +128,7 @@ enum lisp_object_type
   Twin32_menu,           // メニュー
   Tvacant,               // 欠番（旧 DDE handle。以降の番号を変えないため空けてある）
   Terror,                // エラーオブジェクト
-  Toledata,              // IDispatch
+  Tvacant2,              // 欠番（旧 oledata/IDispatch。以降の番号を変えないため空けてある）
   Treadtable,            // readtable
   Twait_object,          // wait-object
   Tchar_encoding,        // character encoding scheme

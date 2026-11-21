@@ -1,6 +1,6 @@
 # S4: OLE Automation support removal
 
-- status: executing
+- status: done
 - sprint_id: e792e26f-cd81-4c6c-9cba-7fe31b38e9e4
 - created: 2026-11-21
 - decision reference: docs/refactoring/decisions.md (決定8の文脈: 「将来必要になったら、DDE や OLE ではなく、名前付きパイプと簡単な JSON 形式などのモダンな方式で新しく設計する」)

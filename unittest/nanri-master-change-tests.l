@@ -1259,29 +1259,6 @@
 ;; NOTE: やたらと時間掛かるんで保留
 ;; Ref: https://gist.github.com/227683
 
-;; 	* src : fix ole-method.
-;; 	ole-method で文字列を渡すと余計な 0x00 が付く問題
-;; 	via http://fixdap.com/p/xyzzy/8379/
-;; 	via http://d.hatena.ne.jp/miyamuko/20080304/xyzzy_ole_method_bug
-;;
-;; NOTE: miyamuko さんからの頂き物; thx
-(deftest fix-ole-method ()
-  "ole-method で文字列を渡すと余計な 0x00 が付く問題"
-  (flet ((ole-create-file (content)
-           (with-temp-files (tmp)
-             (let* ((fso (ole-create-object "Scripting.FileSystemObject"))
-                    (file (ole-method fso 'OpenTextFile tmp 2)))
-               (unwind-protect
-                   (ole-method file 'Write content)
-                 (ole-method file 'Close))
-               (file-length tmp)))))
-    (values (ole-create-file "")
-            (ole-create-file "f")
-            (ole-create-file "foo")))
-  => 0
-  => 1
-  => 3)
-
 
 ;; 	* src : fix for FFI.
 ;; 	戻り値が double, float の C 関数を呼ぶとクラッシュする

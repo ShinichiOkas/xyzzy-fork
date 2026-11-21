@@ -984,10 +984,6 @@
            (insert-and-eval "#<function: car>")
          (reader-error (c)
            (list (format nil "~A" (reader-error-datum c)) (reader-error-arguments c))))
-       (progn
-         (insert-and-eval "(load-library \"ole\")")
-         (insert-and-eval "(setf fso (ole-create-object \"Scripting.FileSystemObject\"))")
-         (insert-and-eval "#{fso.BuildPath[\"foo\" \"bar\"]}"))
        )))
   => "変数が定義されていません: >"
   => "変数が定義されていません: }"
@@ -1005,8 +1001,7 @@
   => #3A(((1)))
   => #C(1 2)
   => #S(foreign::c-type-definition type :int32 size 4 slots nil accessor system:unpack-int32)
-  => ("ディスパッチングマクロ副文字ではありません" (#\<))
-  => "foo\\bar")
+  => ("ディスパッチングマクロ副文字ではありません" (#\<)))
 
 (deftest lisp-tags-find-target ()
   (with-temp-buffer

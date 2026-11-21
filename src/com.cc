@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "ed.h"
 #include "com.h"
-#include "oleconv.h"
 #include "sysdep.h"
 
 static void
@@ -215,92 +214,4 @@ Fresolve_shortcut (lisp lshortcut)
   multiple_value::count () = 2;
   multiple_value::value (1) = make_string (desc);
   return make_string (path);
-}
-
-lisp
-Fole_drop_files (lisp lpath, lisp lclsid, lisp ldir, lisp lfiles)
-{
-  USES_CONVERSION;
-
-  char path[MAX_PATH + 1];
-  pathname2cstr (lpath, path);
-  map_sl_to_backsl (path);
-  wchar_t *wpath = A2W (path);
-
-  check_string (lclsid);
-  wchar_t *wclsid = I2W (lclsid);
-  CLSID clsid;
-  if (FAILED (CLSIDFromString (wclsid, &clsid)))
-    ole_error (CLSIDFromProgID (wclsid, &clsid));
-
-  char dir[PATH_MAX + 1];
-  pathname2cstr (ldir, dir);
-  map_sl_to_backsl (dir);
-  int maxl = strlen (dir);
-
-  lisp f = lfiles;
-  int nfiles;
-  for (nfiles = 0; consp (f); f = xcdr (f), nfiles++)
-    {
-      check_string (xcar (f));
-      maxl = max (maxl, xstring_length (xcar (f)));
-    }
-
-  if (!nfiles)
-    return Qnil;
-
-  safe_com <IDropTarget> dt;
-  ole_error (CoCreateInstance (clsid, 0, CLSCTX_INPROC_SERVER,
-                               IID_IDropTarget, (void **)&dt));
-
-  safe_com <IShellFolder> desktop;
-  ole_error (SHGetDesktopFolder (&desktop));
-
-  safe_com <IMalloc> ialloc;
-  ole_error (SHGetMalloc (&ialloc));
-
-  maxl++;
-  wchar_t *wbuf = (wchar_t *)alloca (sizeof *wbuf * maxl);
-  MultiByteToWideChar (CP_ACP, 0, dir, -1, wbuf, maxl);
-
-  ULONG eaten;
-  safe_idl dir_idl (ialloc);
-  ole_error (desktop->ParseDisplayName (0, 0, wbuf, &eaten, &dir_idl, 0));
-
-  safe_com <IShellFolder> sf;
-  ole_error (desktop->BindToObject (dir_idl, 0, IID_IShellFolder, (void **)&sf));
-
-  ITEMIDLIST **idls = (ITEMIDLIST **)alloca (sizeof *idls * nfiles);
-  safe_vidl (ialloc, idls, nfiles);
-
-  f = lfiles;
-  int i;
-  for (i = 0; i < nfiles && consp (f); i++, f = xcdr (f))
-    {
-      i2w (xcar (f), wbuf);
-      ole_error (sf->ParseDisplayName (0, 0, wbuf, &eaten, &idls[i], 0));
-    }
-
-  safe_com <IDataObject> data_obj;
-  ole_error (sf->GetUIObjectOf (0, i, (const ITEMIDLIST **)idls,
-                                IID_IDataObject, 0, (void **)&data_obj));
-
-  safe_com <IPersistFile> pf;
-  ole_error (dt->QueryInterface (IID_IPersistFile, (void **)&pf));
-  ole_error (pf->Load (wpath, STGM_READ));
-
-  POINTL pt = {0};
-  DWORD effect = DROPEFFECT_COPY;
-  ole_error (dt->DragEnter (data_obj, 0, pt, &effect));
-  if (effect & DROPEFFECT_COPY)
-    {
-      effect = DROPEFFECT_COPY;
-      ole_error (dt->Drop (data_obj, 0, pt, &effect));
-      return Qt;
-    }
-  else
-    {
-      ole_error (dt->DragLeave ());
-      return Qnil;
-    }
 }

@@ -239,7 +239,6 @@ struct Buffer;
 # include "process.h"
 # include "dll.h"
 # include "chunk.h"
-# include "oledata.h"
 # include "waitobj.h"
 # include "ces.h"
 # include "kbd.h"

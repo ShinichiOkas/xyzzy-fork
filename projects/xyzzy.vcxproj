@@ -209,7 +209,6 @@
     <ClCompile Include="..\src\move.cc" />
     <ClCompile Include="..\src\msgbox.cc" />
     <ClCompile Include="..\src\number.cc" />
-    <ClCompile Include="..\src\oledata.cc" />
     <ClCompile Include="..\src\package.cc" />
     <ClCompile Include="..\src\pane.cc" />
     <ClCompile Include="..\src\pathname.cc" />
@@ -357,8 +356,6 @@
     <ClInclude Include="..\src\msgbox.h" />
     <ClInclude Include="..\src\number.h" />
     <ClInclude Include="..\src\ofn.h" />
-    <ClInclude Include="..\src\oleconv.h" />
-    <ClInclude Include="..\src\oledata.h" />
     <ClInclude Include="..\src\package.h" />
     <ClInclude Include="..\src\pane.h" />
     <ClInclude Include="..\src\pathname.h" />

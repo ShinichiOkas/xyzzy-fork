@@ -133,9 +133,6 @@ Ftype_of (lisp object)
         case Tdll_function:
           return Qsi_c_function;
 
-        case Toledata:
-          return Qoledata;
-
         case Twait_object:
           return Qwait_object;
 
@@ -394,12 +391,6 @@ lisp
 Fmenup (lisp object)
 {
   return boole (win32_menu_p (object));
-}
-
-lisp
-Foledatap (lisp object)
-{
-  return boole (oledata_p (object));
 }
 
 lisp

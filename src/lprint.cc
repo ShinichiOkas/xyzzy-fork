@@ -246,7 +246,6 @@ print_circle::setup1 (lisp object)
         case Tchunk:
         case Tdll_module:
         case Tdll_function:
-        case Toledata:
         case Treadtable:
         case Twait_object:
         case Tchar_encoding:
@@ -1582,20 +1581,6 @@ print_dll_function (wStream &stream, const print_control &, lisp object)
 }
 
 static inline void
-print_oledata (wStream &stream, const print_control &, lisp object)
-{
-  set_oledata_name (object);
-  stream.add ("#<oledata:");
-  if (xoledata_name (object) && xoledata_name (object) != Qnil)
-    {
-      stream.add (" ");
-      simple_print_string (stream, xoledata_name (object));
-    }
-  print_object_address (stream, object);
-  stream.add ('>');
-}
-
-static inline void
 print_wait_object (wStream &stream, const print_control &, lisp object)
 {
   print_unreadable_object (stream, object, "wait-object");
@@ -1774,10 +1759,6 @@ print_sexp (wStream &stream, const print_control &pc, lisp object, int level)
 
         case Tdll_function:
           print_dll_function (stream, pc, object);
-          break;
-
-        case Toledata:
-          print_oledata (stream, pc, object);
           break;
 
         case Twait_object:

@@ -40,7 +40,6 @@ DECLARE_LDATA (lwin32_menu, Twin32_menu)
 DECLARE_LDATA (lchunk, Tchunk)
 DECLARE_LDATA (ldll_module, Tdll_module)
 DECLARE_LDATA (ldll_function, Tdll_function)  // undump‚Ì‚½‚ßdll-module‚æ‚èŒã‚ë
-DECLARE_LDATA (loledata, Toledata)
 DECLARE_LDATA (lwait_object, Twait_object)
 DECLARE_LDATA (lchar_encoding, Tchar_encoding)
 DECLARE_LDATA (lenvironment, Tenvironment)

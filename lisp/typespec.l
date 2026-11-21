@@ -120,7 +120,6 @@
     (ed:syntax-table . ed:syntax-table-p)
     (ed:menu . ed:menup)
     (ed:window . ed:windowp)
-    (ed:oledata . ed:oledatap)
     (ed:wait-object . ed:wait-object-p)
     (ed:char-encoding . ed:char-encoding-p)
     (si:chunk . si:*chunkp)

@@ -375,7 +375,6 @@ cleanup_lisp_objects ()
 #ifndef DEBUG
   ldata <lstream, Tstream>::cleanup ();
   ldata <lwin32_menu, Twin32_menu>::cleanup ();
-  ldata <loledata, Toledata>::cleanup ();
   ldata <lwait_object, Twait_object>::cleanup ();
 #else
 # define DECLARE_LDATA(a, b) ldata <a, b>::cleanup ();
@@ -588,14 +587,6 @@ gc_mark_object (lisp object)
         case Terror:
         case Twait_object:
           return;
-
-        case Toledata:
-          if (xoledata_name (object))
-            gc_mark_object (xoledata_name (object));
-          if (!xoledata_event (object))
-            return;
-          object = xoledata_event (object)->handlers ();
-          break;
 
         case Tprocess:
           gc_mark_object (xprocess_buffer (object));
@@ -2560,24 +2551,6 @@ rdump_object (FILE *fp, ldll_function *d, int n,
         readf (fp, &d->return_type, sizeof d->return_type);
         readf (fp, &d->vaarg_p, sizeof d->vaarg_p);
         d->proc = load_dyn_function (d);
-      }
-}
-
-static inline void
-dump_object (FILE *, const loledata *, int, const u_long [LDATA_MAX_OBJECTS_PER_LONG])
-{
-}
-
-static void
-rdump_object (FILE *fp, loledata *d, int n, const u_long used[LDATA_MAX_OBJECTS_PER_LONG])
-{
-  for (loledata *de = d + n; d < de; d++)
-    if (bitisset (used, bit_index (d)))
-      {
-        d->name = 0;
-        d->disp = 0;
-        d->enumerator = 0;
-        d->event = 0;
       }
 }
 
