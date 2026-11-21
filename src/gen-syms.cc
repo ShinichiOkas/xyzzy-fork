@@ -1871,7 +1871,6 @@ static symbols ed[] =
   DEFUN3 (regexpp, 1, 0, 0),
   DEFUN3 (processp, 1, 0, 0),
   DEFUN3 (menup, 1, 0, 0),
-  DEFUN3 (oledatap, 1, 0, 0),
   DEFUN3 (wait-object-p, 1, 0, 0),
   DEFUN3 (char-encoding-p, 1, 0, 0),
   MAKE_SYMBOL2Q (window),
@@ -1880,7 +1879,6 @@ static symbols ed[] =
   MAKE_SYMBOL2Q (regexp),
   MAKE_SYMBOL2Q (process),
   MAKE_SYMBOL2Q (menu),
-  MAKE_SYMBOL2Q (oledata),
   MAKE_SYMBOL2Q (wait-object),
   MAKE_SYMBOL2Q (char-encoding),
 
@@ -2575,7 +2573,6 @@ static symbols ed[] =
   DEFUN3 (get-special-folder-location, 1, 0, 0),
   DEFUN3 (*create-shortcut, 2, 0, FFneed_rest),
   DEFUN3 (resolve-shortcut, 1, 0, 0),
-  DEFUN3 (ole-drop-files, 4, 0, 0),
 
   /* fnkey.cc */
   DEFUN3 (set-function-bar-label, 2, 0, 0),
@@ -2594,19 +2591,6 @@ static symbols ed[] =
   DEFUN3 (popup-string, 2, 1, 0),
   DEFUN3 (popup-list, 2, 1, 0),
 
-  /* oledata.cc */
-  DEFUN3 (ole-create-object, 1, 0, 0),
-  DEFUN3 (ole-get-object, 1, 0, 0),
-  DEFUN3 (ole-putprop, 3, 0, FFneed_rest),
-  DEFUN3 (ole-method, 2, 0, FFneed_rest),
-  DEFUN2 (ole-method*, ole_method_star, 2, 2, 0),
-  DEFUN3 (ole-getprop, 2, 0, FFneed_rest),
-  DEFUN3 (ole-create-event-sink, 1, 2, 0),
-  DEFUN3 (set-ole-event-handler, 3, 0, 0),
-  DEFUN3 (ole-enumerator-create, 1, 0, 0),
-  DEFUN3 (ole-enumerator-next, 1, 0, 0),
-  DEFUN3 (ole-enumerator-reset, 1, 0, 0),
-  DEFUN3 (ole-enumerator-skip, 1, 1, 0),
 
   /* lread.cc */
   DEFUN3 (read-as-string, 1, 2, 0),
