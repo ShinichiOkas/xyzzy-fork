@@ -1,6 +1,6 @@
 # BUG-0002 ole-tests: ScriptControl が x64 プロセスから作成できず失敗
 
-- 状態: 環境依存（方針待ち）
+- 状態: 修正済み（2026-11-22、OLE Automation の削除。unittest/ole-tests.l ごと削除。決定 8）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-09
 

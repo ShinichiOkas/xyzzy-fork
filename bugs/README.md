@@ -7,7 +7,7 @@
 | 票 | 題 | 状態 |
 |---|---|---|
 | [BUG-0001](BUG-0001-ffi-x64-unsupported.md) | FFI（DLL 関数呼び出し・c-callable）が x64 版で未対応 | 修正済み（2026-11-10、S1。c-callable を削除） |
-| [BUG-0002](BUG-0002-ole-scriptcontrol-not-registered.md) | ole-tests: ScriptControl が x64 プロセスから作成できず失敗 | 環境依存（方針待ち） |
+| [BUG-0002](BUG-0002-ole-scriptcontrol-not-registered.md) | ole-tests: ScriptControl が x64 プロセスから作成できず失敗 | 修正済み（2026-11-22、OLE Automation を削除） |
 | [BUG-0003](BUG-0003-den8view-32bit-dll-and-decorated-names.md) | den8view が 32bit の etc/den8util.dll と x86 の装飾名に依存する | 修正済み（2026-11-10、S1） |
 | [BUG-0004](BUG-0004-archiver-dlls-32bit.md) | アーカイバー DLL（UNLHA32 など）は 32bit で、x64 プロセスから読み込めない | 検証済み（7-Zip の CLI の条件を確認。LZH の作成・読みと、同梱の扱いは判断待ち。2026-11-10 の追記を参照） |
 | [BUG-0005](BUG-0005-verup-uses-32bit-extract-exe.md) | 自己更新（verup）の展開が 32bit の etc/extract.exe と UNLHA32.DLL に依存する | 未検証 |
