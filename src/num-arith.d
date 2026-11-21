@@ -1133,6 +1133,8 @@ bb: {
       return make_fixnum (x->minusp () ? -1 : 0);
     }
 ss: {
+      if (!x)
+        return make_fixnum (0);
       if (count < 0)
         return make_integer (count <= -63 ? (x < 0 ? -1 : 0) : x >> -count);
       if (count < 63)
@@ -1146,7 +1148,7 @@ ss: {
     }
 sl: ss
 sb: {
-      if (!count->minusp ())
+      if (x && !count->minusp ())
         FEbignum_overflow ();
       return make_fixnum (x >= 0 ? 0 : -1);
     }
