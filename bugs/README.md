@@ -43,3 +43,4 @@
 | [BUG-0035](BUG-0035-ash-zero-huge-count.md) | `(ash 0 <long を超える数>)` が 0 を返さず bignum-overflow を出す | 修正済み（2026-11-22、8a01f16） |
 | [BUG-0036](BUG-0036-radix-hex-case-mismatch.md) | `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` や `*print-base*` は小文字（不揃い） | 要判断（設計。選択肢と推奨は票に書いた） |
 | [BUG-0037](BUG-0037-foreign-c-pointer-type-dead-branch.md) | lisp/foreign.l の `c-pointer-type` に、`:x64` が無いとき `:uint32` に落ちる死んだ分岐が残っている | 修正済み（2026-11-22、c9ccc76） |
+| [BUG-0038](BUG-0038-expt-huge-exponent-complex-float.md) | 巨大な整数の指数の expt が、有理複素数の底では返らず、浮動小数の底で負の指数だと誤ったエラーになる | 未修正 |
