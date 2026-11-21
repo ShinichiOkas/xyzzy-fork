@@ -1,6 +1,6 @@
 # BUG-0037 lisp/foreign.l の c-pointer-type に、`:x64` の feature が無いとき `:uint32` に落ちる分岐が残っている
 
-- 状態: 未修正
+- 状態: 修正済み（2026-11-22、c9ccc76）
 - 対象: x64 版（feature/x64-only）
 - 起票: 2026-11-22（S3 の作業中に見つけた）
 
