@@ -741,3 +741,223 @@
   => 2147483649
   => 4294967297
   => #x100000000)
+
+
+;; BUG-0031: define-c-struct lays members out by the C (MSVC x64) rules.
+;; Expected values are measured with MSVC x64 (sizeof / offsetof / alignof),
+;; not computed from the Lisp rules.
+
+(c:define-c-struct ctest-rect
+  (c:long left)
+  (c:long top)
+  (c:long right)
+  (c:long bottom))
+
+;; { int a; double b; char c; }
+(c:define-c-struct ctest-s1
+  (c:int a)
+  (c:double b)
+  (c:char c))
+
+;; { char c; char *p; char d; }
+(c:define-c-struct ctest-s2
+  (c:char c)
+  (c:char * p)
+  (c:char d))
+
+;; { char c; RECT r; char d; }  -- RECT is 16 bytes, aligned to 4
+(c:define-c-struct ctest-n1
+  (c:char c)
+  (ctest-rect r)
+  (c:char d))
+
+;; { RECT r; double d; char c; }
+(c:define-c-struct ctest-n2
+  (ctest-rect r)
+  (c:double d)
+  (c:char c))
+
+;; { short s; N1 n; char e; }  -- struct in struct in struct
+(c:define-c-struct ctest-nn
+  (c:short s)
+  (ctest-n1 n)
+  (c:char e))
+
+;; { char c; short a[3]; char d; }
+(c:define-c-struct ctest-a1
+  (c:char c)
+  (c:short a 3)
+  (c:char d))
+
+;; { char c; RECT r[2]; char d; }
+(c:define-c-struct ctest-a2
+  (c:char c)
+  (ctest-rect r 2)
+  (c:char d))
+
+;; { char c; double d[2]; }
+(c:define-c-struct ctest-a3
+  (c:char c)
+  (c:double d 2))
+
+;; { char c; __int64 q; }
+(c:define-c-struct ctest-q1
+  (c:char c)
+  (c:int64 q))
+
+;; { char c; float f; short s; }
+(c:define-c-struct ctest-f1
+  (c:char c)
+  (c:float f)
+  (c:short s))
+
+;; PAINTSTRUCT
+(c:define-c-struct ctest-paintstruct
+  (c:void* hdc)
+  (c:int fErase)
+  (ctest-rect rcPaint)
+  (c:int fRestore)
+  (c:int fIncUpdate)
+  (c:u_char rgbReserved 32))
+
+(deftest c-struct-layout-scalar ()
+  (values
+   (c:c-struct-size-of ctest-s1)
+   (c:c-struct-offset-of ctest-s1 a)
+   (c:c-struct-offset-of ctest-s1 b)
+   (c:c-struct-offset-of ctest-s1 c)
+   (c:c-struct-size-of ctest-s2)
+   (c:c-struct-offset-of ctest-s2 c)
+   (c:c-struct-offset-of ctest-s2 p)
+   (c:c-struct-offset-of ctest-s2 d)
+   (c:c-struct-size-of ctest-q1)
+   (c:c-struct-offset-of ctest-q1 q)
+   (c:c-struct-size-of ctest-f1)
+   (c:c-struct-offset-of ctest-f1 f)
+   (c:c-struct-offset-of ctest-f1 s))
+  => 24
+  => 0
+  => 8
+  => 16
+  => 24
+  => 0
+  => 8
+  => 16
+  => 16
+  => 8
+  => 12
+  => 4
+  => 8)
+
+(deftest c-struct-layout-nested ()
+  (values
+   (c:c-struct-size-of ctest-n1)
+   (c:c-struct-offset-of ctest-n1 r)
+   (c:c-struct-offset-of ctest-n1 d)
+   (c:c-struct-size-of ctest-n2)
+   (c:c-struct-offset-of ctest-n2 d)
+   (c:c-struct-offset-of ctest-n2 c)
+   (c:c-struct-size-of ctest-nn)
+   (c:c-struct-offset-of ctest-nn n)
+   (c:c-struct-offset-of ctest-nn e))
+  => 24
+  => 4
+  => 20
+  => 32
+  => 16
+  => 24
+  => 32
+  => 4
+  => 28)
+
+(deftest c-struct-layout-array-member ()
+  (values
+   (c:c-struct-size-of ctest-a1)
+   (c:c-struct-offset-of ctest-a1 a)
+   (c:c-struct-offset-of ctest-a1 d)
+   (c:c-struct-size-of ctest-a2)
+   (c:c-struct-offset-of ctest-a2 r)
+   (c:c-struct-offset-of ctest-a2 d)
+   (c:c-struct-size-of ctest-a3)
+   (c:c-struct-offset-of ctest-a3 d))
+  => 10
+  => 2
+  => 8
+  => 40
+  => 4
+  => 36
+  => 24
+  => 8)
+
+(deftest c-struct-layout-paintstruct ()
+  (values
+   (c:c-struct-size-of ctest-paintstruct)
+   (c:c-struct-offset-of ctest-paintstruct hdc)
+   (c:c-struct-offset-of ctest-paintstruct fErase)
+   (c:c-struct-offset-of ctest-paintstruct rcPaint)
+   (c:c-struct-offset-of ctest-paintstruct fRestore)
+   (c:c-struct-offset-of ctest-paintstruct fIncUpdate)
+   (c:c-struct-offset-of ctest-paintstruct rgbReserved))
+  => 72
+  => 0
+  => 8
+  => 12
+  => 28
+  => 32
+  => 36)
+
+;; the generated accessors read and write at those offsets
+(deftest c-struct-accessor-paintstruct ()
+  (let ((ps (make-ctest-paintstruct)))
+    (setf (ctest-paintstruct-fRestore ps) 7)
+    (setf (ctest-paintstruct-fIncUpdate ps) 9)
+    (setf (ctest-rect-bottom (ctest-paintstruct-rcPaint ps)) 5)
+    (values
+     (si:unpack-int32 ps 28)
+     (si:unpack-int32 ps 32)
+     (si:unpack-int32 ps (+ 12 12))
+     (si:chunk-size ps)))
+  => 7
+  => 9
+  => 5
+  => 72)
+
+;; *c-structure-packing-align* (#pragma pack) limits the alignment of the
+;; members and of the struct itself.
+(deftest c-struct-layout-pack ()
+  (let ((c:*c-structure-packing-align* 4))
+    ;; #pragma pack(4) { char c; double d; char e; }
+    (eval '(c:define-c-struct ctest-p4a
+            (c:char c)
+            (c:double d)
+            (c:char e)))
+    ;; #pragma pack(4) { char c; RECT r; char *p; }
+    (eval '(c:define-c-struct ctest-p4b
+            (c:char c)
+            (ctest-rect r)
+            (c:char * p))))
+  (let ((c:*c-structure-packing-align* 1))
+    ;; #pragma pack(1) { char c; int i; double d; }
+    (eval '(c:define-c-struct ctest-p1a
+            (c:char c)
+            (c:int i)
+            (c:double d))))
+  (values
+   (c:c-struct-size-of ctest-p4a)
+   (c:c-struct-offset-of ctest-p4a d)
+   (c:c-struct-offset-of ctest-p4a e)
+   (c:c-struct-size-of ctest-p4b)
+   (c:c-struct-offset-of ctest-p4b r)
+   (c:c-struct-offset-of ctest-p4b p)
+   (c:c-struct-size-of ctest-p1a)
+   (c:c-struct-offset-of ctest-p1a i)
+   (c:c-struct-offset-of ctest-p1a d))
+  => 16
+  => 4
+  => 12
+  => 28
+  => 4
+  => 20
+  => 13
+  => 1
+  => 5)

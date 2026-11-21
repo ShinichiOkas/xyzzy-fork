@@ -1,6 +1,6 @@
 # BUG-0031 lisp/foreign.l の define-c-struct の整列が先頭のメンバーだけで決まり、入れ子の構造体の整列も誤る（x64 の配置がずれる）
 
-- 状態: 未修正（重大度: 中）
+- 状態: 修正済み（2026-11-22、S3。配置の計算は 64c1eb0 で C の規則にしてあった。S3 で MSVC x64 の実測と突き合わせる試験を追加し、確定）
 - 対象: x64 版（feature/x64-only）。x86 にも同じ規則の誤りがある
 - 起票: 2026-11-10（BUG-0001 の型幅レビューで見つけた。独立レビューの確定指摘）
 
@@ -23,3 +23,7 @@
 - lisp/foreign.l:281-282、299-300、307
 - lisp/wip/winapi.l:122-136（MSG・PAINTSTRUCT）
 - unittest/foreign-tests.l（c-size-of-struct）
+
+## 修正の記録（2026-11-22、S3）
+- lisp/foreign.l の define-c-struct は、64c1eb0 の時点で C（MSVC x64）の規則になっていた（c-type-definition に align を持たせ、構造体の整列をメンバーの整列の最大値（pack 指定があれば min）にし、総サイズをその整列で丸める）。票の症状は、その後のコードには当てはまらない。
+- 実測（MSVC x64、cl /O2、sizeof・alignof・offsetof）と Lisp の計算が一致することを、unittest/foreign-tests.l の c-struct-layout-* で確かめた。対象: (int a)(double b)(char c)=24、(char c)(char *p)(char d)=24、RECT を含む構造体（4 整列の 16 バイト）、構造体の入れ子、配列メンバー、PAINTSTRUCT（sizeof 72、rcPaint 12、fRestore 28、fIncUpdate 32、rgbReserved 36）、#pragma pack(4)・pack(1) に当たる *c-structure-packing-align*。生成されるアクセサが、その位置を読み書きすることも確かめた。

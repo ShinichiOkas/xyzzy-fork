@@ -36,5 +36,5 @@
 | [BUG-0028](BUG-0028-foreign-size-t-ptrdiff-t-time-t-4byte-on-x64.md) | lisp/foreign.l の size_t・ptrdiff_t・time_t が x64 で 4 バイトに写像されている（MSVC の x64 では 8 バイト） | 修正済み（2026-11-22、S3。64c1eb0 で 8 バイトにし、往復の試験を追加） |
 | [BUG-0029](BUG-0029-editor-config-path-tests-intermittent.md) | 空の環境変数 XYZZYINIFILE・XYZZYCONFIGPATH が「設定あり」として扱われ、設定場所の試験が失敗する | 試験の実行環境は修正済み（S0）。本体の扱いは未修正（S6） |
 | [BUG-0030](BUG-0030-wip-winapi-x64-type-widths.md) | lisp/wip/winapi.l の WPARAM・LPARAM・LRESULT と MSG が x64 で 4 バイトに写像されている（MSG は Win64 より小さく、GetMessage が超えて書く） | 修正済み（2026-11-10、S1。lisp/wip を削除） |
-| [BUG-0031](BUG-0031-define-c-struct-alignment-x64.md) | lisp/foreign.l の define-c-struct の整列が先頭のメンバーだけで決まり、入れ子の構造体の整列も誤る（x64 の配置がずれる） | 未修正（重大度: 中） |
+| [BUG-0031](BUG-0031-define-c-struct-alignment-x64.md) | lisp/foreign.l の define-c-struct の整列が先頭のメンバーだけで決まり、入れ子の構造体の整列も誤る（x64 の配置がずれる） | 修正済み（2026-11-22、S3。配置の計算は 64c1eb0 で C の規則にしてあった。S3 で MSVC x64 の実測と突き合わせる試験を追加し、確定） |
 | [BUG-0032](BUG-0032-stale-menu-in-dump-image.md) | ダンプイメージに残ったメニューが次の起動で無効になり、ファイル付きの起動でエラーになる | 修正済み（2026-11-10、S1 の統合で発見） |
