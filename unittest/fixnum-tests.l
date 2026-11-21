@@ -604,3 +604,14 @@
           (si:*fixnump (si:unpack-uint32 c 0))
           (progn (si:pack-uint32 c 0 4294967295) (si:unpack-int32 c 0))))
   => (18446744073709551615 2305843009213693951 4294967295 t -1))
+
+(deftest fixnum62-chunk-address-roundtrip ()
+  "an x64 address is a fixnum and can be given back as an address"
+  (let* ((c (si:make-chunk nil 8))
+         (a (si:chunk-data c))
+         (v (si:make-chunk nil 8 nil a)))
+    (si:pack-int32 c 0 12345)
+    (list (si:*fixnump a)
+          (= a (si:chunk-data v))
+          (si:unpack-int32 v 0)))
+  => (t t 12345))
