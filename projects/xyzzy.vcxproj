@@ -287,6 +287,7 @@
     <ClInclude Include="..\src\Buffer.h" />
     <ClInclude Include="..\src\byte-stream.h" />
     <ClInclude Include="..\src\cdecl.h" />
+    <ClInclude Include="..\src\ctypes.h" />
     <ClInclude Include="..\src\ces.h" />
     <ClInclude Include="..\src\char.h" />
     <ClInclude Include="..\src\charset.h" />

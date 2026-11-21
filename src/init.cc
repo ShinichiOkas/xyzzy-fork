@@ -11,6 +11,7 @@
 #include "conf.h"
 #include "colors.h"
 #include "version.h"
+#include "ctypes.h"
 #ifdef DEBUG
 # include "mainframe.h"
 # include <crtdbg.h>

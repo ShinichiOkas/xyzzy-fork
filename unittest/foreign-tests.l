@@ -961,3 +961,67 @@
   => 13
   => 1
   => 5)
+
+
+;; The Lisp type table (c::*c-type-table* in lisp/foreign.l) against the
+;; sizes and alignments of the C types.  The values below were measured with
+;; MSVC x64 (sizeof and alignof); src/ctypes.h pins the same values with
+;; static_assert, so the build fails if the C++ side differs.
+;; (name size align)
+(defvar *c-type-measured*
+  '((char 1 1)
+    (short 2 2)
+    (int 4 4)
+    (long 4 4)
+    (int64 8 8)
+    (u_char 1 1)
+    (u_short 2 2)
+    (u_int 4 4)
+    (u_long 4 4)
+    (u_int64 8 8)
+    (float 4 4)
+    (double 8 8)
+    (wchar_t 2 2)
+    (size_t 8 8)
+    (time_t 8 8)
+    (ptrdiff_t 8 8)
+    (clock_t 4 4)
+    (off_t 4 4)
+    (void* 8 8)
+    (char* 8 8)
+    (string 8 8)))
+
+(deftest c-type-table-matches-c ()
+  (let ((names (mapcar #'(lambda (x) (symbol-name (car x))) c::*c-type-table*))
+        (bad nil))
+    (dolist (x *c-type-measured*)
+      (let ((sym (find-symbol (symbol-name (car x)) "foreign")))
+        (cond ((not (and sym (member (symbol-name sym) names :test #'string=)))
+               (push (list (car x) 'missing-in-lisp-table) bad))
+              (t
+               (let ((type (c::expand-c-type sym)))
+                 (unless (and (= (c::ctypedef-size type) (cadr x))
+                              (= (c::c-type-align type) (caddr x)))
+                   (push (list (car x)
+                               (c::ctypedef-size type) (c::c-type-align type)
+                               'expected (cadr x) (caddr x))
+                         bad)))))))
+    ;; every type in the Lisp table other than void has a measured row
+    (dolist (name names)
+      (unless (or (string= name "void")
+                  (find name *c-type-measured*
+                        :test #'string= :key #'(lambda (x) (symbol-name (car x)))))
+        (push (list name 'no-measured-value) bad)))
+    bad)
+  => nil)
+
+(deftest c-type-table-pointer-width ()
+  (values
+   (c::ctypedef-size (c::expand-c-type '(c:char *)))
+   (c::c-type-align (c::expand-c-type '(c:char *)))
+   (c::ctypedef-size (c::expand-c-type 'c:void*))
+   (c::ctypedef-size (c::expand-c-type '(c:void *))))
+  => 8
+  => 8
+  => 8
+  => 8)

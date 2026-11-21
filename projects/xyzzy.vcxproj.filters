@@ -673,6 +673,9 @@
     <ClInclude Include="..\src\dialogs.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ctypes.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\dll.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

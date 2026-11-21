@@ -52,6 +52,8 @@
       size     ; バイト数
     )
 
+    ;; 基本型（サイズとアクセサ。整列はサイズと同じ）。C の型名との対応は
+    ;; 下の *c-type-table*。
     (dolist (x '((:void 0 nil)
 		 (:int8 1 si:unpack-int8)
 		 (:uint8 1 si:unpack-uint8)
@@ -115,30 +117,41 @@
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (**define-c-type ',type ',decl t)))
 
-(*define-c-type :void void)
-(*define-c-type :int8 char)
-(*define-c-type :int16 short)
-(*define-c-type :int32 int)
-(*define-c-type :int32 long)
-(*define-c-type :int64 int64)
-(*define-c-type :uint8 u_char)
-(*define-c-type :uint16 u_short)
-(*define-c-type :uint32 u_int)
-(*define-c-type :uint32 u_long)
-(*define-c-type :uint64 u_int64)
-(*define-c-type :float float)
-(*define-c-type :double double)
+;;; C の型の表（Lisp 側の唯一の定義。x64 の MSVC = LLP64 の値）
+;;;   (C の型名 実体)
+;;;   実体は、基本型（:int8 など。上の表）・すでに表にある型名・ポインタ型。
+;;;   サイズ・整列は実体で決まる。型を足す・変えるときは、次の 2 か所も直す:
+;;;     src/ctypes.h  C++ 側の static_assert（sizeof・alignof を固定する）
+;;;     unittest/foreign-tests.l の c-type-table-matches-c（C の実測値の表）
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *c-type-table*
+    '((void :void)
+      (char :int8)
+      (short :int16)
+      (int :int32)
+      (long :int32)
+      (int64 :int64)
+      (u_char :uint8)
+      (u_short :uint16)
+      (u_int :uint32)
+      (u_long :uint32)
+      (u_int64 :uint64)
+      (float :float)
+      (double :double)
 
-(*define-c-type u_short wchar_t)
-(*define-c-type u_int64 size_t)
-(*define-c-type int64 time_t)
-(*define-c-type int64 ptrdiff_t)
-(*define-c-type long clock_t)
-(*define-c-type long off_t)
+      (wchar_t u_short)
+      (size_t u_int64)
+      (time_t int64)
+      (ptrdiff_t int64)
+      (clock_t long)
+      (off_t long)
 
-(*define-c-type (void *) void*)
-(*define-c-type void* char*)
-(*define-c-type char* string)
+      (void* (void *))
+      (char* void*)
+      (string char*)))
+
+  (dolist (x *c-type-table*)
+    (**define-c-type (cadr x) (car x) t)))
 
 (defun c-argument-type (type)
   (setq type (expand-c-type type))
