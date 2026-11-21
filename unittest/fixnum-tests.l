@@ -324,6 +324,22 @@
         (integer-length 2305843009213693952))
   => (32 61 32 t nil t t nil t t nil 61 61 33 62))
 
+(deftest fixnum62-logtest ()
+  "bits above 32 count"
+  (list (logtest 1099511627776 1099511627776)
+        (logtest 1099511627776 1)
+        (logtest most-negative-fixnum 2305843009213693952)
+        (logtest -4294967296 4294967296))
+  => (t nil t t))
+
+(deftest fixnum62-bignum-with-fixnum-beyond-long ()
+  "a bignum operand with a fixnum count or index outside long"
+  (list (ash (ash 1 70) -4294967296)
+        (ash (- (ash 1 70)) -4294967296)
+        (logbitp 4294967296 (- (ash 1 70)))
+        (logbitp 4294967296 (ash 1 70)))
+  => (0 -1 t nil))
+
 ;;;; comparison, eql, equal, hash
 
 (deftest fixnum62-compare ()
@@ -449,6 +465,16 @@
         (format nil "~@R" 4294967296)
         (format nil "~R" 12))
   => ("1000000000000" "2147483648" "4294967296" "twelve"))
+
+(deftest fixnum62-format-commas-binary ()
+  "~:B of a 62-bit fixnum (the widest digit string a fixnum prints)"
+  (format nil "~:B" most-negative-fixnum)
+  => "-10,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000,000")
+
+(deftest fixnum62-format-v-parameter-beyond-long ()
+  "~V takes an integer parameter only when it fits in long, as before"
+  (format nil "~VD" 4294967296 1)
+  !! format-error)
 
 (deftest fixnum62-print-read-roundtrip ()
   (every #'(lambda (x)
