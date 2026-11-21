@@ -223,7 +223,7 @@ br_copy (bignum_rep *old, u_long x)
       *d++ = lowpart (x);
       x = down (x);
     }
-  r->br_len = d - r->br_data;
+  r->br_len = static_cast <int> (d - r->br_data);
   return r;
 }
 
@@ -251,7 +251,7 @@ br_copy (bignum_rep *old, uint64_t x)
       *d++ = lowpart64 (x);
       x = down64 (x);
     }
-  r->br_len = d - r->br_data;
+  r->br_len = static_cast <int> (d - r->br_data);
   return r;
 }
 
@@ -261,7 +261,7 @@ br_copy (bignum_rep *old, int64_t x)
   bignum_rep *r;
   if (x < 0)
     {
-      r = br_copy (old, uint64_t (-x));
+      r = br_copy (old, 0 - uint64_t (x));
       r->br_sign = BR_NEGATIVE;
     }
   else
