@@ -1025,3 +1025,12 @@
   => 8
   => 8
   => 8)
+
+;; BUG-0037: the pointer type does not depend on *features* (x64 only).
+(deftest c-pointer-type-is-uint64 ()
+  (let ((*features* (remove :x64 *features*)))
+    (values
+     (c::c-pointer-type)
+     (c::ctypedef-size (c::expand-c-type '(c:char *)))))
+  => :uint64
+  => 8)
