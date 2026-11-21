@@ -1216,7 +1216,7 @@ static const int nobject_type = ldata_end - ldata_begin - 1;
 struct dump_header
 {
   long magic;
-  long version;
+  int64_t version;
   long file_size;
   long file_size_not;
   int nobject_type;
