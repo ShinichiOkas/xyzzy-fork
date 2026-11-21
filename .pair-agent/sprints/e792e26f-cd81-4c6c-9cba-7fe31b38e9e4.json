@@ -1,0 +1,11 @@
+{
+  "sprint_id": "e792e26f-cd81-4c6c-9cba-7fe31b38e9e4",
+  "status": "executing",
+  "goal": "S4: OLE Automation support removal",
+  "created_at": "2026-11-21T21:51:29+09:00",
+  "agreement_path": ".pair-agent/agreements/remove-ole-automation.md",
+  "notes": [
+    "Scope: A (OLE Automation only). B (Shell Link) and C (Drag and Drop) stay.",
+    "Owner decided 2026-11-21: 'Aに決まってるじゃん'"
+  ]
+}
