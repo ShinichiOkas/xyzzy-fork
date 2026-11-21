@@ -699,3 +699,44 @@
         (handler-case (ash 1 4294967296)
           (arithmetic-error () 'overflow)))
   => (0 -1 0 -1 overflow overflow))
+
+;; BUG-0033: expt with a huge exponent returns or fails at once.
+(deftest expt-huge-exponent-trivial-bases ()
+  (list (expt 0 4294967296)
+        (expt 1 4294967296)
+        (expt -1 4294967296)
+        (expt -1 4294967297)
+        (expt 0 (expt 10 30))
+        (expt 1 (expt 10 30))
+        (expt -1 (expt 10 30))
+        (expt -1 (1+ (expt 10 30)))
+        (expt 1 -4294967296)
+        (expt -1 -4294967297)
+        (expt 1/1 4294967296))
+  => (0 1 1 -1 0 1 1 -1 1 -1 1))
+
+(deftest expt-huge-exponent-fails-at-once ()
+  (flet ((overflow-p (thunk)
+           (handler-case (progn (funcall thunk) nil)
+             (arithmetic-error () t))))
+    (list (overflow-p #'(lambda () (expt 2 4294967296)))
+          (overflow-p #'(lambda () (expt -3 4294967297)))
+          (overflow-p #'(lambda () (expt 2 (expt 10 30))))
+          (overflow-p #'(lambda () (expt (expt 10 40) 4294967296)))
+          (overflow-p #'(lambda () (expt 1/2 4294967296)))
+          (overflow-p #'(lambda () (expt 2 -4294967296)))))
+  => (t t t t t t))
+
+(deftest expt-ordinary-exponent ()
+  (list (expt 2 100)
+        (expt 10 20)
+        (expt -2 5)
+        (expt 1/2 3)
+        (expt (expt 10 20) 3)
+        (expt 2 0))
+  => (1267650600228229401496703205376
+      100000000000000000000
+      -32
+      1/8
+      1000000000000000000000000000000000000000000000000000000000000
+      1))
