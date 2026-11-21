@@ -41,5 +41,5 @@
 | [BUG-0033](BUG-0033-expt-huge-exponent-never-returns.md) | `(expt 2 4294967296)` が返らない（巨大な指数でループし続ける） | 修正済み（2026-11-22、d549c5a） |
 | [BUG-0034](BUG-0034-sxhash-negative.md) | sxhash が負の値を返すことがある（CL では非負の fixnum であるべき） | 修正済み（2026-11-22、baad60f） |
 | [BUG-0035](BUG-0035-ash-zero-huge-count.md) | `(ash 0 <long を超える数>)` が 0 を返さず bignum-overflow を出す | 修正済み（2026-11-22、8a01f16） |
-| [BUG-0036](BUG-0036-radix-hex-case-mismatch.md) | `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` や `*print-base*` は小文字（不揃い） | 要判断（設計。選択肢と推奨は票に書いた） |
+| [BUG-0036](BUG-0036-radix-hex-case-mismatch.md) | `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` や `*print-base*` は小文字（不揃い） | 修正済み（2026-11-22、小文字に揃えた） |
 | [BUG-0037](BUG-0037-foreign-c-pointer-type-dead-branch.md) | lisp/foreign.l の `c-pointer-type` に、`:x64` が無いとき `:uint32` に落ちる死んだ分岐が残っている | 修正済み（2026-11-22、c9ccc76） |

@@ -676,15 +676,13 @@ print_integer (char *b, lisp linteger, int base, int sign, int radix)
   assert (base >= 2 && base <= 36);
   if (bignump (linteger))
     return xbignum_rep (linteger)->to_ascii (b, base, base == 10 && radix, sign,
-                                             (radix
-                                              ? upcase_digit_char
-                                              : downcase_digit_char));
+                                             downcase_digit_char);
   *--b = 0;
   if (base == 10 && radix)
     *--b = '.';
   int64_t value = fixnum_value64 (linteger);
   uint64_t v = value < 0 ? 0 - uint64_t (value) : uint64_t (value);
-  const char *x = radix ? upcase_digit_char : downcase_digit_char;
+  const char *x = downcase_digit_char;
   do
     *--b = x[v % base];
   while (v /= base);

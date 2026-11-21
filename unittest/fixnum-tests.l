@@ -453,7 +453,7 @@
       "2,305,843,009,213,693,951"
       "+4294967296"
       "     -2305843009213693952"
-      "#x1FFFFFFFFFFFFFFF"
+      "#x1fffffffffffffff"
       "2305843009213693951."
       "#b-10000000000000000000000000000000000000000000000000000000000000"
       "-2000000000000000"))
@@ -740,3 +740,12 @@
       1/8
       1000000000000000000000000000000000000000000000000000000000000
       1))
+
+;; BUG-0036: :radix t ‚ÌˆóŽš‚à ~X ‚â *print-base* ‚Æ“¯‚¶¬•¶Žš‚É‘µ‚¦‚éifixnum ‚Æ bignumj
+(deftest print-radix-lowercase-digits ()
+  (list (write-to-string 255 :base 16 :radix t)
+        (write-to-string (ash 255 64) :base 16 :radix t)
+        (write-to-string 35 :base 36 :radix t)
+        (let ((*print-base* 16) (*print-radix* t)) (prin1-to-string 171))
+        (format nil "~X" (ash 255 64)))
+  => ("#xff" "#xff0000000000000000" "#36rz" "#xab" "ff0000000000000000"))

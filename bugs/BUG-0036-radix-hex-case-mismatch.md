@@ -1,6 +1,6 @@
 # BUG-0036 `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` と `*print-base*` は小文字（不揃い）
 
-- 状態: 要判断（設計）
+- 状態: 修正済み（2026-11-22。師匠の判断で案 A: 小文字に揃える。src/lprint.cc の print_integer が radix のときも小文字の表を使う）
 - 対象: x64 版（feature/x64-only）。x64 固有ではない
 - 起票: 2026-11-22（S3 の作業中に見つけた）
 
