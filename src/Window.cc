@@ -2833,8 +2833,8 @@ wc_marker_point (lisp x, int def = NO_MARK_SET)
 {
   if (x == Qnil)
     return def;
-  if (short_int_p (x))
-    return xshort_int_value (x);
+  if (short_int_long_p (x))
+    return xshort_int_long_value (x);
   if (long_int_p (x))
     return xlong_int_value (x);
   if (!markerp (x) || !xmarker_buffer (x)

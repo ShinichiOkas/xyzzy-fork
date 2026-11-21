@@ -101,7 +101,7 @@ Fwrite_registry (lisp lsection, lisp lkey, lisp val)
       w2s (key, lkey);
     }
 
-  if (val != Qnil && !stringp (val) && !fixnump (val))
+  if (val != Qnil && !stringp (val) && !short_int_long_p (val))
     FEtype_error (val, xsymbol_value (Qor_string_integer));
 
   WriteRegistry r (section);

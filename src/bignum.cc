@@ -86,38 +86,42 @@ bignum_rep_short::bignum_rep_short (u_short x)
 }
 
 void
-bignum_rep_long::init (long x)
+bignum_rep_long::init (int64_t x)
 {
+  uint64_t u;
   if (x < 0)
     {
-      x = -x;
+      u = 0 - uint64_t (x);
       br_sign = BR_NEGATIVE;
     }
   else
-    br_sign = BR_POSITIVE;
-
-  u_short *d = br_data;
-  while (x)
     {
-      *d++ = lowpart (x);
-      x = down (x);
+      u = uint64_t (x);
+      br_sign = BR_POSITIVE;
     }
 
-  br_len = d - br_data;
-  br_space = SHORT_PER_LONG;
+  u_short *d = br_data;
+  while (u)
+    {
+      *d++ = lowpart64 (u);
+      u = down64 (u);
+    }
+
+  br_len = static_cast <int> (d - br_data);
+  br_space = SHORT_PER_INT64;
   br_allocated = 0;
 }
 
 void
-bignum_rep_long::init (u_long x)
+bignum_rep_long::init (uint64_t x)
 {
   u_short *d = br_data;
   while (x)
     {
-      *d++ = lowpart (x);
-      x = down (x);
+      *d++ = lowpart64 (x);
+      x = down64 (x);
     }
-  br_len = d - br_data;
+  br_len = static_cast <int> (d - br_data);
   br_space = 0;
   br_sign = BR_POSITIVE;
   br_allocated = 0;
@@ -361,6 +365,37 @@ bignum_rep::to_long () const
     for (int i = int (SHORT_PER_LONG) - 3; i >= 0; i--)
       t = up (t) + br_data[i];
   return plusp () ? t : -long (t);
+}
+
+int
+bignum_rep::is_int64 () const
+{
+  if (br_len < int (SHORT_PER_INT64))
+    return 1;
+  if (br_len > int (SHORT_PER_INT64))
+    return 0;
+  uint64_t t = br_data[SHORT_PER_INT64 - 1];
+  if (t < BR_MIN)
+    return 1;
+  if (br_sign == BR_NEGATIVE && t == BR_MIN)
+    {
+      for (int i = 0; i < int (SHORT_PER_INT64) - 1; i++)
+        if (br_data[i])
+          return 0;
+      return 1;
+    }
+  return 0;
+}
+
+// The exact value; the caller has checked is_int64 ().
+int64_t
+bignum_rep::to_int64 () const
+{
+  assert (is_int64 ());
+  uint64_t sum = 0;
+  for (int i = br_len - 1; i >= 0; i--)
+    sum = up64 (sum) + br_data[i];
+  return plusp () ? int64_t (sum) : int64_t (0 - sum);
 }
 
 int

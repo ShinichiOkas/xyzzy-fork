@@ -147,6 +147,16 @@ xlog2 (u_long x)
   return l;
 }
 
+/* The number of significant bits of x (integer-length of a fixnum). */
+long
+xlog2_64 (uint64_t x)
+{
+  long l;
+  for (l = 0; x; x >>= 1, l++)
+    ;
+  return l;
+}
+
 #define NF_SIGN 1
 #define NF_LEADNUM 2
 #define NF_DOT 4

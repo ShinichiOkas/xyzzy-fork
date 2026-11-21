@@ -1057,7 +1057,7 @@ kwd_val (int xval, int f, int &revkwd)
 static inline int
 kwd_val (lisp x, int f, int &revkwd)
 {
-  return kwd_val (xshort_int_value (x), f, revkwd);
+  return kwd_val (xshort_int_long_value (x), f, revkwd);
 }
 
 int
@@ -1172,13 +1172,13 @@ Window::kwdmatch (lisp kwdhash, const Char *p, const Chunk *cp,
       lisp x = gethash (t.string (), kwdhash, Qnil);
       if (x != Qnil)
         {
-          if (!short_int_p (x))
+          if (!short_int_long_p (x))
             {
               if (!(kwdf & syntax_state::KWD_OK))
                 goto nomatch;
               return f;
             }
-          int xval = xshort_int_value (x);
+          int xval = xshort_int_long_value (x);
           if (!(kwdf & syntax_state::KWD_OK) && (xval < 0 || !(xval & KWD_KWD2)))
             goto nomatch;
           f &= ~KWD_KWD2;
@@ -1546,7 +1546,7 @@ regexp_kwd::check_format (lisp x)
   if (!consp (x = xcdr (x)))
     return 0;
   lisp c = xcar (x);
-  if (short_int_p (c))
+  if (short_int_long_p (c))
     ;
   else
     {
@@ -1556,10 +1556,10 @@ regexp_kwd::check_format (lisp x)
         {
           lisp a = xcar (c);
           if (!consp (a)
-              || !short_int_p (xcar (a))
-              || (xcdr (a) != Qnil && !short_int_p (xcdr (a))))
+              || !short_int_long_p (xcar (a))
+              || (xcdr (a) != Qnil && !short_int_long_p (xcdr (a))))
             return 0;
-          int v = xshort_int_value (xcar (a));
+          int v = xshort_int_long_value (xcar (a));
           if (v < 0 || v >= MAX_REGS)
             return 0;
           c = xcdr (c);
@@ -1573,25 +1573,25 @@ regexp_kwd::check_format (lisp x)
   else
     {
       // context
-      if (!short_int_p (xcar (x)))
+      if (!short_int_long_p (xcar (x)))
         return 0;
-      ctx = xshort_int_value (xcar (x));
+      ctx = xshort_int_long_value (xcar (x));
 
       if (consp (x = xcdr (x)))
         {
           // begin
-          if (!short_int_p (xcar (x)))
+          if (!short_int_long_p (xcar (x)))
             return 0;
-          int v = xshort_int_value (xcar (x));
+          int v = xshort_int_long_value (xcar (x));
           if (v <= -MAX_REGS || v >= MAX_REGS)
             return 0;
 
           // end
           if (consp (x = xcdr (x)))
             {
-              if (!short_int_p (xcar (x)))
+              if (!short_int_long_p (xcar (x)))
                 return 0;
-              v = xshort_int_value (xcar (x));
+              v = xshort_int_long_value (xcar (x));
               if (v <= -MAX_REGS || v >= MAX_REGS)
                 return 0;
             }
@@ -1653,7 +1653,7 @@ regexp_kwd::kwdmatch (const Point &point, int scolor, int &revkwd)
               lisp regex = xcar (x);
               x = xcdr (x);
               lisp val = xcar (x);
-              int ctx = consp (x = xcdr (x)) ? xshort_int_value (xcar (x)) : 1;
+              int ctx = consp (x = xcdr (x)) ? xshort_int_long_value (xcar (x)) : 1;
               if (mask & ctx)
                 {
                   try
@@ -1672,9 +1672,9 @@ regexp_kwd::kwdmatch (const Point &point, int scolor, int &revkwd)
                             }
                           else
                             {
-                              int b = xshort_int_value (xcar (x));
+                              int b = xshort_int_long_value (xcar (x));
                               int e = (consp (x = xcdr (x))
-                                       ? xshort_int_value (xcar (x)) : 0);
+                                       ? xshort_int_long_value (xcar (x)) : 0);
                               if (b >= 0)
                                 {
                                   if (b > re.re_regs.nregs)
@@ -1719,7 +1719,7 @@ regexp_kwd::kwdmatch (const Point &point, int scolor, int &revkwd)
                                     {
                                       lisp a = xcar (val);
                                       if (xcdr (a) != Qnil)
-                                        vals[xshort_int_value (xcar (a))] =
+                                        vals[xshort_int_long_value (xcar (a))] =
                                           kwd_val (xcdr (a), 0, revkwd);
                                       val = xcdr (val);
                                     }

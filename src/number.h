@@ -2,7 +2,19 @@
 #ifndef _number_h_
 # define _number_h_
 
-/* integer */
+/* integer
+
+   A fixnum is an immediate (short_int): the value sits in the pointer word
+   above the 2 tag bits, so it has 62 bits on x64 (decision 2).  An integer
+   outside that range is a bignum, and every integer that fits is a fixnum:
+   eql compares immediates by identity, so the two must never overlap.  Build
+   integers from C values with make_integer (int64_t, uint64_t, bignum_rep *),
+   which choose the representation.
+
+   llong_int (Tlong_int) is no longer a number representation.  make_fixnum
+   and make_integer never allocate it.  It stays only as a small mutable cell
+   for the closure frame flag (closure.h) and the #n= reader labels
+   (lread.cc); it is not a fixnum (fixnump is false for it). */
 
 class llong_int: public lisp_object
 {
@@ -34,8 +46,14 @@ make_long_int (long x)
   return p;
 }
 
-# define LSHORT_INT_MAX (long ((1L << (BITS_PER_LONG - LSHORT_INT_SHIFT - 1)) - 1))
-# define LSHORT_INT_MIN (-long (1L << (BITS_PER_LONG - LSHORT_INT_SHIFT - 1)))
+# define LSHORT_INT_BITS (sizeof (pointer_t) * CHAR_BIT - LSHORT_INT_SHIFT)
+# define LSHORT_INT_MAX (int64_t ((int64_t (1) << (LSHORT_INT_BITS - 1)) - 1))
+# define LSHORT_INT_MIN (-(int64_t (1) << (LSHORT_INT_BITS - 1)))
+
+static_assert (sizeof (pointer_t) == sizeof (int64_t),
+               "a fixnum is kept in a 64-bit pointer word");
+static_assert (LONG_MIN >= LSHORT_INT_MIN && LONG_MAX <= LSHORT_INT_MAX,
+               "every long must be a fixnum (make_fixnum relies on it)");
 
 inline int
 short_int_p (lisp x)
@@ -43,17 +61,46 @@ short_int_p (lisp x)
   return (pointer_t (x) & SHORT_INT_TEST_BITS) == Lshort_int;
 }
 
-inline lisp
-make_short_int (long x)
+inline int
+short_int_range_p (int64_t x)
 {
+  return LSHORT_INT_MIN <= x && x <= LSHORT_INT_MAX;
+}
+
+inline lisp
+make_short_int (int64_t x)
+{
+  assert (short_int_range_p (x));
   return lisp ((pointer_t (x) << LSHORT_INT_SHIFT) | Lshort_int);
 }
 
-inline long
+inline int64_t
 xshort_int_value (lisp x)
 {
   assert (short_int_p (x));
-  return long (pointer_t (x)) >> LSHORT_INT_SHIFT;
+  return int64_t (pointer_t (x)) >> LSHORT_INT_SHIFT;
+}
+
+inline int
+long_range_p (int64_t x)
+{
+  return LONG_MIN <= x && x <= LONG_MAX;
+}
+
+/* A fixnum whose value fits in long.  C code that keeps the value in a long
+   or an int tests this instead of short_int_p: a wider fixnum takes the path
+   that a bignum took when fixnums were 30 bits. */
+inline int
+short_int_long_p (lisp x)
+{
+  return short_int_p (x) && long_range_p (xshort_int_value (x));
+}
+
+inline long
+xshort_int_long_value (lisp x)
+{
+  assert (short_int_long_p (x));
+  return long (xshort_int_value (x));
 }
 
 # include "bignum.h"
@@ -160,20 +207,19 @@ check_integer (lisp x)
 inline int
 fixnump (lisp x)
 {
-  return long_int_p (x) || short_int_p (x);
+  return short_int_p (x);
 }
 
 long coerce_to_long_error (lisp);
 u_long unsigned_long_value (lisp);
 pointer_t unsigned_pointer_value (lisp);
 
-/*GENERIC_FUNCTION:INTEGER*/
+/* Every long is a fixnum, so this never allocates.  Values wider than long
+   go through make_integer (int64_t), which makes a bignum when needed. */
 inline lisp
 make_fixnum (long x)
 {
-  if (x >= LSHORT_INT_MIN && x <= LSHORT_INT_MAX)
-    return make_short_int (x);
-  return make_long_int (x);
+  return make_short_int (x);
 }
 
 /* floating point */
@@ -311,8 +357,15 @@ lisp make_integer (uint64_t);
 inline lisp make_pointer_integer (pointer_t x) {return make_integer (uint64_t (x));}
 lisp make_integer (bignum_rep *);
 
+/* fixnum_value and safe_fixnum_value give a long, for the many callers that
+   keep the value in a long or an int.  A fixnum that does not fit in long is
+   handled as a bignum was: fixnum_value signals a range-error and
+   safe_fixnum_value returns 0.  The number core, the reader and printer, the
+   hashes and the foreign interface use the 64-bit forms. */
 int safe_fixnum_value (lisp, long *);
 long fixnum_value (lisp);
+int safe_fixnum_value64 (lisp, int64_t *);
+int64_t fixnum_value64 (lisp);
 double coerce_to_double_float (lisp);
 float coerce_to_single_float (lisp);
 bignum_rep *coerce_to_bignum_rep (lisp, bignum_rep_long *);

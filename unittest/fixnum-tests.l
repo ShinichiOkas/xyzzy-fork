@@ -423,6 +423,7 @@
         (format nil "~25D" most-negative-fixnum)
         (write-to-string most-positive-fixnum :base 16 :radix t)
         (write-to-string most-positive-fixnum :base 10 :radix t)
+        (write-to-string most-negative-fixnum :base 2 :radix t)
         (let ((*print-base* 16)) (prin1-to-string most-negative-fixnum)))
   => ("2305843009213693951"
       "-2305843009213693952"
@@ -436,8 +437,9 @@
       "2,305,843,009,213,693,951"
       "+4294967296"
       "     -2305843009213693952"
-      "#x1fffffffffffffff"
+      "#x1FFFFFFFFFFFFFFF"
       "2305843009213693951."
+      "#b-10000000000000000000000000000000000000000000000000000000000000"
       "-2000000000000000"))
 
 (deftest fixnum62-format-radix-words ()

@@ -272,14 +272,14 @@ public:
       if (save_flags != Qnil && last_flags != Qnil)
         {
           // initialize by last settings
-          if (fixnump (last_flags))
+          if (short_int_long_p (last_flags))
             c_sort_flags = fixnum_value (last_flags);
         }
       else
         {
           // initialize by default settings
           lisp v = xsymbol_value (Vbuffer_list_sort_type);
-          if (fixnump (v))
+          if (short_int_long_p (v))
             set_sort_type (fixnum_value (v));
           set_reverse (xsymbol_value (Vbuffer_list_sort_reverse) != Qnil);
         }

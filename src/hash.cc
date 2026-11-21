@@ -27,7 +27,12 @@ static u_int
 sxhash_imm (lisp object, hash_test_proc test)
 {
   if (short_int_p (object))
-    return xshort_int_value (object);
+    {
+      int64_t v = xshort_int_value (object);
+      // A value that fits in long hashes as it did with 30-bit fixnums;
+      // a wider one folds its high half in.
+      return u_int (long_range_p (v) ? v : v ^ (v >> 32));
+    }
   if (charp (object))
     return (test == Fequalp
             ? char_upcase (xchar_code (object))
@@ -280,7 +285,7 @@ Fmake_hash_table (lisp keys)
 
   int size = find_keyword_int (Ksize, keys);
   lisp lrehash_size = find_keyword (Krehash_size, keys, make_single_float (1.5));
-  if (fixnump (lrehash_size))
+  if (short_int_long_p (lrehash_size))
     {
       int rehash_size = fixnum_value (lrehash_size);
       if (rehash_size < 1)
@@ -482,7 +487,7 @@ Fsi_puthash (lisp key, lisp hash_table, lisp value)
     {
       lisp rehash_size = xhash_table_rehash_size (hash_table);
       int inc;
-      if (fixnump (rehash_size))
+      if (short_int_long_p (rehash_size))
         inc = fixnum_value (rehash_size);
       else
         inc = static_cast <int> (xhash_table_size (hash_table) * coerce_to_double_float (rehash_size)

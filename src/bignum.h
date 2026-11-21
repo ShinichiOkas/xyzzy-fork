@@ -63,6 +63,8 @@ struct bignum_rep
   int64_t coerce_to_int64 () const;
   int is_long () const;
   int is_ulong () const;
+  int is_int64 () const;
+  int64_t to_int64 () const;
   int fmtwidth (u_long) const;
   char *to_ascii (char *, int, int, int, const char *) const;
 };
@@ -72,16 +74,22 @@ struct bignum_rep_short: public bignum_rep
   bignum_rep_short (u_short);
 };
 
+/* A bignum_rep on the stack that holds one machine integer: a fixnum value
+   (62 bits) or any int64_t/uint64_t. */
 struct bignum_rep_long: public bignum_rep
 {
-  u_short u[SHORT_PER_LONG - 1];
-  void init (long);
-  void init (u_long);
+  u_short u[SHORT_PER_INT64 - 1];
+  void init (long x) {init (int64_t (x));}
+  void init (u_long x) {init (uint64_t (x));}
+  void init (int64_t);
+  void init (uint64_t);
   bignum_rep_long () {/* warn: uninitialized */}
   bignum_rep_long (int);
   bignum_rep_long (u_int);
   bignum_rep_long (long);
   bignum_rep_long (u_long);
+  bignum_rep_long (int64_t x) {init (x);}
+  bignum_rep_long (uint64_t x) {init (x);}
 };
 
 extern bignum_rep bignum_rep_zero;

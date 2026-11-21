@@ -661,7 +661,7 @@ print_integer_width (lisp linteger, int base)
   if (bignump (linteger))
     return xbignum_rep (linteger)->fmtwidth (base) + 32;
   else
-    return BITS_PER_LONG + 32;
+    return sizeof (int64_t) * CHAR_BIT + 32;
 }
 
 static inline int
@@ -682,8 +682,8 @@ print_integer (char *b, lisp linteger, int base, int sign, int radix)
   *--b = 0;
   if (base == 10 && radix)
     *--b = '.';
-  long value = fixnum_value (linteger);
-  u_long v = value < 0 ? -value : value;
+  int64_t value = fixnum_value64 (linteger);
+  uint64_t v = value < 0 ? 0 - uint64_t (value) : uint64_t (value);
   const char *x = radix ? upcase_digit_char : downcase_digit_char;
   do
     *--b = x[v % base];
@@ -2269,9 +2269,11 @@ Format::radix (wStream &stream)
       return;
     }
 
-  if (!bignump (linteger))
+  // Words and roman numerals are for numbers that fit in an int; wider ones
+  // are printed in digits below, as bignums were.
+  if (short_int_long_p (linteger))
     {
-      int n = fixnum_value (linteger);
+      int n = xshort_int_long_value (linteger);
       if (atsign)
         {
           if (colon)
@@ -3363,10 +3365,10 @@ Format::prefix_parameters ()
             case 'v':
               {
                 lisp x = getarg ();
-                if (fixnump (x))
+                if (short_int_long_p (x))
                   {
                     param[nparams].type = FMT_INT;
-                    param[nparams].value = fixnum_value (x);
+                    param[nparams].value = xshort_int_long_value (x);
                     nparams++;
                   }
                 else if (charp (x))
