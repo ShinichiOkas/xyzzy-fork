@@ -642,3 +642,102 @@
    (c:c-struct-size-of c-size-of-test))
   => 24
   => 24)
+
+
+;; BUG-0028: size_t, int64, ptrdiff_t and time_t are 8 bytes on x64.
+;; Values above 32 bits must survive the argument and the return value.
+;; _abs64 (msvcrt) takes and returns a 64-bit integer.
+
+(deftest c-size-of-64bit-types ()
+  (values
+   (c:c-size-of c:size_t)
+   (c:c-size-of c:int64)
+   (c:c-size-of c:ptrdiff_t)
+   (c:c-size-of c:time_t))
+  => 8
+  => 8
+  => 8
+  => 8)
+
+(c:define-dll-entry
+  c:size_t
+  (abs64-size :convention :cdecl) (c:size_t)
+  "msvcrt" "_abs64")
+
+(c:define-dll-entry
+  c:int64
+  (abs64-int64 :convention :cdecl) (c:int64)
+  "msvcrt" "_abs64")
+
+(c:define-dll-entry
+  c:ptrdiff_t
+  (abs64-ptrdiff :convention :cdecl) (c:ptrdiff_t)
+  "msvcrt" "_abs64")
+
+(c:define-dll-entry
+  c:time_t
+  (abs64-time :convention :cdecl) (c:time_t)
+  "msvcrt" "_abs64")
+
+(c:define-dll-entry
+  c:size_t
+  (strtoui64-size :convention :cdecl) ((c:void *) (c:void *) c:int)
+  "msvcrt" "_strtoui64")
+
+(deftest define-dll-entry-size_t-roundtrip ()
+  (values
+   (abs64-size 0)
+   (abs64-size 1)
+   (abs64-size #xFFFFFFFF)
+   (abs64-size #x100000000)
+   (abs64-size 4294967297)
+   (abs64-size (expt 2 40))
+   (abs64-size #x7FFFFFFFFFFFFFFF))
+  => 0
+  => 1
+  => #xFFFFFFFF
+  => #x100000000
+  => 4294967297
+  => #x10000000000
+  => #x7FFFFFFFFFFFFFFF)
+
+(deftest define-dll-entry-size_t-return-above-int64 ()
+  (strtoui64-size (si:make-string-chunk "18446744073709551615") 0 10)
+  => #xFFFFFFFFFFFFFFFF)
+
+(deftest define-dll-entry-int64-roundtrip ()
+  (values
+   (abs64-int64 -4294967297)
+   (abs64-int64 4294967297)
+   (abs64-int64 (- (expt 2 40)))
+   (abs64-int64 (expt 2 40))
+   (abs64-int64 -2147483649)
+   (abs64-int64 -1))
+  => 4294967297
+  => 4294967297
+  => #x10000000000
+  => #x10000000000
+  => 2147483649
+  => 1)
+
+(deftest define-dll-entry-ptrdiff_t-roundtrip ()
+  (values
+   (abs64-ptrdiff 2147483648)
+   (abs64-ptrdiff -2147483649)
+   (abs64-ptrdiff -4294967297)
+   (abs64-ptrdiff #x100000000))
+  => 2147483648
+  => 2147483649
+  => 4294967297
+  => #x100000000)
+
+(deftest define-dll-entry-time_t-roundtrip ()
+  (values
+   (abs64-time 2147483648)
+   (abs64-time -2147483649)
+   (abs64-time -4294967297)
+   (abs64-time #x100000000))
+  => 2147483648
+  => 2147483649
+  => 4294967297
+  => #x100000000)
