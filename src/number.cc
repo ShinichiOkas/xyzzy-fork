@@ -737,6 +737,39 @@ number_expt_number (lisp x, lisp y)
   return Fexp (number_multiply (number_log (x), y));
 }
 
+/* (expt x y) for an integer x and a positive integer y.  For |x| >= 2 the
+   result has at least (bit length of |x| - 1) * y + 1 bits.  A result that
+   no bignum can reasonably hold is an error at once; without this check the
+   squaring loop in number_expt_integer never returns for a huge y.  A base of
+   0, 1 or -1 has a trivial answer whatever y is. */
+#define EXPT_MAX_RESULT_BITS (int64_t (1) << 31)
+
+static lisp
+expt_integer_integer (lisp x, lisp y)
+{
+  int64_t bits;
+  if (fixnump (x))
+    {
+      int64_t v = xshort_int_value (x);
+      if (v == 0 || v == 1)
+        return x;
+      if (v == -1)
+        return Foddp (y) != Qnil ? x : make_fixnum (1);
+      uint64_t u = v < 0 ? uint64_t (0) - uint64_t (v) : uint64_t (v);
+      bits = 0;
+      for (; u; u >>= 1)
+        bits++;
+    }
+  else
+    bits = xbignum_rep (x)->howlong ();
+
+  if (bignump (y)
+      || double (bits - 1) * double (fixnum_value64 (y))
+         >= double (EXPT_MAX_RESULT_BITS))
+    FEpower_number_too_large ();
+  return integer_expt_integer (x, y);
+}
+
 lisp
 Fexpt (lisp x, lisp y)
 {
@@ -758,11 +791,13 @@ Fexpt (lisp x, lisp y)
         return number_divide (make_fixnum (1), Fexpt (x, number_negate (y)));
 
       if (integerp (x))
-        return integer_expt_integer (x, y);
+        return expt_integer_integer (x, y);
 
       if (fractionp (x))
-        return make_ratio (integer_expt_integer (xfract_num (x), y),
-                           integer_expt_integer (xfract_den (x), y));
+        {
+          lisp den = expt_integer_integer (xfract_den (x), y);
+          return make_ratio (expt_integer_integer (xfract_num (x), y), den);
+        }
 
       return number_expt_integer (x, y);
     }

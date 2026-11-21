@@ -553,7 +553,7 @@ Fhash_table_test (lisp hash_table)
 lisp
 Fsxhash (lisp object)
 {
-  return make_fixnum (sxhash_equal (object, 0));
+  return make_integer (int64_t (sxhash_equal (object, 0)));
 }
 
 int

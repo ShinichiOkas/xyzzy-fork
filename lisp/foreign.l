@@ -78,7 +78,7 @@
     (or (ctypedef-align type) (ctypedef-size type)))
 
   (defun c-pointer-type ()
-    (if (member :x64 *features*) ':uint64 ':uint32))
+    ':uint64)
 
   (defun c-typespec-p (type)
     (cond ((symbolp type)

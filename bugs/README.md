@@ -38,3 +38,8 @@
 | [BUG-0030](BUG-0030-wip-winapi-x64-type-widths.md) | lisp/wip/winapi.l の WPARAM・LPARAM・LRESULT と MSG が x64 で 4 バイトに写像されている（MSG は Win64 より小さく、GetMessage が超えて書く） | 修正済み（2026-11-10、S1。lisp/wip を削除） |
 | [BUG-0031](BUG-0031-define-c-struct-alignment-x64.md) | lisp/foreign.l の define-c-struct の整列が先頭のメンバーだけで決まり、入れ子の構造体の整列も誤る（x64 の配置がずれる） | 修正済み（2026-11-22、S3。配置の計算は 64c1eb0 で C の規則にしてあった。S3 で MSVC x64 の実測と突き合わせる試験を追加し、確定） |
 | [BUG-0032](BUG-0032-stale-menu-in-dump-image.md) | ダンプイメージに残ったメニューが次の起動で無効になり、ファイル付きの起動でエラーになる | 修正済み（2026-11-10、S1 の統合で発見） |
+| [BUG-0033](BUG-0033-expt-huge-exponent-never-returns.md) | `(expt 2 4294967296)` が返らない（巨大な指数でループし続ける） | 修正済み（2026-11-22、d549c5a） |
+| [BUG-0034](BUG-0034-sxhash-negative.md) | sxhash が負の値を返すことがある（CL では非負の fixnum であるべき） | 修正済み（2026-11-22、baad60f） |
+| [BUG-0035](BUG-0035-ash-zero-huge-count.md) | `(ash 0 <long を超える数>)` が 0 を返さず bignum-overflow を出す | 修正済み（2026-11-22、8a01f16） |
+| [BUG-0036](BUG-0036-radix-hex-case-mismatch.md) | `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` や `*print-base*` は小文字（不揃い） | 要判断（設計。選択肢と推奨は票に書いた） |
+| [BUG-0037](BUG-0037-foreign-c-pointer-type-dead-branch.md) | lisp/foreign.l の `c-pointer-type` に、`:x64` が無いとき `:uint32` に落ちる死んだ分岐が残っている | 修正済み（2026-11-22、c9ccc76） |
