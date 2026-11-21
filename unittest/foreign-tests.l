@@ -594,8 +594,6 @@
    (c:c-size-of c:float)
    (c:c-size-of c:double)
 
-   ;; BUG-0028: size_t, time_t and ptrdiff_t are 8 bytes on x64 (MSVC); the mapping
-   ;; in lisp/foreign.l still gives 4, so the expectations below pin the wrong value.
    (c:c-size-of c:wchar_t)
    (c:c-size-of c:size_t)
    (c:c-size-of c:time_t)
@@ -616,9 +614,9 @@
   => 4
   => 8
   => 2
-  => 4
-  => 4
-  => 4
+  => 8
+  => 8
+  => 8
   => 4
   => 4)
 
@@ -638,11 +636,9 @@
   (c:double a)
   (c:char a))
 
-;; BUG-0031: the x64 C layout of this struct is 24 (double is 8-byte aligned);
-;; the struct alignment rule in lisp/foreign.l still gives 20.
 (deftest c-size-of-struct ()
   (values
    (c:c-size-of c-size-of-test)
    (c:c-struct-size-of c-size-of-test))
-  => 20
-  => 20)
+  => 24
+  => 24)

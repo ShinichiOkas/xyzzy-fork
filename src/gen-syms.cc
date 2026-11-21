@@ -3010,7 +3010,7 @@ process_interactive ()
 static void
 print_version ()
 {
-  printf ("int dump_version = %lld;\n", (long long) time (0));
+  printf ("#include <cstdint>\nint64_t dump_version = %lld;\n", (long long) time (0));
 }
 
 void

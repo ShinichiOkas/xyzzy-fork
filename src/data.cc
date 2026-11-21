@@ -2651,7 +2651,7 @@ ldata <T, F>::dump_reps (FILE *fp)
 }
 
 #define DMAGIC 0xef1380feL
-extern int dump_version;
+extern int64_t dump_version;
 
 lisp
 Fdump_xyzzy (lisp filename)

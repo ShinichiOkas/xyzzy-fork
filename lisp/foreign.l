@@ -41,6 +41,7 @@
       size     ; 型のサイズ
       slots    ; 構造体ならc-structure-slotのリスト
       accessor ; アクセサ
+      align    ; alignment (bytes)
     )
 
     (defstruct (c-structure-slot
@@ -64,11 +65,15 @@
 		 (:double 8 si:unpack-double)))
       (setf (get (car x) 'c-type-specifier)
 	    (make-c-type-definition :type (car x) :size (cadr x)
-				    :accessor (caddr x)))))
+				    :accessor (caddr x)
+				    :align (cadr x)))))
 
   (defvar *c-structure-packing-align* 8)
 
   (defvar *c-typedef-auto-export* nil)
+
+  (defun c-type-align (type)
+    (or (ctypedef-align type) (ctypedef-size type)))
 
   (defun c-pointer-type ()
     (if (member :x64 *features*) ':uint64 ':uint32))
@@ -125,9 +130,9 @@
 (*define-c-type :double double)
 
 (*define-c-type u_short wchar_t)
-(*define-c-type u_int size_t)
-(*define-c-type long time_t)
-(*define-c-type int ptrdiff_t)
+(*define-c-type u_int64 size_t)
+(*define-c-type int64 time_t)
+(*define-c-type int64 ptrdiff_t)
 (*define-c-type long clock_t)
 (*define-c-type long off_t)
 
@@ -257,8 +262,9 @@
 			   (when (endp slot)
 			     (error "不正なスロットの形式です")))
 			 (setq size (ctypedef-size type))
-			 (unless struct-align
-			   (setq struct-align (min size *c-structure-packing-align*)))
+			 (setq struct-align
+			       (max (or struct-align 1)
+				    (min (c-type-align type) *c-structure-packing-align*)))
 			 (when (zerop size)
 			   (error ":void型は構造体のメンバには使用できません"))
 			 (setq name (car slot))
@@ -275,7 +281,7 @@
 			     (error "不正な配列の長さです: ~A" dims))
 			   (unless (endp (cdr slot))
 			     (error "スロットの引数が多すぎます")))
-			 (let ((align (min size *c-structure-packing-align*)))
+			 (let ((align (max 1 (min (c-type-align type) *c-structure-packing-align*))))
 			   (setq offset (* (ceiling offset align) align))
 			   (setq size (if dims (* dims size) size))
 			   (prog1
@@ -297,6 +303,7 @@
 		 (make-c-type-definition
 		  :type ',name
 		  :size ,offset
+		  :align ,struct-align
 		  :slots (list ,@(mapcar
 				  #'(lambda (slot)
 				      `(make-c-structure-slot
