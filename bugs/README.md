@@ -30,7 +30,7 @@
 | [BUG-0022](BUG-0022-wheel-timer-id-uint.md) | wheel.cc: SetTimer の戻り値（UINT_PTR）を UINT に格納している | 修正済み |
 | [BUG-0023](BUG-0023-kbd-hkl-roundtrip.md) | kbd.cc: HKL を fixnum に変換して戻すとき、上位 32bit の扱いが未確認 | 要確認（この PC には問題になる形の HKL が登録されていない） |
 | [BUG-0024](BUG-0024-format-mismatch-varargs.md) | 書式指定子と可変引数の型が一致しない箇所（C4477 / C4313 / C4309 / C4319） | 修正済み |
-| [BUG-0025](BUG-0025-gen-syms-dump-version-int.md) | gen-syms: 画像の版番号 dump_version が int（time(0) 由来）で、2038 年に折り返す | 未修正（低重大度） |
+| [BUG-0025](BUG-0025-gen-syms-dump-version-int.md) | gen-syms: 画像の版番号 dump_version が int（time(0) 由来）で、2038 年に折り返す | 修正済み（2026-11-22、S3） |
 | [BUG-0026](BUG-0026-etc-targets-win32-condition.md) | etc.targets の後処理コピーが Release\|Win32 の条件のままで、x64 のビルドでは etc/ が更新されず、etc/ の実行ファイルは x86 のまま | 保留（オーナーの判断待ち。BUG-0017 と連動） |
 | [BUG-0027](BUG-0027-duplicate-projectguid.md) | ProjectGuid {2C956011-ED51-4699-BAC1-B7687910AF1D} が extract.vcxproj と xyzzyenv.vcxproj で重複している（現状は害なし） | 未修正（低重大度） |
 | [BUG-0028](BUG-0028-foreign-size-t-ptrdiff-t-time-t-4byte-on-x64.md) | lisp/foreign.l の size_t・ptrdiff_t・time_t が x64 で 4 バイトに写像されている（MSVC の x64 では 8 バイト） | 修正済み（2026-11-22、S3。64c1eb0 で 8 バイトにし、往復の試験を追加） |

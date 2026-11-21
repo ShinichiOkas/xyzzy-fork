@@ -1,6 +1,6 @@
 # S3: 数値と型・ABI（残り）
 
-- status: executing
+- status: done
 - sprint_id: 0f5f23e7-6c74-4a48-b0a5-9fc395a696dd
 - created: 2026-11-22
 - 計画: docs/refactoring/plan.md §4.3・§6 の S3（規模 M。fixnum を含めると L 寄り）
