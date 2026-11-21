@@ -99,7 +99,15 @@ Frandom (lisp number, lisp state)
     {
     case Tshort_intP:
     case Tlong_int:
-      return make_fixnum (int (d));
+      {
+        // d < number <= 2^61 fits in int64_t.  For a number beyond 2^53 the
+        // product can round up to number itself; keep the result below it.
+        int64_t n = fixnum_value64 (number);
+        int64_t r = int64_t (d);
+        if (n > 0 && r >= n)
+          r = n - 1;
+        return make_integer (r);
+      }
 
     case Tbignum:
       return make_integer (double_to_bignum_rep (d));

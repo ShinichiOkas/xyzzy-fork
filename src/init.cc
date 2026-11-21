@@ -329,8 +329,8 @@ init_math_symbols ()
   CP (Qlong_float_epsilon, Qdouble_float_epsilon);
   CP (Qlong_float_negative_epsilon, Qdouble_float_negative_epsilon);
 
-  xsymbol_value (Qmost_positive_fixnum) = make_fixnum (LONG_MAX);
-  xsymbol_value (Qmost_negative_fixnum) = make_fixnum (LONG_MIN);
+  xsymbol_value (Qmost_positive_fixnum) = make_integer (LSHORT_INT_MAX);
+  xsymbol_value (Qmost_negative_fixnum) = make_integer (LSHORT_INT_MIN);
 
   xsymbol_value (Qpi) = make_double_float (M_PI);
   xsymbol_value (Qimag_two) = make_complex (make_fixnum (0), make_fixnum (2));

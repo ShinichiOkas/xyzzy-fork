@@ -14,7 +14,7 @@ public:
 inline int
 dlgctrl::id () const
 {
-  return xshort_int_value (xcar (lisp (this)));
+  return xshort_int_long_value (xcar (lisp (this)));
 }
 
 inline lisp

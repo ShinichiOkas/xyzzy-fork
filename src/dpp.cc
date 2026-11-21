@@ -251,6 +251,9 @@ print_type (int type)
   switch (type)
     {
     case LSHORT:
+      // A fixnum (immediate) holds 62 bits on x64.
+      fprintf (fo, "int64_t ");
+      break;
     case LLONG:
       fprintf (fo, "long ");
       break;

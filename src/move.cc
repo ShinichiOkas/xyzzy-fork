@@ -4,8 +4,8 @@
 point_t
 Buffer::coerce_to_point (lisp x) const
 {
-  if (short_int_p (x))
-    return xshort_int_value (x);
+  if (short_int_long_p (x))
+    return xshort_int_long_value (x);
   if (long_int_p (x))
     return xlong_int_value (x);
   if (markerp (x))

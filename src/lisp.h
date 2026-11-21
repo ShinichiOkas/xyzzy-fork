@@ -92,9 +92,10 @@ enum lisp_object_type
 
   // 即値な整数。実際にこのタグを持つオブジェクトは存在しない。
   Tshort_intP   = TNnumber | TNreal | TNrational | TNinteger | TNfixnum | 0,
-  // 即値でない整数。30bitと32bitにどれだけ違いがあるとか突っ込まないように。
-  // 昔は即値な整数はなかったのだ。
-  Tlong_int     = TNnumber | TNreal | TNrational | TNinteger | TNfixnum | 1,
+  // Boxed long.  Not a number representation any more (fixnums are 62-bit
+  // immediates): only the closure frame flag and the #n= reader labels use it
+  // as a mutable cell.  See number.h.
+  Tlong_int     = TNnumber | TNreal | TNrational | TNinteger | 1,
   Tbignum       = TNnumber | TNreal | TNrational | TNinteger | TNbignum, // bignum
   Tfraction     = TNnumber | TNreal | TNrational,      // 分数
   Tsingle_float = TNnumber | TNreal | TNfloat | 1,     // 単精度浮動小数点

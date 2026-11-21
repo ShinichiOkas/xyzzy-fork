@@ -760,7 +760,7 @@ Fbuffer_modified_p (lisp buffer)
 {
   Buffer *bp = Buffer::coerce_to_buffer (buffer);
   if (bp->b_modified)
-    return make_fixnum (bp->b_modified_count & LSHORT_INT_MAX);
+    return make_fixnum (bp->b_modified_count & LONG_MAX);
   return Qnil;
 }
 
@@ -768,7 +768,7 @@ lisp
 Fbuffer_modified_count (lisp buffer)
 {
   return make_fixnum (Buffer::coerce_to_buffer (buffer)->b_modified_count
-                      & LSHORT_INT_MAX);
+                      & LONG_MAX);
 }
 
 lisp

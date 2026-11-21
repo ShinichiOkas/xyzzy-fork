@@ -3,28 +3,21 @@
 
 #define YET return 0;
 
+/* The number core keeps fixnum values in int64_t.  A silent narrowing here is
+   a wrong answer, not a style problem, so it does not compile. */
+#pragma warning (error: 4244 4267)
+
 typedef double (__cdecl *FIX_FLONUM)(double);
 typedef void (*FIX_BIGNUM)(bignum_rep *&, bignum_rep *&,
                            const bignum_rep *, const bignum_rep *);
-typedef long (*FIX_FIXNUM)(long *, long, long);
+typedef int64_t (*FIX_FIXNUM)(int64_t *, int64_t, int64_t);
 
 lisp fix_number_2 (lisp, lisp, FIX_FLONUM, FIX_BIGNUM, FIX_FIXNUM);
 static lisp number_log (lisp);
 
 /*GENERIC_FUNCTION:INTEGER*/
-long
-fixnum_value (lisp x)
-{
-  if (short_int_p (x))
-    return xshort_int_value (x);
-  if (long_int_p (x))
-    return xlong_int_value (x);
-  return coerce_to_long_error (x);
-}
-
-/*GENERIC_FUNCTION:INTEGER*/
 int
-safe_fixnum_value (lisp x, long *n)
+safe_fixnum_value64 (lisp x, int64_t *n)
 {
   if (short_int_p (x))
     {
@@ -34,6 +27,44 @@ safe_fixnum_value (lisp x, long *n)
   if (long_int_p (x))
     {
       *n = xlong_int_value (x);
+      return 1;
+    }
+  *n = 0;
+  return 0;
+}
+
+int64_t
+fixnum_value64 (lisp x)
+{
+  int64_t n;
+  if (safe_fixnum_value64 (x, &n))
+    return n;
+  return coerce_to_long_error (x);
+}
+
+/* A fixnum outside the range of long gets the treatment that a bignum got
+   before fixnums became 62-bit: fixnum_value signals a range-error, and
+   safe_fixnum_value reports "not a fixnum".  Nothing is cut to 32 bits. */
+long
+fixnum_value (lisp x)
+{
+  int64_t n;
+  if (safe_fixnum_value64 (x, &n))
+    {
+      if (!long_range_p (n))
+        FErange_error (x);
+      return long (n);
+    }
+  return coerce_to_long_error (x);
+}
+
+int
+safe_fixnum_value (lisp x, long *n)
+{
+  int64_t v;
+  if (safe_fixnum_value64 (x, &v) && long_range_p (v))
+    {
+      *n = long (v);
       return 1;
     }
   *n = 0;
@@ -54,24 +85,24 @@ coerce_to_long_error (lisp object)
 pointer_t
 unsigned_pointer_value (lisp x)
 {
-  if (bignump (x))
-    {
-      int64_t val = coerce_to_int64 (x);
-      if (val < 0)
-        FErange_error (x);
-      return pointer_t (val);
-    }
-  return unsigned_long_value (x);
+  int64_t val;
+  if (safe_fixnum_value64 (x, &val))
+    ;
+  else if (bignump (x))
+    val = coerce_to_int64 (x);
+  else
+    FEtype_error (x, Qinteger);
+  if (val < 0)
+    FErange_error (x);
+  return pointer_t (val);
 }
 
 u_long
 unsigned_long_value (lisp x)
 {
-  long val;
-  if (short_int_p (x))
-    val = xshort_int_value (x);
-  else if (long_int_p (x))
-    val = xlong_int_value (x);
+  int64_t val;
+  if (safe_fixnum_value64 (x, &val))
+    ;
   else if (bignump (x))
     {
       if (!xbignum_rep (x)->is_ulong ())
@@ -80,9 +111,9 @@ unsigned_long_value (lisp x)
     }
   else
     FEtype_error (x, Qinteger);
-  if (val < 0)
+  if (val < 0 || val > ULONG_MAX)
     FErange_error (x);
-  return val;
+  return u_long (val);
 }
 
 static void
@@ -96,18 +127,18 @@ lisp make_integer (u_char x) { return make_fixnum (x); }
 lisp make_integer (short x) { return make_fixnum (x); }
 lisp make_integer (u_short x) { return make_fixnum (x); }
 lisp make_integer (int x) { return make_fixnum (x); }
-lisp make_integer (u_int x) { return make_fixnum (x); }
+lisp make_integer (u_int x) { return make_integer (int64_t (x)); }
 lisp make_integer (long x) { return make_fixnum (x); }
 lisp make_integer (u_long x) { return make_integer (int64_t (x)); }
 
 lisp
 make_integer (bignum_rep *rep)
 {
-  if (rep->is_long ())
+  int64_t x;
+  if (rep->is_int64 () && short_int_range_p (x = rep->to_int64 ()))
     {
-      long x = rep->to_long ();
       br_delete (rep);
-      return make_fixnum (x);
+      return make_short_int (x);
     }
   else
     {
@@ -122,8 +153,8 @@ make_integer (bignum_rep *rep)
 lisp
 make_integer (int64_t x)
 {
-  if (LONG_MIN <= x && x <= LONG_MAX)
-    return make_fixnum (static_cast <long> (x));
+  if (short_int_range_p (x))
+    return make_short_int (x);
   lbignum *lb = make_bignum ();
   lb->rep = br_copy (0, x);
   return lb;
@@ -132,11 +163,30 @@ make_integer (int64_t x)
 lisp
 make_integer (uint64_t x)
 {
-  if (x <= LONG_MAX)
-    return make_fixnum (static_cast <long> (x));
+  if (x <= uint64_t (LSHORT_INT_MAX))
+    return make_short_int (int64_t (x));
   lbignum *lb = make_bignum ();
   lb->rep = br_copy (0, x);
   return lb;
+}
+
+/* x * y for two fixnums.  The product of two 62-bit values can need 123
+   bits, so int64_t overflow is checked with the full 128-bit product. */
+static lisp
+fixnum_multiply (int64_t x, int64_t y)
+{
+#ifdef _M_X64
+  int64_t hi;
+  int64_t lo = _mul128 (x, y, &hi);
+  if (hi == (lo >> 63))
+    return make_integer (lo);
+#else
+  if (x >= INT_MIN && x <= INT_MAX && y >= INT_MIN && y <= INT_MAX)
+    return make_integer (x * y);
+#endif
+  bignum_rep_long xx (x);
+  bignum_rep_long yy (y);
+  return make_integer (multiply (0, &xx, &yy));
 }
 
 static inline lisp
@@ -203,37 +253,21 @@ round (double x)
   return x < 0 ? q - 1 : q + 1;
 }
 
-#ifdef _M_IX86
-# pragma warning (disable:4035)
-#endif
-
-// y != -1
-static long
-truncate (long *r, long x, long y)
+/* Quotient and remainder of two fixnums.  x and y are within the 62-bit
+   fixnum range, so x / y cannot overflow int64_t (even INT64_MIN / -1 is
+   out of reach), and the quotient may leave the fixnum range only for
+   most-negative-fixnum / -1; the caller makes it with make_integer. */
+static int64_t
+truncate (int64_t *r, int64_t x, int64_t y)
 {
-#ifdef _M_IX86
-  __asm
-    {
-      mov ecx, r;
-      mov eax, x;
-      cdq;
-      idiv y;
-      mov DWORD PTR [ecx], edx;
-    }
-#else
   *r = x % y;
   return x / y;
-#endif
 }
 
-#ifdef _M_IX86
-# pragma warning (default:4035)
-#endif
-
-static long
-floor (long *r, long x, long y)
+static int64_t
+floor (int64_t *r, int64_t x, int64_t y)
 {
-  long q = truncate (r, x, y);
+  int64_t q = truncate (r, x, y);
   if (*r && (!q ? x < 0 != y < 0 : q < 0))
     {
       q--;
@@ -242,10 +276,10 @@ floor (long *r, long x, long y)
   return q;
 }
 
-static long
-ceiling (long *r, long x, long y)
+static int64_t
+ceiling (int64_t *r, int64_t x, int64_t y)
 {
-  long q = truncate (r, x, y);
+  int64_t q = truncate (r, x, y);
   if (*r && (!q ? x < 0 == y < 0 : q > 0))
     {
       q++;
@@ -254,14 +288,14 @@ ceiling (long *r, long x, long y)
   return q;
 }
 
-static long
-round (long *r, long x, long y)
+static int64_t
+round (int64_t *r, int64_t x, int64_t y)
 {
-  long q = truncate (r, x, y);
+  int64_t q = truncate (r, x, y);
   if (*r)
     {
-      u_long mr = *r < 0 ? -*r : *r;
-      u_long my = y < 0 ? -y : y;
+      uint64_t mr = *r < 0 ? 0 - uint64_t (*r) : uint64_t (*r);
+      uint64_t my = y < 0 ? 0 - uint64_t (y) : uint64_t (y);
       my -= mr;
       if (my < mr || (my == mr && q % 2))
         {
@@ -672,7 +706,7 @@ number_expt_integer (lisp x, lisp yy)
     }
   else
     {
-      long y = fixnum_value (yy);
+      int64_t y = fixnum_value64 (yy);
       while (1)
         {
           if (y & 1)
@@ -1168,9 +1202,9 @@ Fboole (lisp op, lisp x, lisp y)
 }
 
 static lisp
-fixnum_logope (long x, long y, logope_code ope)
+fixnum_logope (int64_t x, int64_t y, logope_code ope)
 {
-  long r;
+  int64_t r;
   switch (ope)
     {
     case LOC_AND:
@@ -1217,5 +1251,5 @@ fixnum_logope (long x, long y, logope_code ope)
       assert (0);
       return Qnil;
     }
-  return make_fixnum (r);
+  return make_integer (r);
 }

@@ -12,6 +12,7 @@ void *xmemdup (const void *, size_t);
 char *stpcpy (char *, const char *);
 char *stpncpy (char *, const char *, int);
 long xlog2 (u_long);
+long xlog2_64 (uint64_t);
 
 # define NF_BAD 0
 # define NF_INTEGER 1

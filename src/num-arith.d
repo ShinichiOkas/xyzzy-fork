@@ -13,7 +13,7 @@ D: {return float (x);}
 double
 coerce_to_double_float (x) real
 {
-s: {return x;}
+s: {return double (x);}
 l: {return x;}
 b: {return x->to_double ();}
 r: {return fract_to_double_float (x);}
@@ -24,7 +24,7 @@ D: {return x;}
 long
 coerce_to_long (x) real
 {
-s: {return x;}
+s: {return long (x);}
 l: {return x;}
 b: {return x->coerce_to_long ();}
 r: {return long (fract_to_double_float (x));}
@@ -61,7 +61,7 @@ b: {return (bignum_rep *)x;}
 lisp
 cast_to_double_float (x)
 {
-s: {return make_double_float (x);}
+s: {return make_double_float (double (x));}
 l: {return make_double_float (x);}
 b: {return make_double_float (x->to_double ());}
 r: {return make_double_float (fract_to_double_float (x));}
@@ -114,7 +114,7 @@ D: {return boole (x < 0);}
 lisp
 Foddp (x) integer
 {
-s: {return boole (x & 1);}
+s: {return boole ((x & 1) != 0);}
 l: s
 b: {return boole (x->oddp ());}
 }
@@ -152,8 +152,8 @@ sb: {
       return br_compare (&xx, y);
     }
 sr: {return number_compare (number_multiply (lx, y->den), y->num);}
-sF: DD
-sD: DD
+sF: {return number_compareDD (double (x), lx, y, ly);}
+sD: {return number_compareDD (double (x), lx, y, ly);}
 ls: ss
 ll: ss
 lb: sb
@@ -179,7 +179,7 @@ rr: {
     }
 rD: {return number_compareDD (fract_to_double_float (x), lx, y, ly);}
 rF: rD
-Ds: {return number_compareDD (x, lx, y, ly);}
+Ds: {return number_compareDD (x, lx, double (y), ly);}
 Dl: Ds
 Db: {return number_compareDD (x, lx, y->to_double (), ly);}
 Dr: {return number_compareDD (x, lx, fract_to_double_float (y), ly);}
@@ -210,7 +210,7 @@ cD: @Dc(y, x)
 lisp
 number_negate (x)
 {
-s: {return make_fixnum (-x);}
+s: {return make_integer (-x);}
 l: {return make_integer (-int64_t (x));}
 b: {return make_integer (negate (0, x));}
 r: {return make_ratio (number_negate (x->num), x->den);}
@@ -222,16 +222,16 @@ c: {return make_complex (number_negate (x->real), number_negate (x->imag));}
 lisp
 number_add (x, y)
 {
-ss: {return make_fixnum (x + y);}
+ss: {return make_integer (x + y);}
 sl: {return make_integer (int64_t (x) + int64_t (y));}
 sb: {
       bignum_rep_long xx (x);
       return make_integer (add (0, &xx, y, 0));
     }
 sr: {return make_ratio (number_add (number_multiply (lx, y->den), y->num), y->den);}
-sF: {return make_single_float (x + y);}
-sD: {return make_double_float (x + y);}
-ls: sl
+sF: {return make_single_float (float (x) + y);}
+sD: {return make_double_float (double (x) + y);}
+ls: ss
 ll: sl
 lb: sb
 lr: sr
@@ -281,16 +281,16 @@ cD: @Dc(y, x)
 lisp
 number_subtract (x, y)
 {
-ss: {return make_fixnum (x - y);}
+ss: {return make_integer (x - y);}
 sl: {return make_integer (int64_t (x) - int64_t (y));}
 sb: {
       bignum_rep_long xx (x);
       return make_integer (add (0, &xx, y, 1));
     }
 sr: {return make_ratio (number_subtract (number_multiply (lx, y->den), y->num), y->den);}
-sF: {return make_single_float (x - y);}
-sD: {return make_double_float (x - y);}
-ls: sl
+sF: {return make_single_float (float (x) - y);}
+sD: {return make_double_float (double (x) - y);}
+ls: ss
 ll: sl
 lb: sb
 lr: sr
@@ -313,13 +313,13 @@ rr: {return make_ratio (number_subtract (number_multiply (x->num, y->den),
                         number_multiply (x->den, y->den));}
 rF: {return make_single_float (fract_to_single_float (x) - y);}
 rD: {return make_double_float (fract_to_double_float (x) - y);}
-Fs: {return make_single_float (x - y);}
+Fs: {return make_single_float (x - float (y));}
 Fl: Fs
 Fb: {return make_single_float (x - float (y->to_double ()));}
 Fr: {return make_single_float (x - fract_to_single_float (y));}
 FF: {return make_single_float (x - y);}
 FD: {return make_double_float (x - y);}
-Ds: {return make_double_float (x - y);}
+Ds: {return make_double_float (x - double (y));}
 Dl: Ds
 Db: {return make_double_float (x - y->to_double ());}
 Dr: {return make_double_float (x - fract_to_double_float (y));}
@@ -343,7 +343,7 @@ cD: {return complex_subtract (x->real, x->imag, ly, make_fixnum (0));}
 lisp
 number_multiply (x, y)
 {
-ss: {return make_integer (int64_t (x) * int64_t (y));}
+ss: {return fixnum_multiply (x, y);}
 sl: ss
 sb: {
       if (x == 1)
@@ -352,8 +352,8 @@ sb: {
       return make_integer (multiply (0, &xx, y));
     }
 sr: {return x == 1 ? ly : make_ratio (number_multiply (lx, y->num), y->den);}
-sF: {return make_single_float (x * y);}
-sD: {return make_double_float (x * y);}
+sF: {return make_single_float (float (x) * y);}
+sD: {return make_double_float (double (x) * y);}
 ls: ss
 ll: ss
 lb: sb
@@ -417,12 +417,12 @@ sr: {return make_ratio (number_multiply (lx, y->den), y->num);}
 sF: {
       if (!y)
         FEdivision_by_zero ();
-      return make_single_float (x / y);
+      return make_single_float (float (x) / y);
     }
 sD: {
       if (!y)
         FEdivision_by_zero ();
-      return make_double_float (x / y);
+      return make_double_float (double (x) / y);
     }
 ls: ss
 ll: ss
@@ -470,7 +470,7 @@ rD: {
 Fs: {
       if (!y)
         FEdivision_by_zero ();
-      return make_single_float (x / y);
+      return make_single_float (x / float (y));
     }
 Fl: Fs
 Fb: {
@@ -492,7 +492,7 @@ FD: {
 Ds: {
       if (!y)
         FEdivision_by_zero ();
-      return make_double_float (x / y);
+      return make_double_float (x / double (y));
     }
 Dl: Ds
 Db: {
@@ -528,7 +528,7 @@ integer_divide (x, y) integer
 ss: {
       if (!y)
         FEdivision_by_zero ();
-      return make_fixnum (x / y);
+      return make_integer (x / y);
     }
 sl: ss
 sb: {
@@ -589,17 +589,17 @@ lisp
 number_gcd (x, y) integer
 {
 ss: {
-      u_long i = x >= 0 ? x : -x;
-      u_long j = y >= 0 ? y : -y;
+      uint64_t i = x >= 0 ? uint64_t (x) : 0 - uint64_t (x);
+      uint64_t j = y >= 0 ? uint64_t (y) : 0 - uint64_t (y);
       if (i < j)
         swap (i, j);
       while (j)
         {
-          u_long k = j;
+          uint64_t k = j;
           j = i % j;
           i = k;
         }
-      return make_integer (int64_t (i));
+      return make_integer (i);
     }
 sl: ss
 sb: {
@@ -624,15 +624,21 @@ lisp
 integer_expt_integer (x, y) integer
 {
 ss: {
+      if (!long_range_p (y))
+        return number_expt_integer (lx, ly);
       bignum_rep_long xx (x);
-      return make_integer (expt (0, &xx, y));
+      return make_integer (expt (0, &xx, long (y)));
     }
 sl: ss
 sb: {return number_expt_integer (lx, ly);}
 ls: ss
 ll: ss
 lb: sb
-bs: {return make_integer (expt (0, x, y));}
+bs: {
+      if (!long_range_p (y))
+        return number_expt_integer (lx, ly);
+      return make_integer (expt (0, x, long (y)));
+    }
 bl: bs
 bb: {return number_expt_integer (lx, ly);}
 }
@@ -664,15 +670,15 @@ Fisqrt (x) rational
 {
 s: {
      if (!x || x == 1)
-       return make_fixnum (x);
+       return lx;
      if (x < 0)
-       FErange_error (make_fixnum (x));
-     int r = x >> 1;
+       FErange_error (lx);
+     int64_t r = x >> 1;
      while (1)
        {
-         int q = x / r;
+         int64_t q = x / r;
          if (q >= r)
-           return make_fixnum (r);
+           return make_integer (r);
          r = (r + q) >> 1;
        }
    }
@@ -769,10 +775,10 @@ fix_number_2 (x, y) (FIX_FLONUM dfn, FIX_BIGNUM bfn, FIX_FIXNUM ffn) real
 ss: {
       if (!y)
         FEdivision_by_zero ();
-      long q, r;
+      int64_t q, r;
       q = (*ffn)(&r, x, y);
-      multiple_value::value (1) = make_fixnum (r);
-      return make_fixnum (q);
+      multiple_value::value (1) = make_integer (r);
+      return make_integer (q);
     }
 bb: {
       if (y->zerop ())
@@ -809,7 +815,7 @@ sr: {
       return q;
     }
 sF: {return fix_number_2FF (float (x), lx, y, ly, dfn, bfn, ffn);}
-sD: DD
+sD: {return fix_number_2DD (double (x), lx, y, ly, dfn, bfn, ffn);}
 ls: {
       if (y == -1)
         {
@@ -863,7 +869,7 @@ Fl: Fs
 Fb: {return fix_number_2FF (x, lx, float (y->to_double ()), ly, dfn, bfn, ffn);}
 Fr: {return fix_number_2FF (x, lx, fract_to_single_float (y), ly, dfn, bfn, ffn);}
 FD: DD
-Ds: DD
+Ds: {return fix_number_2DD (x, lx, double (y), ly, dfn, bfn, ffn);}
 Dl: DD
 Db: {return fix_number_2DD (x, lx, y->to_double (), ly, dfn, bfn, ffn);}
 Dr: {return fix_number_2DD (x, lx, fract_to_double_float (y), ly, dfn, bfn, ffn);}
@@ -892,7 +898,7 @@ sl: ss
 sb: {return fix_flonum_2FF (float (x), lx, float (y->to_double ()), ly, dfn);}
 sr: {return fix_flonum_2FF (float (x), lx, fract_to_single_float (y), ly, dfn);}
 sF: {return fix_flonum_2FF (float (x), lx, y, ly, dfn);}
-sD: DD
+sD: {return fix_flonum_2DD (double (x), lx, y, ly, dfn);}
 ls: ss
 ll: ss
 lb: sb
@@ -920,7 +926,7 @@ Fl: Fs
 Fb: {return fix_flonum_2FF (x, lx, float (y->to_double ()), ly, dfn);}
 Fr: {return fix_flonum_2FF (x, lx, fract_to_single_float (y), ly, dfn);}
 FD: DD
-Ds: DD
+Ds: {return fix_flonum_2DD (x, lx, double (y), ly, dfn);}
 Dl: DD
 Db: {return fix_flonum_2DD (x, lx, y->to_double (), ly, dfn);}
 Dr: {return fix_flonum_2DD (x, lx, fract_to_double_float (y), ly, dfn);}
@@ -967,7 +973,7 @@ sb: {
     }
 sr: {return make_complex_1 (lx, ly);}
 sF: {return make_complex_1 (make_single_float (float (x)), ly);}
-sD: {return make_complex_1 (make_double_float (x), ly);}
+sD: {return make_complex_1 (make_double_float (double (x)), ly);}
 ls: ss
 ll: ss
 lb: sb
@@ -992,7 +998,7 @@ Fb: {return make_complex_1 (lx, make_single_float (float (y->to_double ())));}
 Fr: {return make_complex_1 (lx, make_single_float (fract_to_single_float (y)));}
 FF: {return make_complex_1 (lx, ly);}
 FD: {return make_complex_1 (make_double_float (x), ly);}
-Ds: {return make_complex_1 (lx, make_double_float (y));}
+Ds: {return make_complex_1 (lx, make_double_float (double (y)));}
 Dl: Ds
 Db: {return make_complex_1 (lx, make_double_float (y->to_double ()));}
 Dr: {return make_complex_1 (lx, make_double_float (fract_to_double_float (y)));}
@@ -1002,7 +1008,7 @@ DD: {return make_complex_1 (lx, ly);}
 
 #//12.7
 
-#static lisp fixnum_logope (long x, long y, logope_code ope);
+#static lisp fixnum_logope (int64_t x, int64_t y, logope_code ope);
 
 lisp
 number_logope (x, y) (logope_code ope) integer
@@ -1035,7 +1041,7 @@ bb: {
 lisp
 Flognot (x) integer
 {
-s: {return make_fixnum (~x);}
+s: {return make_integer (~x);}
 l: s
 b: {
      bignum_rep *r = 0;
@@ -1047,7 +1053,7 @@ b: {
 lisp
 Flogtest (x, y) integer
 {
-ss: {return boole (x & y);}
+ss: {return boole ((x & y) != 0);}
 sl: ss
 sb: {
       bignum_rep_long xx (x);
@@ -1066,7 +1072,7 @@ Flogcount (x) integer
 {
 s: {
      int n = 0;
-     for (u_long i = x >= 0 ? x : ~x; i; n++, i &= i - 1)
+     for (uint64_t i = uint64_t (x >= 0 ? x : ~x); i; n++, i &= i - 1)
        ;
      return make_fixnum (n);
    }
@@ -1080,16 +1086,17 @@ Flogbitp (index, x) integer
 ss: {
       if (index < 0)
         FErange_error (lindex);
-      if (index >= BITS_PER_LONG)
+      if (index >= 63)
         return boole (x < 0);
-      return boole (x & (1 << index));
+      return boole (((x >> index) & 1) != 0);
     }
 sl: ss
 sb: {
       if (index < 0)
         FErange_error (lindex);
-      bignum_rep_long i (index);
-      return boole (logbitp (x, index));
+      if (!long_range_p (index))
+        return boole (x->minusp ());
+      return boole (logbitp (x, long (index)));
     }
 ls: ss
 ll: ss
@@ -1111,8 +1118,12 @@ lisp
 Fash (x, count) integer
 {
 bs: {
+      if (count > LONG_MAX)
+        FEbignum_overflow ();
+      if (count < LONG_MIN)
+        return make_fixnum (x->minusp () ? -1 : 0);
       bignum_rep *r = 0;
-      ash (r, x, count);
+      ash (r, x, long (count));
       return make_integer (r);
     }
 bl: bs
@@ -1123,7 +1134,13 @@ bb: {
     }
 ss: {
       if (count < 0)
-        return make_fixnum (x >> -count);
+        return make_integer (count <= -63 ? (x < 0 ? -1 : 0) : x >> -count);
+      if (count < 63)
+        {
+          int64_t r = int64_t (uint64_t (x) << count);
+          if ((r >> count) == x)
+            return make_integer (r);
+        }
       bignum_rep_long xx (x);
       return Fashbs (&xx, lx, count, lcount);
     }
@@ -1141,7 +1158,7 @@ lb: sb
 lisp
 Finteger_length (x) integer
 {
-s: {return make_fixnum (static_cast <long> (xlog2 (x >= 0 ? x : ~x)));}
+s: {return make_fixnum (xlog2_64 (uint64_t (x >= 0 ? x : ~x)));}
 l: s
 b: {return make_fixnum (x->howlong ());}
 }

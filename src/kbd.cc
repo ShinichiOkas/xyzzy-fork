@@ -1487,7 +1487,7 @@ Fselect_kbd_layout (lisp layout)
     hkl = HKL (HKL_PREV);
   else
     {
-      if (!fixnump (layout))
+      if (!short_int_long_p (layout))
         FEtype_error (layout, xsymbol_value (Qor_string_integer));
       hkl = HKL (LONG_PTR (fixnum_value (layout)));
     }
