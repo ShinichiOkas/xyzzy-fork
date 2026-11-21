@@ -1404,29 +1404,16 @@ K:mkdir  L:ドライブ  M:移動  N:ファイル名  O:圧縮  P:DIR??"
 	(if (file-directory-p dest)
 	    (filer-copy (append-trail-slash dest))
 	  (let ((files (filer-get-mark-files))
-		(ext (pathname-type dest))
-		(dir (filer-get-directory))
-		clsid)
-	    (when (and ext (not (string-equal ext "exe")))
-	      (setq clsid (read-registry (concat "." ext) nil :classes-root))
-	      (when clsid
-		(setq clsid (read-registry (concat clsid "\\Shellex\\DropHandler")
-					   nil :classes-root))))
-	    (unless (and clsid
-			 (ole-drop-files dest clsid dir
-					 (mapcar #'(lambda (x)
-						     (file-namestring
-						      (remove-trail-slash x)))
-						 files)))
-	      (call-process
-	       (format nil "~{~a~^ ~}"
-		       (mapcar #'(lambda (x)
-				   (map-slash-to-backslash
-				    (remove-trail-slash
-				     (get-short-path-name x))))
-			       (cons dest files)))
-	       :no-std-handles t :show :show
-	       :exec-directory dir))))))))
+		(dir (filer-get-directory)))
+	    (call-process
+	     (format nil "~{~a~^ ~}"
+		     (mapcar #'(lambda (x)
+				 (map-slash-to-backslash
+				  (remove-trail-slash
+				   (get-short-path-name x))))
+			     (cons dest files)))
+	     :no-std-handles t :show :show
+	     :exec-directory dir)))))))
 
 (defun filer-grep ()
   (let ((files (filer-get-mark-files)))
