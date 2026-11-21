@@ -770,6 +770,82 @@ expt_integer_integer (lisp x, lisp y)
   return integer_expt_integer (x, y);
 }
 
+static int64_t
+integer_bit_length (lisp x)
+{
+  if (!fixnump (x))
+    return xbignum_rep (x)->howlong ();
+  int64_t v = xshort_int_value (x);
+  uint64_t u = v < 0 ? uint64_t (0) - uint64_t (v) : uint64_t (v);
+  int64_t bits = 0;
+  for (; u; u >>= 1)
+    bits++;
+  return bits;
+}
+
+/* (expt x y) for an exact complex x and a positive integer y.  Apart from
+   the units +i and -i, the result is as large as that of a real base: with
+   |x|^2 = P/Q in lowest terms, the larger of the numerator and the
+   denominator of a part of x^y has at least (max (bits(P), bits(Q)) - 1) * y
+   / 2 bits (a base of magnitude 1 that is not a unit has denominators that
+   grow just as fast).  An error at once, as for an integer base, when this
+   passes the limit; the squaring loop never returns for such a y. */
+static void
+check_expt_complex_rational (lisp x, lisp y)
+{
+  lisp re = xcomplex_real (x);
+  lisp im = xcomplex_imag (x);
+  if (!rationalp (re))
+    return;
+  if (re == make_fixnum (0)
+      && (im == make_fixnum (1) || im == make_fixnum (-1)))
+    return;
+
+  lisp p = number_add (number_multiply (re, re), number_multiply (im, im));
+  lisp q = make_fixnum (1);
+  if (fractionp (p))
+    {
+      q = xfract_den (p);
+      p = xfract_num (p);
+    }
+  int64_t l = integer_bit_length (p) - 1;
+  int64_t lq = integer_bit_length (q) - 1;
+  if (l < lq)
+    l = lq;
+  if (l < 1)
+    l = 1;
+
+  if (bignump (y)
+      || double (l) * double (fixnum_value64 (y))
+         > double (EXPT_MAX_RESULT_BITS))
+    FEpower_number_too_large ();
+}
+
+/* (expt x y) for a float (or complex float) x and a negative integer y is
+   computed as 1 / (expt x (- y)).  When (expt x (- y)) would overflow (or
+   underflow to 0) although the result is representable (or is a plain
+   overflow), it is computed as (expt (/ 1 x) (- y)) instead.  The estimate of
+   the magnitude of the power is conservative, so that the results for small
+   exponents stay the same. */
+static int
+expt_float_negative_needs_reciprocal (lisp x, lisp y)
+{
+  lisp re = complexp (x) ? xcomplex_real (x) : x;
+  if (!floatp (re))
+    return 0;
+  double mag;
+  if (complexp (x))
+    mag = _hypot (coerce_to_double_float (re),
+                  coerce_to_double_float (xcomplex_imag (x)));
+  else
+    mag = fabs (coerce_to_double_float (x));
+  if (mag == 0 || !_finite (mag))
+    return 0;
+  double n = bignump (y) ? 1e300 : fabs (double (fixnum_value64 (y)));
+  double bits = n * fabs (log (mag) / log (2.0));
+  return bits > (double_float_p (re) ? 900 : 100);
+}
+
 lisp
 Fexpt (lisp x, lisp y)
 {
@@ -788,7 +864,12 @@ Fexpt (lisp x, lisp y)
   if (integerp (y))
     {
       if (Fminusp (y) != Qnil)
-        return number_divide (make_fixnum (1), Fexpt (x, number_negate (y)));
+        {
+          if (expt_float_negative_needs_reciprocal (x, y))
+            return Fexpt (number_divide (make_fixnum (1), x),
+                          number_negate (y));
+          return number_divide (make_fixnum (1), Fexpt (x, number_negate (y)));
+        }
 
       if (integerp (x))
         return expt_integer_integer (x, y);
@@ -798,6 +879,9 @@ Fexpt (lisp x, lisp y)
           lisp den = expt_integer_integer (xfract_den (x), y);
           return make_ratio (expt_integer_integer (xfract_num (x), y), den);
         }
+
+      if (complexp (x))
+        check_expt_complex_rational (x, y);
 
       return number_expt_integer (x, y);
     }

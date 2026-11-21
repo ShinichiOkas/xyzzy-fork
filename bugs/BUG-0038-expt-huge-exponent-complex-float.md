@@ -1,6 +1,6 @@
 # BUG-0038 巨大な整数の指数の expt が、有理複素数の底では返らず、浮動小数の底で負の指数だと誤ったエラーになる
 
-- 状態: 未修正
+- 状態: 修正済み（2026-11-22）。有理複素数は check_expt_complex_rational で即座に power-number-too-large、浮動小数の負の指数は結果があふれる見込みのとき逆数の累乗で計算する（number.cc）。回帰試験は unittest/fixnum-tests.l
 - 対象: x64 版（feature/x64-only）。x64 固有ではないと見られる
 - 起票: 2026-11-22（BUG-0033 の残りの道の実測で見つけた）
 
