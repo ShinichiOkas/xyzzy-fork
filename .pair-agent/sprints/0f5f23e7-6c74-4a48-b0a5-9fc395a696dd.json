@@ -1,0 +1,12 @@
+{
+  "sprint_id": "0f5f23e7-6c74-4a48-b0a5-9fc395a696dd",
+  "status": "executing",
+  "goal": "S3 (rest): numbers, types and ABI on x64 - BUG-0025/0028/0031, type table check, 62-bit fixnum",
+  "created_at": "2026-11-22T00:18:30+09:00",
+  "agreement_path": ".pair-agent/agreements/s3-numbers-types-abi.md",
+  "size": "M (L-leaning because of fixnum)",
+  "notes": [
+    "Owner: 'S3の残りから始めて' (2026-11-22)",
+    "Split: A FFI role, B fixnum role (parallel worktrees), C dump_version by parent"
+  ]
+}
