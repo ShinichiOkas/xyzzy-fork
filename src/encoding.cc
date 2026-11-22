@@ -117,7 +117,7 @@ jisx0212_to_internal (int c1, int c2, int vender)
     return ibmext_eucjp2sjis_table[c2 - 0x73];
   Char cc = jisx0212_to_int (c1, c2);
   Char t = w2i (i2w (cc));
-  if (t != Char (-1))
+  if (t != CHAR_NONE)
     return t;
   return cc;
 }
@@ -183,7 +183,7 @@ iso2022_noesc_to_internal_stream::to_internal (u_char ccs, int c1, int oc1)
               case ccs_cns11643_1:
                 {
                   Char cc = cns11643_1_to_internal[c1 * 94 + c2 - (0x21 * 94 + 0x21)];
-                  if (cc != Char (-1))
+                  if (cc != CHAR_NONE)
                     put (cc);
                   else
                     {
@@ -196,7 +196,7 @@ iso2022_noesc_to_internal_stream::to_internal (u_char ccs, int c1, int oc1)
               case ccs_cns11643_2:
                 {
                   Char cc = cns11643_2_to_internal[c1 * 94 + c2 - (0x21 * 94 + 0x21)];
-                  if (cc != Char (-1))
+                  if (cc != CHAR_NONE)
                     put (cc);
                   else
                     {
@@ -660,13 +660,13 @@ utf_to_internal_stream::putw_jp (ucs2_t wc)
 
   Char cc;
   if (s_to_full_width
-      && (cc = wc2cp932 (wc)) != Char (-1)
+      && (cc = wc2cp932 (wc)) != CHAR_NONE
       && !ccs_1byte_94_charset_p (code_charset (cc)))
     put (cc);
   else
     {
       cc = w2i (wc);
-      if (cc != Char (-1))
+      if (cc != CHAR_NONE)
         put (cc);
       else
         {
@@ -687,12 +687,12 @@ utf_to_internal_stream::putw_gen (ucs2_t wc)
     }
 
   Char cc = w2i (wc);
-  if (cc != Char (-1))
+  if (cc != CHAR_NONE)
     {
       if (!ccs_1byte_94_charset_p (code_charset (cc)))
         {
           Char t = s_cjk_translate[wc];
-          if (t != Char (-1))
+          if (t != CHAR_NONE)
             cc = t;
         }
       put (cc);
@@ -715,12 +715,12 @@ utf_to_internal_stream::putw_cn (ucs2_t wc)
     }
 
   Char cc = w2i (wc);
-  if (cc != Char (-1))
+  if (cc != CHAR_NONE)
     {
       if (!ccs_1byte_94_charset_p (code_charset (cc)))
         {
           Char t = wc2gb2312_table[wc];
-          if (t != Char (-1) || (t = wc2big5_table[wc]) != Char (-1))
+          if (t != CHAR_NONE || (t = wc2big5_table[wc]) != CHAR_NONE)
             cc = t;
         }
       put (cc);
@@ -1014,7 +1014,7 @@ windows_codepage_to_internal_stream::refill_internal ()
       int c = s_in.get ();
       if (c == eof)
         break;
-      if (c >= 0x80 && s_translate[c - 0x80] != Char (-1))
+      if (c >= 0x80 && s_translate[c - 0x80] != CHAR16_NONE)
         c = s_translate[c - 0x80];
       put (c);
     }
@@ -1051,7 +1051,7 @@ internal_to_sjis_stream::refill ()
           if (code_charset_bit (cc) & ccsf_possible_cp932)
             {
               cc = wc2cp932 (i2w (cc));
-              if (cc == Char (-1))
+              if (cc == CHAR_NONE)
                 cc = DEFCHAR;
             }
           else if (code_charset_bit (cc) & ccsf_not_cp932)
@@ -1084,7 +1084,7 @@ internal_to_big5_stream::refill ()
         break;
 
       Char cc = wc2big5_table[i2w (c)];
-      if (cc == Char (-1))
+      if (cc == CHAR_NONE)
         cc = DEFCHAR;
       if (cc >= 0x100)
         {
@@ -1167,7 +1167,7 @@ convert_osfjvc (Char cc)
   if (cc >= 0xed40 && cc <= 0xeefc)
     {
       cc = w2i (i2w (cc));
-      if (cc == Char (-1))
+      if (cc == CHAR_NONE)
         return DEFCHAR;
     }
 
@@ -1396,7 +1396,7 @@ internal_to_iso2022_stream::refill ()
                 {
                   wchar_t wc = i2w (cc);
                   Char t = wc2gb2312_table[wc];
-                  if (t != Char (-1) || (t = wc2big5_table[wc]) != Char (-1))
+                  if (t != CHAR_NONE || (t = wc2big5_table[wc]) != CHAR_NONE)
                     cc = t;
                 }
             }
@@ -1405,7 +1405,7 @@ internal_to_iso2022_stream::refill ()
               if (s_cjk_translate)
                 {
                   Char t = s_cjk_translate[i2w (cc)];
-                  if (t != Char (-1))
+                  if (t != CHAR_NONE)
                     cc = t;
                 }
             }
@@ -1495,7 +1495,7 @@ internal_to_iso2022_stream::refill ()
           if (s_flags & ENCODING_ISO_USE_CNS11643)
             {
               cc = big5cns_table[cc - CCS_BIG5_MIN];
-              if (cc != Char (-1))
+              if (cc != CHAR_NONE)
                 {
                   switch (cc & 0x8080)
                     {
@@ -1562,7 +1562,7 @@ internal_to_utf_stream::getw () const
 
   Char cc = Char (c);
 
-  if (!(s_flags & ENCODING_UTF_WINDOWS) && cc != Char (-1))
+  if (!(s_flags & ENCODING_UTF_WINDOWS) && cc != CHAR_NONE)
     {
       int n = cc % numberof (utf_internal2shiftjis_hash);
       if (utf_internal2shiftjis_hash[n].cc == cc)
@@ -1955,7 +1955,7 @@ internal_to_iso8859_stream::refill ()
           else
             {
               cc = lookup_wc2int_hash (s_hash, i2w (cc));
-              cc = cc != Char (-1) ? int_to_iso8859 (cc) : DEFCHAR;
+              cc = cc != CHAR_NONE ? int_to_iso8859 (cc) : DEFCHAR;
             }
           if (cc >= 0x80 && cc < 0xa0)
             cc = DEFCHAR;
@@ -1983,7 +1983,7 @@ internal_to_windows_codepage_stream::refill ()
       if (cc >= 128)
         {
           cc = lookup_wc2int_hash (s_hash, i2w (cc));
-          if (cc == Char (-1))
+          if (cc == CHAR_NONE)
             cc = DEFCHAR;
         }
 

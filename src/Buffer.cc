@@ -1720,7 +1720,8 @@ chars_equal (lisp x, lisp y)
 static int __cdecl
 compare_Char (const void *p1, const void *p2)
 {
-  return *(const Char *)p1 - *(const Char *)p2;
+  Char c1 = *(const Char *)p1, c2 = *(const Char *)p2;
+  return c1 < c2 ? -1 : c1 > c2 ? 1 : 0;
 }
 
 static lisp

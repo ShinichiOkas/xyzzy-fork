@@ -25,7 +25,7 @@ byte_input_streams_stream::refill ()
       lChar lcc = readc_stream (s_stream);
       if (lcc == lChar_EOF)
         break;
-      if (DBCP (Char (lcc)))
+      if (DBCP (text_char (lcc)))
         *b++ = u_char (lcc >> 8);
       *b++ = u_char (lcc);
     }
@@ -69,7 +69,7 @@ Char_input_streams_stream::refill ()
       lChar lcc = readc_stream (s_stream);
       if (lcc == lChar_EOF)
         break;
-      *b++ = Char (lcc);
+      *b++ = text_char (lcc);
     }
   return setbuf (s_buf, b);
 }

@@ -1041,7 +1041,9 @@ text_drop_target::DragLeave ()
   return S_OK;
 }
 
-static UINT CF_XYZZYTEXT = RegisterClipboardFormat ("xyzzy internal text");
+// The data is an array of Char: a new name for the 32bit Char, so that a drop from or
+// to a process of the 16bit Char (an old xyzzy) falls back to the text format.
+static UINT CF_XYZZYTEXT = RegisterClipboardFormat ("xyzzy internal text v2");
 
 struct xyzzytext_header
 {

@@ -485,7 +485,7 @@ lookup_wc2int_hash (const wc2int_hash &hash, ucs2_t wc)
   int n = wc % hash.size;
   if (hash.rep[n].wc == wc)
     return hash.rep[n].cc;
-  return Char (-1);
+  return CHAR_NONE;
 }
 
 extern wc2int_hash wc2int_iso8859_1_hash;
@@ -498,14 +498,14 @@ extern wc2int_hash wc2int_iso8859_9_hash;
 extern wc2int_hash wc2int_iso8859_10_hash;
 extern wc2int_hash wc2int_iso8859_13_hash;
 
-extern Char windows_latin1_to_internal[];
-extern Char windows_latin2_to_internal[];
-extern Char windows_cyrillic_to_internal[];
-extern Char windows_greek_to_internal[];
-extern Char windows_turkish_to_internal[];
-extern Char windows_baltic_to_internal[];
-extern Char koi8r_to_internal[];
-extern Char koi8u_to_internal[];
+extern Char16 windows_latin1_to_internal[];
+extern Char16 windows_latin2_to_internal[];
+extern Char16 windows_cyrillic_to_internal[];
+extern Char16 windows_greek_to_internal[];
+extern Char16 windows_turkish_to_internal[];
+extern Char16 windows_baltic_to_internal[];
+extern Char16 koi8r_to_internal[];
+extern Char16 koi8u_to_internal[];
 
 extern ucs2_t internal2wc_table[];
 

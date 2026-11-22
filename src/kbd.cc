@@ -884,10 +884,12 @@ kbd_queue::reconvert (RECONVERTSTRING *rsbuf, int unicode_p)
             return 0;
 
           int size = p2 - p1;
-          safe_ptr <Char> data0 (new Char [size + 2]);
-          Char *const data = data0 + 1;
+          safe_ptr <Char> data (new Char [size + 1]);
           bp->substring (p1, size, data);
-          char *b0 = (char *)(Char *)data0;
+          // The bytes for Win32 (the ACP) go to their own buffer: a Char is not
+          // a char, and does not have a fixed width.
+          safe_ptr <char> bytes (new char [size * 2 + 1]);
+          char *b0 = bytes;
           char *b1 = w2s (b0, data, r1 - p1);
           char *b2 = w2s (b1, data + (r1 - p1), r2 - r1);
           char *b3 = w2s (b2, data + (r2 - p1), p2 - r2);
@@ -1239,8 +1241,8 @@ store_wcs (Char *b0, const ucs2_t *w, int l, const Char *tab)
   for (const ucs2_t *we = w + l; w < we; w++)
     {
       Char cc;
-      if ((!tab || (cc = tab[*w]) == Char (-1))
-          && (cc = w2i (*w)) == Char (-1))
+      if ((!tab || (cc = tab[*w]) == CHAR_NONE)
+          && (cc = w2i (*w)) == CHAR_NONE)
         {
           *b++ = utf16_ucs2_to_undef_pair_high (*w);
           cc = utf16_ucs2_to_undef_pair_low (*w);

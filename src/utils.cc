@@ -268,7 +268,7 @@ parse_number_format (const Char *p, const Char *pe, int base)
 int
 check_integer_format (const char *s, int *n)
 {
-  Char *b = (Char *)alloca (strlen (s) * 2);
+  Char *b = (Char *)alloca (sizeof (Char) * (strlen (s) + 1));
   Char *be = s2w (b, s);
   for (; b < be && (*b == ' ' || *b == '\t'); b++)
     ;

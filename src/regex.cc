@@ -43,16 +43,16 @@ enum
   NOT_SYMBOLCHAR
 };
 
-#define NBITS (sizeof (Char) * 8)
+#define NBITS (int (sizeof (Char) * 8))
 
 class charclass
 {
   Char hi[256 / NBITS];
   Char lo[256][256 / NBITS];
   static void set (Char *b, int n)
-    {b[n / NBITS] |= 1 << (n % NBITS);}
+    {b[n / NBITS] |= Char (1) << (n % NBITS);}
   static int isset (const Char *b, int n)
-    {return b[n / NBITS] & (1 << (n % NBITS));}
+    {return b[n / NBITS] & (Char (1) << (n % NBITS));}
 public:
   struct cc
     {
@@ -98,7 +98,7 @@ charclass::count_size (cc &f) const
         u++;
         int i;
         for (i = l; i < u; i++)
-          if (lo[h][i] != Char (-1))
+          if (lo[h][i] != Char (~Char (0)))
             break;
         size += 2;
         if (i < u)
@@ -1097,7 +1097,7 @@ regexp_compile::char_class_fastmap (const Char *p, char *fastmap) const
                 {
                   int ii = (i + l) * NBITS;
                   for (int j = 0; j < NBITS; j++)
-                    if (p[i] & (1 << j))
+                    if (p[i] & (Char (1) << j))
                       fastmap[ii + j] = 1;
                 }
             }
@@ -1472,7 +1472,7 @@ Regexp::match_char_class (const Char *p, Char c) const
               int x = lo / NBITS;
               if (x < l || x >= u)
                 return 0;
-              return p[2 + x - l] & (1 << (lo % NBITS));
+              return p[2 + x - l] & (Char (1) << (lo % NBITS));
             }
           p += 2 + u - l;
         }

@@ -1459,7 +1459,7 @@ readc_stream (lisp stream)
           QUIT;
           cc = readc_stream (xcomposite_stream_input (stream));
           if (cc != lChar_EOF)
-            writec_stream (xcomposite_stream_output (stream), Char (cc));
+            writec_stream (xcomposite_stream_output (stream), text_char (cc));
           if (cc == '\n')
             xstream_linenum (stream)++;
           return cc;

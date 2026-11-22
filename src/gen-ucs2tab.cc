@@ -184,7 +184,7 @@ wincp2int (const ucs2_t *wincp, ucs2_t *wbuf, ucs2_t *iso8859, int charset)
 #define DIFF_WSAME 8
 
 static void
-encode_diff (const char *name, const Char *const diff, int dsize)
+encode_diff (const char *name, const Char16 *const diff, int dsize)
 {
   char f[65536];
   int fsize = dsize / 2;
@@ -220,7 +220,7 @@ encode_diff (const char *name, const Char *const diff, int dsize)
 
   int exists;
 
-  printf ("static const Char %s_diff_both_incr[] = {\n", name);
+  printf ("static const Char16 %s_diff_both_incr[] = {\n", name);
   for (i = 0, exists = 0; i < fsize; i++)
     if ((f[i] & (DIFF_IINCR | DIFF_WINCR)) == (DIFF_IINCR | DIFF_WINCR))
       {
@@ -242,7 +242,7 @@ encode_diff (const char *name, const Char *const diff, int dsize)
     printf ("  0,\n");
   printf ("};\n\n");
 
-  printf ("static const Char %s_diff_wsame[] = {\n", name);
+  printf ("static const Char16 %s_diff_wsame[] = {\n", name);
   for (i = 0, exists = 0; i < fsize; i++)
     if ((f[i] & (DIFF_IINCR | DIFF_WSAME)) == (DIFF_IINCR | DIFF_WSAME))
       {
@@ -264,7 +264,7 @@ encode_diff (const char *name, const Char *const diff, int dsize)
     printf ("  0,\n");
   printf ("};\n\n");
 
-  printf ("static const Char %s_diff_iincr[] = {\n", name);
+  printf ("static const Char16 %s_diff_iincr[] = {\n", name);
   for (i = 0, exists = 0; i < fsize; i++)
     if (f[i] & DIFF_IINCR)
       {
@@ -291,7 +291,7 @@ encode_diff (const char *name, const Char *const diff, int dsize)
     printf ("  0,\n");
   printf ("};\n\n");
 
-  printf ("static const Char %s_diff_wincr[] = {\n", name);
+  printf ("static const Char16 %s_diff_wincr[] = {\n", name);
   for (i = 0, exists = 0; i < fsize; i++)
     if (f[i] & DIFF_WINCR)
       {
@@ -318,7 +318,7 @@ encode_diff (const char *name, const Char *const diff, int dsize)
     printf ("  0,\n");
   printf ("};\n\n");
 
-  printf ("static const Char %s_diff_rest[] = {", name);
+  printf ("static const Char16 %s_diff_rest[] = {", name);
   int w = 0;
   for (int i = 0; i < fsize; i++)
     if (f[i])
@@ -332,9 +332,9 @@ encode_diff (const char *name, const Char *const diff, int dsize)
 }
 
 static void
-output_diff (const Char *wc2int, const ucs2_t *int2wc, const char *name)
+output_diff (const Char16 *wc2int, const ucs2_t *int2wc, const char *name)
 {
-  Char wc2int_2[65536];
+  Char16 wc2int_2[65536];
 
   clear (wc2int_2, 65536);
   int i;
@@ -342,10 +342,10 @@ output_diff (const Char *wc2int, const ucs2_t *int2wc, const char *name)
     if (int2wc[i] != ucs2_t (-1))
       wc2int_2[int2wc[i]] = i;
 
-  Char diff[65536 * 2];
+  Char16 diff[65536 * 2];
   int n = 0;
   for (int i = 0; i < 65536; i++)
-    if (wc2int[i] != Char (-1) && wc2int[i] != wc2int_2[i])
+    if (wc2int[i] != CHAR16_NONE && wc2int[i] != wc2int_2[i])
       {
         diff[n++] = i;
         diff[n++] = wc2int[i];
@@ -357,7 +357,7 @@ output_diff (const Char *wc2int, const ucs2_t *int2wc, const char *name)
   printf ("#ifndef RUNTIME_TEST_DIFF_TABLE\n");
   printf ("#define RUNTIME_TEST_DIFF_TABLE\n");
   printf ("#endif\n\n");
-  printf ("static const Char %s_diff[] =\n{\n", name);
+  printf ("static const Char16 %s_diff[] =\n{\n", name);
   print (diff, n);
   printf ("};\n\n");
 #endif
@@ -491,7 +491,7 @@ read_big5 (ucs2_t *wbuf)
           int c2 = mb % 256;
           if (!big5_lead_p (c1) || !big5_trail_p (c2))
             invalid (file, linenum);
-          Char cc = big5_to_int (c1, c2);
+          Char16 cc = big5_to_int (c1, c2);
           wbuf[cc - CCS_BIG5_MIN] = wc;
         }
     }
@@ -622,11 +622,11 @@ read_gb2312 (ucs2_t *wbuf)
   output_diff (wc2cp936, wbuf2, "wc2gb2312");
 }
 
-struct cns_table {Char c; u_short i;};
+struct cns_table {Char16 c; u_short i;};
 #define CNS_NIL_THRESHOLD 0x2000
 
 static int
-test_cns_table (Char *buf, Char cc, const cns_table *cnstab, int csize)
+test_cns_table (Char16 *buf, Char16 cc, const cns_table *cnstab, int csize)
 {
   int i = 0;
   for (const cns_table *cp = cnstab, *const ce = cnstab + csize; cp < ce; cp++)
@@ -642,34 +642,34 @@ test_cns_table (Char *buf, Char cc, const cns_table *cnstab, int csize)
       else
         {
           for (e = i + cp->c; i < e; i++)
-            buf[i] = Char (-1);
+            buf[i] = CHAR16_NONE;
         }
     }
   return i;
 }
 
 static void
-make_cns_table (const char *name, const Char *p, int size)
+make_cns_table (const char *name, const Char16 *p, int size)
 {
   cns_table cnstab[0x10000], *cp = cnstab;
-  const Char *const pb = p, *const pe = p + size;
-  for (Char cc = *p++; p < pe; p++)
+  const Char16 *const pb = p, *const pe = p + size;
+  for (Char16 cc = *p++; p < pe; p++)
     if (*p == cc + 1)
       cc = *p;
     else
       {
         cp->i = p - pb;
-        if (*p == Char (-1))
+        if (*p == CHAR16_NONE)
           {
 			int n;
-            for (n = 0; p < pe && *p == Char (-1); p++, n++)
+            for (n = 0; p < pe && *p == CHAR16_NONE; p++, n++)
               ;
             if (n >= CNS_NIL_THRESHOLD)
               {
                 fprintf (stderr, "%s: too many nil chars\n", name);
                 exit (2);
               }
-            cp->c = Char (n);
+            cp->c = Char16 (n);
             p--;
           }
         else
@@ -685,7 +685,7 @@ make_cns_table (const char *name, const Char *p, int size)
         cp++;
       }
 
-  Char tem[0x10000];
+  Char16 tem[0x10000];
   if (test_cns_table (tem, *pb, cnstab, cp - cnstab) != size
       || memcmp (tem, pb, sizeof *pb * size))
     {
@@ -754,7 +754,7 @@ make_cns11643 (const ucs2_t *const big5, const ucs2_t *const gb2312)
 
   fclose (fp);
 
-  Char wc2int[65536];
+  Char16 wc2int[65536];
   clear (wc2int, numberof (wc2int));
 
   int i;
@@ -765,20 +765,20 @@ make_cns11643 (const ucs2_t *const big5, const ucs2_t *const gb2312)
     if (big5[i] != ucs2_t (-1))
       wc2int[big5[i]] = i + CCS_BIG5_MIN;
 
-  Char cns2int1[94 * 94], cns2int2[94 * 94];
+  Char16 cns2int1[94 * 94], cns2int2[94 * 94];
   for (int i = 0; i < 94 * 94; i++)
     {
       if (cns2wc1[i] != ucs2_t (-1))
         cns2int1[i] = wc2int[cns2wc1[i]];
       else
-        cns2int1[i] = Char (-1);
+        cns2int1[i] = CHAR16_NONE;
       if (cns2wc2[i] != ucs2_t (-1))
         cns2int2[i] = wc2int[cns2wc2[i]];
       else
-        cns2int2[i] = Char (-1);
+        cns2int2[i] = CHAR16_NONE;
     }
 
-  printf ("struct cns_table {Char c; u_short i;};\n");
+  printf ("struct cns_table {Char16 c; u_short i;};\n");
   printf ("#define CNS_NIL_THRESHOLD %d\n\n", CNS_NIL_THRESHOLD);
 
   make_cns_table ("cns11643_1", cns2int1, 94 * 94);
@@ -786,10 +786,10 @@ make_cns11643 (const ucs2_t *const big5, const ucs2_t *const gb2312)
 
 #ifdef RUNTIME_TEST_CNS_TABLE
   printf ("#define RUNTIME_TEST_CNS_TABLE\n\n");
-  printf ("static const Char test_cns11643_1_to_internal[] =\n{\n");
+  printf ("static const Char16 test_cns11643_1_to_internal[] =\n{\n");
   print (cns2int1, 94 * 94);
   printf ("};\n\n");
-  printf ("static const Char test_cns11643_2_to_internal[] =\n{\n");
+  printf ("static const Char16 test_cns11643_2_to_internal[] =\n{\n");
   print (cns2int2, 94 * 94);
   printf ("};\n\n");
 #endif /* RUNTIME_TEST_CNS_TABLE */
@@ -813,7 +813,7 @@ make_cns11643 (const ucs2_t *const big5, const ucs2_t *const gb2312)
   make_cns_table ("big5cns", big5cns, BIG5_TABSIZE);
 
 #ifdef RUNTIME_TEST_CNS_TABLE
-  printf ("static const Char test_big5cns_table[] =\n{\n");
+  printf ("static const Char16 test_big5cns_table[] =\n{\n");
   print (big5cns, BIG5_TABSIZE);
   printf ("};\n\n");
 #endif /* RUNTIME_TEST_CNS_TABLE */
@@ -1128,7 +1128,7 @@ gen_ucs2tab (int argc, char **argv)
 #endif
               fprintf (stderr, "Warning: %s: 0x%02x: not found\n", wcp[i].file, j + 128);
           }
-      printf ("Char %s_to_internal[] =\n{\n", wcp[i].name);
+      printf ("Char16 %s_to_internal[] =\n{\n", wcp[i].name);
       print (wbuf, 128);
       printf ("};\n\n");
     }

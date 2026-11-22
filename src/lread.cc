@@ -47,7 +47,7 @@ Token::start ()
 inline void
 Token::add (lChar c)
 {
-  StrBuf::add (Char (c));
+  StrBuf::add (text_char (c));
   tk_index++;
 }
 
@@ -333,7 +333,7 @@ multiple_escape (lisp stream, Token &token, lisp readtab)
       if (c == lChar_EOF)
         reader_error (stream, Eunexpected_eof, olinenum);
 
-      switch (stdchar_type (xreadtable_rep (readtab), Char (c)))
+      switch (stdchar_type (xreadtable_rep (readtab), text_char (c)))
         {
         case SCT_CONSTITUENT:
         case SCT_TERM_MACRO:
@@ -353,7 +353,7 @@ multiple_escape (lisp stream, Token &token, lisp readtab)
           return;
 
         case SCT_ILLEGAL:
-          reader_error (stream, Eillegal_character, make_char (Char (c)));
+          reader_error (stream, Eillegal_character, make_char (text_char (c)));
         }
     }
 }
@@ -381,7 +381,7 @@ extended_token (lisp stream, Token &token, lisp readtab, lChar c)
 {
   while (c != lChar_EOF)
     {
-      switch (stdchar_type (xreadtable_rep (readtab), Char (c)))
+      switch (stdchar_type (xreadtable_rep (readtab), text_char (c)))
         {
         case SCT_CONSTITUENT:
         case SCT_NON_TERM_MACRO:
@@ -403,7 +403,7 @@ extended_token (lisp stream, Token &token, lisp readtab, lChar c)
           break;
 
         case SCT_ILLEGAL:
-          reader_error (stream, Eillegal_character, make_char (Char (c)));
+          reader_error (stream, Eillegal_character, make_char (text_char (c)));
 
         case SCT_TERM_MACRO:
           unreadc_stream (c, stream);
@@ -459,11 +459,11 @@ lisp_parser (lisp stream, int flags = 0, lChar delim = lChar_EOF)
         return Qclose_paren;
 
       lisp readtab = current_readtable ();
-      switch (stdchar_type (xreadtable_rep (readtab), Char (c)))
+      switch (stdchar_type (xreadtable_rep (readtab), text_char (c)))
         {
         default:
         case SCT_ILLEGAL:
-          reader_error (stream, Eillegal_character, make_char (Char (c)));
+          reader_error (stream, Eillegal_character, make_char (text_char (c)));
 
         case SCT_WHITESPACE:
           break;
@@ -471,7 +471,7 @@ lisp_parser (lisp stream, int flags = 0, lChar delim = lChar_EOF)
         case SCT_TERM_MACRO:
         case SCT_NON_TERM_MACRO:
           {
-            lisp object = macro_reader (stream, Char (c), xreadtable_rep (readtab));
+            lisp object = macro_reader (stream, text_char (c), xreadtable_rep (readtab));
             if (object)
               return object;
             break;
@@ -618,7 +618,7 @@ double_quote_reader (lisp stream, Char ch)
       lChar c = readc_stream (stream);
       if (c == ch)
         return token.make_string ();
-      if (stdchar_single_escape_p (readtab, Char (c)))
+      if (stdchar_single_escape_p (readtab, text_char (c)))
         {
           c = readc_stream (stream);
           switch (c)
@@ -729,7 +729,7 @@ open_paren_reader (lisp stream, Char)
 static lisp
 close_paren_reader (lisp stream, Char c)
 {
-  return reader_error (stream, Eunexpected_char, make_char (Char (c)));
+  return reader_error (stream, Eunexpected_char, make_char (text_char (c)));
 }
 
 static lisp
@@ -815,14 +815,14 @@ dispmacro_reader (lisp stream, Char ch)
   if (c == lChar_EOF)
     reader_error (stream, Eincomplete_dispatch_macro);
   if (c >= READTABLE_REP_SIZE)
-    reader_error (stream, Edispmacro_sub_char_out_of_range, make_char (Char (c)));
+    reader_error (stream, Edispmacro_sub_char_out_of_range, make_char (text_char (c)));
 
-  c = char_upcase (Char (c));
+  c = char_upcase (text_char (c));
   if (disptab[c].cfunc)
-    return (*disptab[c].cfunc)(stream, Char (c), param);
+    return (*disptab[c].cfunc)(stream, text_char (c), param);
   if (disptab[c].lfunc == Qunbound)
-    reader_error (stream, Eis_not_a_dispmacro_sub_char, make_char (Char (c)));
-  lisp x = funcall_3 (disptab[c].lfunc, stream, make_char (Char (c)),
+    reader_error (stream, Eis_not_a_dispmacro_sub_char, make_char (text_char (c)));
+  lisp x = funcall_3 (disptab[c].lfunc, stream, make_char (text_char (c)),
                       param.present ? make_fixnum (param.value) : Qnil);
   if (!multiple_value::count ())
     x = 0;
@@ -938,7 +938,7 @@ number_backslash_reader (lisp stream, Char, dispmacro_param &param)
   else
     {
       c = standard_char_name2Char (p, l);
-      if (c == Char (-1))
+      if (c == CHAR_NONE)
         c = l == 1 ? *p : parse_digit_char (stream, token, p, p + l);
 
       if (shift)
@@ -1970,7 +1970,7 @@ Fread_into (lisp string, lisp stream, lisp eof_error_p, lisp eof_value, lisp max
       lChar c = readc_stream (stream);
       if (c == lChar_EOF)
         break;
-      *p = Char (c);
+      *p = text_char (c);
     }
   xstring_length (string) = p - xstring_contents (string);
   if (!xstring_length (string) && xstring_dimension (string))
@@ -1994,7 +1994,7 @@ Fread_as_string (lisp stream, lisp eof_error_p, lisp eof_value)
           return token.make_string ();
         }
 
-      switch (stdchar_type (readtab, Char (c)))
+      switch (stdchar_type (readtab, text_char (c)))
         {
         case SCT_CONSTITUENT:
         case SCT_ILLEGAL:
@@ -2055,7 +2055,7 @@ Fpeek_char (lisp peek_type, lisp stream, lisp eof_error_p, lisp eof_value, lisp 
       while (1)
         {
           c = peekc_stream (stream);
-          if (c == lChar_EOF || stdchar_type (readtab, Char (c)) != SCT_WHITESPACE)
+          if (c == lChar_EOF || stdchar_type (readtab, text_char (c)) != SCT_WHITESPACE)
             break;
           readc_stream (stream);
         }

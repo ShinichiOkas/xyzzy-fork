@@ -50,8 +50,26 @@ typedef u_int16_t Char;
 typedef u_long lChar;
 const lChar lChar_EOF = lChar (-1);
 
+// "No character" (no mapping, not found...).  Never compare a Char with
+// Char (-1) or 0xffff for this.
+const Char CHAR_NONE = Char (-1);
+
 typedef u_int16_t ucs2_t;
 typedef u_int32_t ucs4_t;
+
+// "No UTF-16 code unit" in the tables of ucs2_t (internal2wc_table...).
+const ucs2_t UCS2_NONE = ucs2_t (-1);
+
+// A character value kept in a static 16bit table (the tables of ucs2tab.h).
+// 0xffff in the table means "none".  Widen it with char16_to_char when reading.
+typedef u_int16_t Char16;
+const Char16 CHAR16_NONE = 0xffff;
+
+inline Char
+char16_to_char (Char16 c)
+{
+  return c == CHAR16_NONE ? CHAR_NONE : Char (c);
+}
 
 typedef long point_t;
 

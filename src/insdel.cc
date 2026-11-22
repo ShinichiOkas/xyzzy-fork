@@ -1084,7 +1084,7 @@ make_cf_text_sjis (CLIPBOARDTEXT &clp, lisp string)
           else
             {
               Char c2 = wc2cp932 (i2w (cc));
-              if (c2 != Char (-1))
+              if (c2 != CHAR_NONE)
                 {
                   cc = c2;
                   if (DBCP (cc))
@@ -1360,7 +1360,7 @@ count_cf_wtext_length (const ucs2_t *string)
             s++;
           }
       }
-    else if (w2i (*s) == Char (-1))
+    else if (w2i (*s) == CHAR_NONE)
       l++;
   return s - string + l;
 }
@@ -1389,10 +1389,10 @@ make_string_from_cf_wtext (lisp lstring, const ucs2_t *s, int lang)
             {
               Char cc;
               if (to_half
-                  || (cc = wc2cp932 (*s)) == Char (-1)
+                  || (cc = wc2cp932 (*s)) == CHAR_NONE
                   || ccs_1byte_94_charset_p (code_charset (cc)))
                 cc = w2i (*s);
-              if (cc == Char (-1))
+              if (cc == CHAR_NONE)
                 {
                   *b++ = utf16_ucs2_to_undef_pair_high (*s);
                   *b++ = utf16_ucs2_to_undef_pair_low (*s);
@@ -1410,7 +1410,7 @@ make_string_from_cf_wtext (lisp lstring, const ucs2_t *s, int lang)
         if (*s != '\r' || s[1] != '\n')
           {
             Char cc = w2i (*s);
-            if (cc == Char (-1))
+            if (cc == CHAR_NONE)
               {
                 *b++ = utf16_ucs2_to_undef_pair_high (*s);
                 *b++ = utf16_ucs2_to_undef_pair_low (*s);
@@ -1420,7 +1420,7 @@ make_string_from_cf_wtext (lisp lstring, const ucs2_t *s, int lang)
                 if (!ccs_1byte_94_charset_p (code_charset (cc)))
                   {
                     Char t = translate[*s];
-                    if (t != Char (-1))
+                    if (t != CHAR_NONE)
                       cc = t;
                   }
                 *b++ = cc;
@@ -1433,7 +1433,7 @@ make_string_from_cf_wtext (lisp lstring, const ucs2_t *s, int lang)
         if (*s != '\r' || s[1] != '\n')
           {
             Char cc = w2i (*s);
-            if (cc == Char (-1))
+            if (cc == CHAR_NONE)
               {
                 *b++ = utf16_ucs2_to_undef_pair_high (*s);
                 *b++ = utf16_ucs2_to_undef_pair_low (*s);
@@ -1443,7 +1443,7 @@ make_string_from_cf_wtext (lisp lstring, const ucs2_t *s, int lang)
                 if (!ccs_1byte_94_charset_p (code_charset (cc)))
                   {
                     Char t = wc2gb2312_table[*s];
-                    if (t != Char (-1) || (t = wc2big5_table[*s]) != Char (-1))
+                    if (t != CHAR_NONE || (t = wc2big5_table[*s]) != CHAR_NONE)
                       cc = t;
                   }
                 *b++ = cc;
