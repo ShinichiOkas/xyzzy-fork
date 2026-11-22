@@ -65,6 +65,6 @@
 | [BUG-0057](BUG-0057-iso2022cn-writer-loses-big5-char-without-cns.md) | ISO-2022-CN の書きが、CNS 11643 に無い Big5 の文字（U+FF64 など）で、でたらめなバイト列（7bit の符号に 0x80 以上のバイト）を出す | 修正済み（2026-11-22、S4 の W） |
 | [BUG-0058](BUG-0058-print-del-width-uses-underscore.md) | 印刷のプロポーショナルフォントで、DEL（^?）の幅が「^」＋「_」で計算される | 修正済み（2026-11-22、e828cc3） |
 | [BUG-0059](BUG-0059-print-wide-han-chars-centered-with-one-cell-offset.md) | 印刷で、GB・KSC・Big5 の全角文字だけ、全角のずらしでなく半角のずらしで置かれる | 修正済み（2026-11-22、e828cc3） |
-| [BUG-0060](BUG-0060-test-with-hung-child-xyzzy-hangs-run-tests.md) | 試験が起こした子の xyzzy が終わらないと、run-tests が 60 分止まる（親が kill-xyzzy の確認の対話で待つ。時間切れは signal-process で子を終わらせない） | 未修正（2026-11-22） |
+| [BUG-0060](BUG-0060-test-with-hung-child-xyzzy-hangs-run-tests.md) | 試験が起こした子の xyzzy が終わらないと、run-tests が 60 分止まる（親が kill-xyzzy の確認の対話で待つ。時間切れは signal-process で子を終わらせない） | 修正（2026-11-22） |
 | [BUG-0061](BUG-0061-xyzzycli-test-file-does-not-open.md) | xyzzycli の試験で、動いている xyzzy にファイルを渡してもバッファが開かない（受け渡しは届いている） | 未修正 |
 | [BUG-0062](BUG-0062-run-tests-hangs-on-missing-test-file.md) | run-tests.bat に無い試験ファイルを渡すと、終わらずに止まる | 未修正 |

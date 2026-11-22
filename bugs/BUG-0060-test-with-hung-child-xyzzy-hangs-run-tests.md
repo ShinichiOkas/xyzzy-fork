@@ -1,6 +1,6 @@
 # BUG-0060 試験が起こした子の xyzzy が終わらないと、run-tests が 60 分止まる（1 本の共有ランナーを 1 時間ふさいだ）
 
-- 状態: 未修正（2026-11-22）
+- 状態: 修正（2026-11-22。unittest/simple-test.l に時間切れで kill-process、kill-xyzzy の前の掃除、試験ごとの見張り。unittest/child-xyzzy-tests.l に試験 2 件。deskrun で 2 件・4.2 秒合格を確かめた）
 - 対象: unittest/simple-test.l（eval-in-another-xyzzy、write-batch-report-and-exit）、unittest/run-tests-helper.l、run-tests.bat
 
 ## 症状（見たこと）

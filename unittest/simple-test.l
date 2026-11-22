@@ -829,7 +829,37 @@ Returns list of failures."
           (setf all-passed-p nil)))
       (dolist (buffer (buffer-list))
         (set-buffer-modified-p nil buffer))
+      ;; A child that is still running would make kill-xyzzy open a dialog.
+      (kill-leftover-subprocesses)
       (kill-xyzzy all-passed-p))))
+
+;; A test that waits for a child that never ends must not hold a batch run for
+;; ever. In a batch run (XYZZY_TEST_LOG is set) a timer watches the test that is
+;; running. After XYZZY_TEST_TIMEOUT seconds (default 120) it kills the
+;; subprocesses, so the wait of the test ends and the test fails. (It cannot
+;; stop a test that hangs in xyzzy itself: kill-xyzzy refuses to run while a
+;; wait loop has the keyboard disabled. ci/ci-test.ps1 bounds a whole run.)
+(defvar *test-watchdog-limit* 120)
+(defvar *test-watchdog-start* nil)
+(defvar *test-watchdog-killed* nil)
+
+(defun test-watchdog ()
+  (when (and *test-watchdog-start*
+             (not *test-watchdog-killed*)
+             (> (- (get-universal-time) *test-watchdog-start*)
+                *test-watchdog-limit*))
+    (setq *test-watchdog-killed* t)
+    (dolist (proc (test-live-subprocesses))
+      (ignore-errors (kill-process proc)))))
+
+(defun start-test-watchdog ()
+  (let ((log (si:getenv "XYZZY_TEST_LOG")))
+    (when (and log (plusp (length log)))
+      (let* ((s (si:getenv "XYZZY_TEST_TIMEOUT"))
+             (n (and s (ignore-errors (parse-integer s)))))
+        (setq *test-watchdog-limit* (if (and n (plusp n)) n 120)))
+      (stop-timer 'test-watchdog)
+      (start-timer 5 'test-watchdog))))
 (defun continue-run-tests ()
   (interactive)
   (loop
@@ -845,6 +875,8 @@ Returns list of failures."
          (let ((next (first (ssn-remaining-tests))))
            (format (ssn-report-output) "~&~S..." (test-name next))
            (test-message "running test: ~S..." (test-name next))
+           (setq *test-watchdog-start* (get-universal-time)
+                 *test-watchdog-killed* nil)
            (setf (ssn-current-test) (list next nil (test-examples next))
                  (ssn-remaining-tests) (rest (ssn-remaining-tests))))
          :continue-run-tests)
@@ -863,6 +895,8 @@ Returns list of failures."
              (goto-char (point-max))
              (unless (interactive-p)
                (refresh-screen))))
+         (setq *test-watchdog-start* nil)
+         (while (stop-timer 'test-watchdog))
          (write-batch-report-and-exit (ssn-report-output) (zerop (ssn-fail-count)))
          (while (stop-timer 'continue-run-tests))
          (null (setf *current-session* nil))
@@ -891,6 +925,7 @@ Returns list of failures."
   (setf *last-test-list* test-list
         *current-session* (make-session :remaining-tests test-list
                                         :total-count (length test-list)))
+  (start-test-watchdog)
   (continue-run-tests))
 
 
@@ -1062,6 +1097,39 @@ Returns list of failures."
                          (t (again)))))
           (start-timer 6 #'delete-tmpbuf t))))))
 
+;; (signal-process) only sets an event of the process; it does not end it. A
+;; child that hangs has to be killed, and xyzzy has to see that it has gone:
+;; a process that is still in process-list makes kill-xyzzy ask a yes/no
+;; question (a modal dialog), which no batch run can answer.
+;; The list of xyzzy (process-list) is an uninterned symbol and cannot be read
+;; from Lisp, so the processes are found through the buffers they write to and
+;; through the ones eval-in-another-xyzzy has started.
+(defvar *test-children* nil)
+
+(defun test-live-subprocesses ()
+  (let ((live nil))
+    (dolist (proc (append *test-children*
+                          (mapcar #'buffer-process (buffer-list))))
+      (when (and proc
+                 (eql (process-status proc) :run)
+                 (not (member proc live)))
+        (push proc live)))
+    live))
+
+(defun kill-test-subprocess (proc &optional (wait 5))
+  (ignore-errors (kill-process proc))
+  (let ((limit (+ (get-universal-time) wait)))
+    (while (and (eql (process-status proc) :run)
+                (< (get-universal-time) limit))
+      (sleep-for 0.1))))
+
+(defun kill-leftover-subprocesses (&optional (wait 5))
+  (dolist (proc (test-live-subprocesses))
+    (ignore-errors (kill-process proc)))
+  (let ((limit (+ (get-universal-time) wait)))
+    (while (and (test-live-subprocesses) (< (get-universal-time) limit))
+      (sleep-for 0.1))))
+
 (defun eval-in-another-xyzzy (form &key environ (options "") (timeout 60))
   (let* ((tmpfile (make-temp-file-name))
          (create-time (file-write-time tmpfile))
@@ -1074,17 +1142,21 @@ Returns list of failures."
          (proc (let ((*xyzzyenv-show-flag* :hide))
                  (make-process command-string :output tmpbuf :environ environ
                                :show :minimize))))
+    (push proc *test-children*)
     (unwind-protect
         (progn
           ;; wait for finish.
           (while (eql (process-status proc) :run)
             (sleep-for 0.1)
             (when (> (get-universal-time) (+ create-time timeout))
-              (signal-process proc)
+              (kill-test-subprocess proc)
               (error "eval-in-another-xyzzy timeout.")))
           (eval-in-another-xyzzy--read-results tmpfile))
+      (when (eql (process-status proc) :run)
+        (kill-test-subprocess proc))
+      (setq *test-children* (delete proc *test-children*))
       (eval-in-another-xyzzy--delete-tmpbuf tmpbuf (+ create-time 180000))
-      (delete-file tmpfile))))
+      (ignore-errors (delete-file tmpfile)))))
 
 #+unittest-meta-test
 (progn
