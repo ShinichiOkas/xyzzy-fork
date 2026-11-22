@@ -101,6 +101,40 @@ Fguess_char_encoding (lisp string)
   return guess_char_encoding (string, 1);
 }
 
+/* Every candidate is dead.  DIED[] is the position of the byte that killed
+   each candidate (eucj, sjis, utf8, big5; the length of the data if it ended
+   in the middle of a character).  The candidate that read the most is the
+   one the data is nearly written in: a file that is nearly utf-8 with a
+   stray byte is utf-8.  When two or more died at the same place (a stray
+   byte at the start, or in ASCII) nothing is known and the caller uses its
+   default encoding (sjis), which keeps the bytes. */
+static lisp
+guess_longest_survivor (const int *died, const char *sig, size_t siglen)
+{
+  int best = -1, n = 0;
+  for (int i = 0; i < 4; i++)
+    if (best < 0 || died[i] > died[best])
+      {
+        best = i;
+        n = 1;
+      }
+    else if (died[i] == died[best])
+      n++;
+  if (n != 1)
+    return Qnil;
+  switch (best)
+    {
+    case 0:
+      return list (make_pair (Vencoding_euc_jp, 1.0));
+    case 1:
+      return list (make_pair (Vencoding_sjis, 1.0));
+    case 2:
+      return list (make_pair (get_utf8_encoding ((char *)sig, siglen), 1.0));
+    default:
+      return list (make_pair (Vencoding_big5, 1.0));
+    }
+}
+
 /* COMPLETE is true when STRING is the whole of the data.  A candidate
    that ends in the middle of a character is then a broken sequence
    and is not a candidate.  When STRING is only the head of the data,
@@ -119,8 +153,11 @@ guess_char_encoding (lisp string, int complete)
 
   char sig[3];
   size_t siglen = 0;
+  int died[4] = {-1, -1, -1, -1};
+  int nbytes = 0;
   for (int c = is->get (), i = 0; c != xstream::eof; c = is->get (), i++)
     {
+      nbytes = i + 1;
       if (siglen < sizeof sig)
         sig[siglen++] = c;
 
@@ -154,10 +191,15 @@ guess_char_encoding (lisp string, int complete)
       DFA_NEXT(utf8, c);
       DFA_NEXT(big5, c);
 
+      if (!DFA_ALIVE(eucj) && died[0] < 0) died[0] = i;
+      if (!DFA_ALIVE(sjis) && died[1] < 0) died[1] = i;
+      if (!DFA_ALIVE(utf8) && died[2] < 0) died[2] = i;
+      if (!DFA_ALIVE(big5) && died[3] < 0) died[3] = i;
+
       if (!DFA_ALIVE(eucj) && !DFA_ALIVE(sjis) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
         {
           /* we ran out the possibilities */
-          return Qnil;
+          return guess_longest_survivor (died, sig, siglen);
         }
     }
 
@@ -167,9 +209,12 @@ guess_char_encoding (lisp string, int complete)
       guess_dfa *all[] = { &eucj, &sjis, &utf8, &big5 };
       for (int i = 0; i < numberof (all); i++)
         if (all[i]->state > 0)
-          all[i]->state = -1;
+          {
+            all[i]->state = -1;
+            died[i] = nbytes;
+          }
       if (!DFA_ALIVE(eucj) && !DFA_ALIVE(sjis) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
-        return Qnil;
+        return guess_longest_survivor (died, sig, siglen);
     }
 
   /* Now, we have ambigous code. */

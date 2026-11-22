@@ -44,7 +44,7 @@
 | [BUG-0036](BUG-0036-radix-hex-case-mismatch.md) | `write-to-string :radix t` は 16 進の英字を大文字で印字し、`~X` や `*print-base*` は小文字（不揃い） | 修正済み（2026-11-22、小文字に揃えた） |
 | [BUG-0037](BUG-0037-foreign-c-pointer-type-dead-branch.md) | lisp/foreign.l の `c-pointer-type` に、`:x64` が無いとき `:uint32` に落ちる死んだ分岐が残っている | 修正済み（2026-11-22、c9ccc76） |
 | [BUG-0038](BUG-0038-expt-huge-exponent-complex-float.md) | 巨大な整数の指数の expt が、有理複素数の底では返らず、浮動小数の底で負の指数だと誤ったエラーになる | 修正済み（2026-11-22） |
-| [BUG-0039](BUG-0039-auto-encoding-corrupts-stray-bytes.md) | 文字コードを自動判定で開くと、はぐれたバイト（単独の A0、E0 の後に ASCII など）が big5 / euc-jp と判定され、保存でバイト列が変わる | 修正済み（2026-11-22、S4-0。判定は全候補にすべてのバイトを読ませ、全滅なら既定の sjis） |
+| [BUG-0039](BUG-0039-auto-encoding-corrupts-stray-bytes.md) | 文字コードを自動判定で開くと、はぐれたバイト（単独の A0、E0 の後に ASCII など）が big5 / euc-jp と判定され、保存でバイト列が変わる | 修正済み（2026-11-22、S4-0。判定は全候補にすべてのバイトを読ませ、全滅なら最も後ろまで読んだ候補、同位置なら既定の sjis） |
 | [BUG-0040](BUG-0040-explicit-encoding-normalizes-mixed-line-ends.md) | 符号を指定して開くと、CRLF で始まり LF・CR が混ざるファイルが、保存で全行 CRLF に変わる（自動判定では変わらない） | 修正済み（2026-11-22、S4-0。符号を指定しても、行末の判定は自動判定と同じ） |
 | [BUG-0042](BUG-0042-regexp-syntax-wide-char-table-index.md) | 正規表現の \w・\s? と skip-syntax-spec が、256 以上の文字で構文表を `cc >> 8` で引き、内部の値が 0x0100〜0x7FFF の文字（ISO-8859 など）の構文を誤る | 修正済み（2026-11-22） |
 | [BUG-0043](BUG-0043-fontset-need-pad-condition-always-true.md) | FontSet::create の「全角が半角の 2 倍でない」判定 `ex[i][0].cx * 2 != ex[i][0].cx` が、幅が 0 でなければ常に真になる（パディングを省く経路が使われない） | 修正済み（2026-11-22。`ex[i][1].cx` に直した。9 設定で撮影して表示が変わらないことを確かめた） |
@@ -53,3 +53,4 @@
 | [BUG-0046](BUG-0046-socket-send-oob-data-nul-overrun.md) | socket-stream-send-oob-data が alloca した領域を NUL の 1 バイトぶん超えて書く | 修正済み（2026-11-22。試験は書けない） |
 | [BUG-0047](BUG-0047-strbuf-empty-string-not-returned.md) | StrBuf::make_string と make_substring が、長さ 0 のときに作った空の文字列を return していない | 修正済み（2026-11-22。試験を追加） |
 | [BUG-0050](BUG-0050-latin-word-char-forward-word-vs-regexp.md) | ラテン文字（ISO-8859 など）が、forward-word・word-char-p では語の文字で、正規表現の \w では語の文字でない | 修正済み（2026-11-22） |
+| [BUG-0052](BUG-0052-utf8-read-changes-invalid-bytes.md) | utf-8 として開くと、不正なバイトが別のバイトに変わり、前後の文字も巻き込まれることがある（保存でバイト列が変わる） | 未修正（S4 の 4a「生のバイトの文字」で直る見込み） |

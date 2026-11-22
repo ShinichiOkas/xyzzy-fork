@@ -545,3 +545,66 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
       (when (file-exist-p tmp)
         (delete-file tmp))))
   => ((#x61 #x81) (#x62)))
+
+;;;; 9. a stray byte in a text that is nearly utf-8 or sjis
+;;;;
+;;;; The detection must not turn a text that has one broken byte into
+;;;; another encoding (BUG-0039 was fixed so that every candidate reads every
+;;;; byte; the candidate that read the most wins when all of them die).
+
+(defun cp932-rt-repeat (unit n)
+  (let (r)
+    (dotimes (i n)
+      (setq r (append r (copy-list unit))))
+    r))
+
+(defun cp932-rt-insert (list pos byte)
+  (append (subseq list 0 pos) (list byte) (subseq list pos)))
+
+(defun cp932-rt-detected-name (bytes)
+  (let ((tmp (make-temp-file-name))
+        (buf nil))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp bytes)
+          (setq buf (ed::find-file-internal tmp t nil nil t))
+          (save-excursion
+            (set-buffer buf)
+            (char-encoding-name (buffer-fileio-encoding))))
+      (when buf
+        (delete-buffer buf))
+      (when (file-exist-p tmp)
+        (delete-file tmp)))))
+
+;; Japanese text in utf-8 (a few KB): FF at the back, in the middle, near the
+;; start and at the end, and A0 at the back.
+(deftest cp932-detect-nearly-utf8-stray-byte ()
+  (let* ((u8 (cp932-rt-repeat '(#xe3 #x81 #x82 #xe3 #x81 #x84 #xe3 #x81 #x86
+                                #xe3 #x81 #x88 #xe3 #x81 #x8a #x0a)
+                              300))
+         (n (length u8)))
+    (mapcar #'cp932-rt-detected-name
+            (list u8
+                  (cp932-rt-insert u8 (- n 100) #xff)
+                  (cp932-rt-insert u8 (floor n 2) #xff)
+                  (cp932-rt-insert u8 20 #xff)
+                  (append u8 '(#xff))
+                  (cp932-rt-insert u8 (- n 100) #xa0))))
+  => ("utf8n" "utf8n" "utf8n" "utf8n" "utf8n" "utf8n"))
+
+;; Japanese text in sjis (a few KB) with one broken byte: sjis, and the bytes
+;; are kept.
+(defun cp932-rt-nearly-sjis-cases ()
+  (let* ((sj (cp932-rt-repeat '(#x82 #xa0 #x82 #xa2 #x82 #xa4 #x82 #xa6 #x82 #xa8 #x0a)
+                              400))
+         (n (length sj)))
+    (list (cp932-rt-insert sj (- n 100) #xa0)
+          (cp932-rt-insert sj 20 #xa0)
+          (cp932-rt-insert sj (- n 100) #x80)
+          (append (subseq sj 0 (- n 100)) '(#x81 #x20) (subseq sj (- n 100)))
+          (cp932-rt-insert sj (- n 100) #xff))))
+
+(deftest cp932-detect-nearly-sjis-stray-byte ()
+  (list (mapcar #'cp932-rt-detected-name (cp932-rt-nearly-sjis-cases))
+        (cp932-rt-check-bytes (cp932-rt-nearly-sjis-cases) :auto))
+  => (("sjis" "sjis" "sjis" "sjis" "sjis") :ok))
