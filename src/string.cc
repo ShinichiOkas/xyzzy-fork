@@ -3,6 +3,8 @@
 #include "byte-stream.h"
 #include "sequence.h"
 #include "StrBuf.h"
+#include "codec.h"
+#include "vector.h"
 
 int
 update_column (int column, Char c)
@@ -42,9 +44,203 @@ update_column (int column, Char c, int size)
   return column;
 }
 
+// ---------------------------------------------------------------------------
+// The converter of the ACP: the code page of the strings that go to and come
+// from the Win32 A functions (design 10.4).
+//
+// - XYZZY_CHAR_UNICODE 0: cp932. A Char is the internal code, which is a
+//   byte of cp932 or a pair of them.
+// - XYZZY_CHAR_UNICODE 1: UTF-8 (manifest activeCodePage=UTF-8). A Char is a
+//   code point. A byte of 0x80.. that is not a part of a valid sequence is
+//   kept as a raw byte character (codec.h) and written back as the same byte.
+//
+// s2w, w2s and the functions that make a string from a char * are the
+// functions of this converter. The UTF-8 side is in the acp_utf8_ functions;
+// they are compiled in both and the tests call them directly (si:acp-utf8-*).
+
+// One character of UTF-8 at s (s < se). It returns the number of bytes.
+// A sequence that is cut at se is not a character: its first byte is a raw
+// byte (the same as char_decoder of utf8 with final = true).
+static int
+acp_utf8_decode1 (const u_char *s, const u_char *se, Char &c)
+{
+  int b = *s;
+  if (b < 0x80)
+    {
+      c = b;
+      return 1;
+    }
+  int need;
+  Char code;
+  int lo = 0x80, hi = 0xbf;
+  if (b >= 0xc2 && b <= 0xdf)
+    {
+      need = 1;
+      code = b & 0x1f;
+    }
+  else if (b >= 0xe0 && b <= 0xef)
+    {
+      need = 2;
+      code = b & 0x0f;
+      if (b == 0xe0)
+        lo = 0xa0;
+      else if (b == 0xed)
+        hi = 0x9f;
+    }
+  else if (b >= 0xf0 && b <= 0xf4)
+    {
+      need = 3;
+      code = b & 0x07;
+      if (b == 0xf0)
+        lo = 0x90;
+      else if (b == 0xf4)
+        hi = 0x8f;
+    }
+  else
+    {
+      c = codec_raw_byte (u_char (b));
+      return 1;
+    }
+  if (se - s <= need)
+    {
+      c = codec_raw_byte (u_char (b));
+      return 1;
+    }
+  for (int k = 1; k <= need; k++)
+    {
+      int x = s[k];
+      if (k == 1 ? (x < lo || x > hi) : (x < 0x80 || x > 0xbf))
+        {
+          c = codec_raw_byte (u_char (b));
+          return 1;
+        }
+      code = (code << 6) | (x & 0x3f);
+    }
+  c = code;
+  return need + 1;
+}
+
+// The number of bytes of the UTF-8 of c (a character that cannot be written
+// is '?').
+static inline int
+acp_utf8_length (Char c)
+{
+  if (c < 0x80 || codec_raw_byte_p (c))
+    return 1;
+  if (c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff))
+    return 1;
+  return c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+}
+
+// Writes the UTF-8 of c to b and returns the end. b has the room of
+// acp_utf8_length (c).
+static u_char *
+acp_utf8_encode1 (Char c, u_char *b)
+{
+  if (c < 0x80)
+    *b++ = u_char (c);
+  else if (codec_raw_byte_p (c))
+    *b++ = u_char (c - CODEC_RAW_BYTE_BASE);
+  else if (c > 0x10ffff || (c >= 0xd800 && c <= 0xdfff))
+    *b++ = CODEC_DEFCHAR;
+  else if (c < 0x800)
+    {
+      *b++ = u_char (0xc0 | (c >> 6));
+      *b++ = u_char (0x80 | (c & 0x3f));
+    }
+  else if (c < 0x10000)
+    {
+      *b++ = u_char (0xe0 | (c >> 12));
+      *b++ = u_char (0x80 | ((c >> 6) & 0x3f));
+      *b++ = u_char (0x80 | (c & 0x3f));
+    }
+  else
+    {
+      *b++ = u_char (0xf0 | (c >> 18));
+      *b++ = u_char (0x80 | ((c >> 12) & 0x3f));
+      *b++ = u_char (0x80 | ((c >> 6) & 0x3f));
+      *b++ = u_char (0x80 | (c & 0x3f));
+    }
+  return b;
+}
+
+// Decodes the UTF-8 in [s, se) to b (b may be 0: only counts), at most
+// maxchars characters. *next is the position after the last used byte.
+static size_t
+acp_utf8_decode (Char *b, const u_char *s, const u_char *se,
+                 size_t maxchars, const u_char **next)
+{
+  size_t n = 0;
+  while (s < se && n < maxchars)
+    {
+      Char c;
+      s += acp_utf8_decode1 (s, se, c);
+      if (b)
+        b[n] = c;
+      n++;
+    }
+  if (next)
+    *next = s;
+  return n;
+}
+
+// The end of a string of the ACP: the first NUL, or se if zero_term is 0.
+static const u_char *
+acp_string_end (const u_char *s, const u_char *se, int zero_term)
+{
+  if (!zero_term)
+    return se;
+  const u_char *p = s;
+  while (p < se && *p)
+    p++;
+  return p;
+}
+
+// Char -> UTF-16. w may be 0: only counts. A character that UTF-16 cannot
+// have (a raw byte, a surrogate, beyond U+10FFFF) is U+FFFD. It is the
+// conversion of the Char strings that go to the W functions of Win32 (the
+// reconversion of the IME), and it does not depend on the ACP.
+size_t
+chars_to_utf16 (wchar_t *w, const Char *s, size_t n)
+{
+  size_t l = 0;
+  for (const Char *se = s + n; s < se; s++)
+    {
+      Char c = *s;
+      if (c < 0x10000 && !(c >= 0xd800 && c <= 0xdfff))
+        {
+          if (w)
+            w[l] = wchar_t (c);
+          l++;
+        }
+      else if (c >= 0x10000 && c <= 0x10ffff)
+        {
+          if (w)
+            {
+              c -= 0x10000;
+              w[l] = wchar_t (0xd800 + (c >> 10));
+              w[l + 1] = wchar_t (0xdc00 + (c & 0x3ff));
+            }
+          l += 2;
+        }
+      else
+        {
+          if (w)
+            w[l] = 0xfffd;
+          l++;
+        }
+    }
+  return l;
+}
+
 size_t
 s2wl (const char *string)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      const u_char *s = (const u_char *)string;
+      return acp_utf8_decode (0, s, s + strlen (string), size_t (-1), 0);
+    }
   size_t l = 0;
   const u_char *s = (const u_char *)string;
   while (*s)
@@ -68,6 +264,14 @@ s2wl (const char *string)
 Char *
 s2w (Char *b, size_t size, const char **string)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      const u_char *s = (const u_char *)*string;
+      const u_char *next;
+      size_t n = acp_utf8_decode (b, s, s + strlen (*string), size, &next);
+      *string = (const char *)next;
+      return b + n;
+    }
   Char *be = b + size;
   const u_char *s = (const u_char *)*string;
   while (b < be && *s)
@@ -92,6 +296,11 @@ s2w (Char *b, size_t size, const char **string)
 Char *
 s2w (Char *b, const char *string)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      const u_char *s = (const u_char *)string;
+      return b + acp_utf8_decode (b, s, s + strlen (string), size_t (-1), 0);
+    }
   const u_char *s = (const u_char *)string;
   while (*s)
     {
@@ -158,6 +367,13 @@ a2w (const char *string, size_t size)
 size_t
 w2sl (const Char *s, size_t size)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      size_t n = 0;
+      for (const Char *se = s + size; s < se; s++)
+        n += acp_utf8_length (*s);
+      return n;
+    }
   size_t l = 0;
   for (const Char *se = s + size; s < se; s++)
     if (DBCP (*s))
@@ -168,6 +384,13 @@ w2sl (const Char *s, size_t size)
 char *
 w2s (char *b, const Char *s, size_t size)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      for (const Char *se = s + size; s < se; s++)
+        b = (char *)acp_utf8_encode1 (*s, (u_char *)b);
+      *b = 0;
+      return b;
+    }
   for (const Char *se = s + size; s < se; s++)
     {
       if (DBCP (*s))
@@ -190,6 +413,17 @@ char *
 w2s (char *b, char *be, const Char *s, size_t size)
 {
   be--;
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      for (const Char *se = s + size; s < se && b < be; s++)
+        {
+          if (be - b < acp_utf8_length (*s))
+            break;
+          b = (char *)acp_utf8_encode1 (*s, (u_char *)b);
+        }
+      *b = 0;
+      return b;
+    }
   for (const Char *se = s + size; s < se && b < be; s++)
     {
       if (DBCP (*s))
@@ -208,6 +442,22 @@ char *
 w2s_quote (char *b, char *be, const Char *s, size_t size, int qc, int qe)
 {
   be--;
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      for (const Char *se = s + size; s < se && b < be; s++)
+        {
+          int n = acp_utf8_length (*s);
+          if (int (*s) == qc)
+            n++;
+          if (be - b < n)
+            break;
+          if (int (*s) == qc)
+            *b++ = qe;
+          b = (char *)acp_utf8_encode1 (*s, (u_char *)b);
+        }
+      *b = 0;
+      return b;
+    }
   for (const Char *se = s + size; s < se && b < be; s++)
     {
       if (DBCP (*s))
@@ -231,6 +481,12 @@ w2s_quote (char *b, char *be, const Char *s, size_t size, int qc, int qe)
 size_t
 s2wl (const char *string, const char *se, int zero_term)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      const u_char *s = (const u_char *)string;
+      return acp_utf8_decode (0, s, acp_string_end (s, (const u_char *)se, zero_term),
+                              size_t (-1), 0);
+    }
   size_t l = 0;
   const u_char *s = (const u_char *)string;
   while (s < (const u_char *)se && (!zero_term || *s))
@@ -254,6 +510,12 @@ s2wl (const char *string, const char *se, int zero_term)
 Char *
 s2w (Char *b, const char *string, const char *se, int zero_term)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      const u_char *s = (const u_char *)string;
+      return b + acp_utf8_decode (b, s, acp_string_end (s, (const u_char *)se, zero_term),
+                                  size_t (-1), 0);
+    }
   const u_char *s = (const u_char *)string;
   while (s < (const u_char *)se && (!zero_term || *s))
     {
@@ -276,6 +538,18 @@ s2w (Char *b, const char *string, const char *se, int zero_term)
 void
 w2s_chunk (char *b, char *be, const Char *s, size_t size)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      for (const Char *se = s + size; s < se && b < be; s++)
+        {
+          if (be - b < acp_utf8_length (*s))
+            break;
+          b = (char *)acp_utf8_encode1 (*s, (u_char *)b);
+        }
+      if (b < be)
+        *b = 0;
+      return;
+    }
   for (const Char *se = s + size; s < se && b < be; s++)
     {
       if (DBCP (*s))
@@ -315,6 +589,41 @@ make_string (const char *string, size_t size)
   xstring_length (p) = size;
   s2w (b, size, &string);
   return p;
+}
+
+// A string from UTF-8 (the exchange with xyzzycli.exe: design 10.4). It does
+// not depend on the ACP. With XYZZY_CHAR_UNICODE 0 the code points are
+// converted to cp932, which is the internal code; what cp932 does not have
+// becomes '?'.
+lisp
+make_string_utf8 (const char *string, size_t len)
+{
+  const u_char *s = (const u_char *)string;
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      size_t n = acp_utf8_decode (0, s, s + len, size_t (-1), 0);
+      lisp p = make_simple_string ();
+      Char *b = (Char *)xmalloc ((n ? n : 1) * sizeof (Char));
+      xstring_contents (p) = b;
+      xstring_length (p) = n;
+      acp_utf8_decode (b, s, s + len, size_t (-1), 0);
+      return p;
+    }
+  codec_spec dspec, espec;
+  memset (&dspec, 0, sizeof dspec);
+  memset (&espec, 0, sizeof espec);
+  dspec.type = encoding_utf8;
+  espec.type = encoding_sjis;
+  char_decoder *d = make_decoder (dspec);
+  char_encoder *e = make_encoder (espec);
+  std::vector <codec_char> points;
+  codec_decode_all (d, s, len, points);
+  std::vector <u_char> bytes;
+  codec_encode_all (e, points.empty () ? 0 : &points[0], points.size (), bytes);
+  delete d;
+  delete e;
+  bytes.push_back (0);
+  return make_string ((const char *)&bytes[0]);
 }
 
 lisp
@@ -1285,12 +1594,27 @@ Fsi_octet_length (lisp string, lisp keys)
                     find_keyword (Kstart, keys, make_fixnum (0)),
                     find_keyword (Kend, keys, Qnil));
   lisp encoding = find_keyword (Kencoding, keys);
-  if (encoding == Qnil)
+  if (encoding == Qnil && !XYZZY_CHAR_UNICODE)
     return make_fixnum (w2sl (xstring_contents (string) + start, end - start));
 
-  check_char_encoding (encoding);
-  if (xchar_encoding_type (encoding) == encoding_auto_detect)
-    FEtype_error (encoding, Qchar_encoding);
+  if (encoding != Qnil)
+    {
+      check_char_encoding (encoding);
+      if (xchar_encoding_type (encoding) == encoding_auto_detect)
+        FEtype_error (encoding, Qchar_encoding);
+    }
+
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      // The octets of the characters (a string of bytes, or the converter of
+      // :encoding or *default-fileio-encoding*; design 4.7).
+      std::vector <u_char> octets;
+      octet_encoder oe (encoding);
+      oe.scan (xstring_contents (string) + start, end - start);
+      oe.convert (xstring_contents (string) + start, end - start, octets);
+      oe.finish (octets);
+      return make_fixnum (octets.size ());
+    }
 
   if (start != 0 || end != xstring_length (string))
     string = make_string (xstring_contents (string) + start, end - start);
@@ -1301,4 +1625,98 @@ Fsi_octet_length (lisp string, lisp keys)
   while (s->get () != xstream::eof)
     r++;
   return make_fixnum (r);
+}
+
+// ---------------------------------------------------------------------------
+// Lisp functions for the tests of the converter of the ACP. They call the
+// UTF-8 side (XYZZY_CHAR_UNICODE 1) whatever the value of the switch is, so
+// that it can be tested before the switch is turned on. The code points are
+// Unicode (#x110080..#x1100ff are raw bytes).
+//
+//   (si:acp-utf8-decode octets)     => code-point vector
+//   (si:acp-utf8-encode points)     => octet vector
+//   (si:chars-to-utf16 points)      => vector of UTF-16 code units
+
+static void
+get_codes (lisp x, long max, std::vector <long> &v)
+{
+  if (simple_vector_p (x))
+    {
+      int n = xvector_length (x);
+      for (int i = 0; i < n; i++)
+        v.push_back (fixnum_value (xvector_contents (x)[i]));
+    }
+  else if (listp (x))
+    {
+      for (; consp (x); x = xcdr (x))
+        {
+          QUIT;
+          v.push_back (fixnum_value (xcar (x)));
+        }
+    }
+  else
+    FEtype_error (x, Qsequence);
+  for (size_t i = 0; i < v.size (); i++)
+    if (v[i] < 0 || v[i] > max)
+      FErange_error (make_fixnum (v[i]));
+}
+
+static lisp
+make_integer_vector (const long *p, size_t n)
+{
+  lisp r = make_vector (int (n), Qnil);
+  for (size_t i = 0; i < n; i++)
+    xvector_contents (r)[i] = make_fixnum (p[i]);
+  return r;
+}
+
+lisp
+Fsi_acp_utf8_decode (lisp octets)
+{
+  std::vector <long> in;
+  get_codes (octets, 255, in);
+  std::vector <u_char> bytes (in.size ());
+  for (size_t i = 0; i < in.size (); i++)
+    bytes[i] = u_char (in[i]);
+  std::vector <long> out;
+  const u_char *s = bytes.empty () ? 0 : &bytes[0];
+  const u_char *se = s + bytes.size ();
+  while (s < se)
+    {
+      Char c;
+      s += acp_utf8_decode1 (s, se, c);
+      out.push_back (long (c));
+    }
+  return make_integer_vector (out.empty () ? 0 : &out[0], out.size ());
+}
+
+lisp
+Fsi_acp_utf8_encode (lisp points)
+{
+  std::vector <long> in;
+  get_codes (points, 0x1fffff, in);
+  std::vector <long> out;
+  for (size_t i = 0; i < in.size (); i++)
+    {
+      u_char b[4];
+      u_char *e = acp_utf8_encode1 (Char (in[i]), b);
+      assert (e - b == acp_utf8_length (Char (in[i])));
+      for (u_char *p = b; p < e; p++)
+        out.push_back (*p);
+    }
+  return make_integer_vector (out.empty () ? 0 : &out[0], out.size ());
+}
+
+lisp
+Fsi_chars_to_utf16 (lisp points)
+{
+  std::vector <long> in;
+  get_codes (points, 0x1fffff, in);
+  std::vector <Char> chars (in.begin (), in.end ());
+  const Char *cp = chars.empty () ? 0 : &chars[0];
+  size_t n = chars_to_utf16 (0, cp, chars.size ());
+  std::vector <wchar_t> w (n + 1);
+  chars_to_utf16 (&w[0], cp, chars.size ());
+  std::vector <long> out (w.begin (), w.begin () + n);
+  return make_integer_vector (out.empty () ? 0 : &out[0], out.size ());
 }

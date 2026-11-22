@@ -114,6 +114,8 @@ lisp make_string (const char *);
 lisp make_string (const u_char *);
 lisp make_string (const char *, size_t);
 lisp make_string_simple (const char *, size_t);
+lisp make_string_utf8 (const char *, size_t);
+size_t chars_to_utf16 (wchar_t *, const Char *, size_t);
 lisp make_string (const Char *, size_t);
 lisp make_string (Char, size_t);
 lisp make_complex_string (Char, int, int, int);

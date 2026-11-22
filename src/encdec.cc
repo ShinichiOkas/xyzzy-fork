@@ -14,10 +14,14 @@ copy_xstream (xfilter_stream <u_char, u_char> &is, byte_output_stream &os)
   os.flush (1);
 }
 
+// The functions that take octets take :encoding, which tells how the
+// characters of the input become octets (design 4.7; octet_encoder).
+// Without it, the input is "a string of bytes".
+
 lisp
-Fsi_base64_decode (lisp input, lisp output)
+Fsi_base64_decode (lisp input, lisp output, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xdecode_b64_stream s (i);
   copy_xstream (s, o);
@@ -25,7 +29,7 @@ Fsi_base64_decode (lisp input, lisp output)
 }
 
 lisp
-Fsi_base64_encode (lisp input, lisp output, lisp lwidth)
+Fsi_base64_encode (lisp input, lisp output, lisp lwidth, lisp keys)
 {
   int width;
   if (!lwidth || lwidth == Qnil)
@@ -34,7 +38,7 @@ Fsi_base64_encode (lisp input, lisp output, lisp lwidth)
     width = -1;
   else
     width = fixnum_value (lwidth);
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xencode_b64_stream s (i, width);
   copy_xstream (s, o);
@@ -42,9 +46,9 @@ Fsi_base64_encode (lisp input, lisp output, lisp lwidth)
 }
 
 lisp
-Fsi_uudecode (lisp input, lisp output)
+Fsi_uudecode (lisp input, lisp output, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xdecode_uu_stream s (i);
   copy_xstream (s, o);
@@ -52,9 +56,9 @@ Fsi_uudecode (lisp input, lisp output)
 }
 
 lisp
-Fsi_uuencode (lisp input, lisp output)
+Fsi_uuencode (lisp input, lisp output, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xencode_uu_stream s (i);
   copy_xstream (s, o);
@@ -62,9 +66,9 @@ Fsi_uuencode (lisp input, lisp output)
 }
 
 lisp
-Fsi_quoted_printable_decode (lisp input, lisp output, lisp underscore_to_space)
+Fsi_quoted_printable_decode (lisp input, lisp output, lisp underscore_to_space, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xdecode_qp_stream s (i, underscore_to_space && underscore_to_space != Qnil);
   copy_xstream (s, o);
@@ -72,9 +76,9 @@ Fsi_quoted_printable_decode (lisp input, lisp output, lisp underscore_to_space)
 }
 
 lisp
-Fsi_quoted_printable_encode (lisp input, lisp output, lisp space_to_underscore)
+Fsi_quoted_printable_encode (lisp input, lisp output, lisp space_to_underscore, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xencode_qp_stream s (i, space_to_underscore && space_to_underscore != Qnil);
   copy_xstream (s, o);
@@ -82,7 +86,7 @@ Fsi_quoted_printable_encode (lisp input, lisp output, lisp space_to_underscore)
 }
 
 lisp
-Fsi_www_url_encode (lisp input, lisp output, lisp literal_chars)
+Fsi_www_url_encode (lisp input, lisp output, lisp literal_chars, lisp keys)
 {
   char lc[256];
   bzero (lc, sizeof lc);
@@ -119,7 +123,7 @@ Fsi_www_url_encode (lisp input, lisp output, lisp literal_chars)
         }
     }
 
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xencode_url_stream s (i, lc);
   copy_xstream (s, o);
@@ -127,9 +131,9 @@ Fsi_www_url_encode (lisp input, lisp output, lisp literal_chars)
 }
 
 lisp
-Fsi_www_url_decode (lisp input, lisp output)
+Fsi_www_url_decode (lisp input, lisp output, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xdecode_url_stream s (i);
   copy_xstream (s, o);
@@ -137,9 +141,9 @@ Fsi_www_url_decode (lisp input, lisp output)
 }
 
 lisp
-Fsi_binhex_decode (lisp input, lisp output)
+Fsi_binhex_decode (lisp input, lisp output, lisp keys)
 {
-  xstream_ibyte_helper i (input);
+  xstream_ibyte_helper i (input, find_keyword (Kencoding, keys));
   xstream_obyte_helper o (output);
   xdecode_hqx_stream s (i);
   copy_xstream (s, o);
@@ -168,7 +172,7 @@ public:
   virtual void final (u_char *) = 0;
   int block_size () const {return h_block_size;}
   int digest_size () const {return h_digest_size;}
-  void update (lisp);
+  void update (lisp, lisp encoding);
   lisp make_string (const u_char *, int) const;
   lisp apply (lisp, lisp);
   lisp hmac (lisp, lisp, lisp);
@@ -253,11 +257,11 @@ public:
 };
 
 void
-hash_method::update (lisp input)
+hash_method::update (lisp input, lisp encoding)
 {
   int c;
   u_char buf[1024], *b = buf, *const be = b + sizeof buf;
-  xstream_ibyte_helper is (input);
+  xstream_ibyte_helper is (input, encoding);
   while ((c = is->get ()) != xstream::eof)
     {
       *b++ = c;
@@ -290,7 +294,7 @@ lisp
 hash_method::apply (lisp input, lisp keys)
 {
   init ();
-  update (input);
+  update (input, find_keyword (Kencoding, keys));
   u_char *digest = (u_char *)alloca (digest_size ());
   final (digest);
   return make_string (digest, find_keyword_bool (Kbinary, keys));
@@ -299,27 +303,25 @@ hash_method::apply (lisp input, lisp keys)
 lisp
 hash_method::hmac (lisp lkey, lisp input, lisp keys)
 {
-  char *key;
+  // The key and the input are converted by the same rule (:encoding).
+  lisp encoding = find_keyword (Kencoding, keys);
   check_string (lkey);
-  int key_len = w2sl (lkey);
-  if (key_len <= block_size ())
-    {
-      key = (char *)alloca (key_len + 1);
-      w2s (key, xstring_contents (lkey), xstring_length (lkey));
-    }
-  else
+  std::vector <u_char> key;
+  string_to_octets (lkey, encoding, key);
+  if (key.size () > size_t (block_size ()))
     {
       init ();
-      update (lkey);
-      key = (char *)alloca (digest_size ());
-      final ((u_char *)key);
-      key_len = digest_size ();
+      update (&key[0], key.size ());
+      key.resize (digest_size ());
+      final (&key[0]);
     }
+  size_t key_len = key.size ();
 
   u_char *const ipad = (u_char *)alloca (block_size () * 2);
   u_char *const opad = ipad + block_size ();
   memset (ipad, 0, block_size ());
-  memcpy (ipad, key, key_len);
+  if (key_len)
+    memcpy (ipad, &key[0], key_len);
   for (int i = 0; i < block_size (); i++)
     {
       opad[i] = ipad[i] ^ 0x5c;
@@ -330,7 +332,7 @@ hash_method::hmac (lisp lkey, lisp input, lisp keys)
 
   init ();
   update (ipad, block_size ());
-  update (input);
+  update (input, encoding);
   final (digest);
 
   init ();
@@ -423,4 +425,43 @@ Fsi_hmac_sha_512 (lisp key, lisp input, lisp keys)
 {
   sha512 x;
   return x.hmac (key, input, keys);
+}
+
+// (si:octet-rule-encode code-points &key :encoding :one-by-one)
+//   => octet vector
+// The octets of code points by the rule of "a string of bytes" (octet_encoder),
+// the side of XYZZY_CHAR_UNICODE 1. It is for the tests: it works whatever
+// the value of the switch is. The code points are Unicode (#x110080..#x1100ff
+// are raw bytes). With :one-by-one t the characters are decided one by one,
+// the way characters read from a stream are; otherwise the whole is decided.
+lisp
+Fsi_octet_rule_encode (lisp points, lisp keys)
+{
+  lisp encoding = find_keyword (Kencoding, keys);
+  bool one_by_one = find_keyword_bool (Kone_by_one, keys);
+  std::vector <Char> chars;
+  if (simple_vector_p (points))
+    {
+      for (int i = 0; i < xvector_length (points); i++)
+        chars.push_back (Char (fixnum_value (xvector_contents (points)[i])));
+    }
+  else if (listp (points))
+    {
+      for (; consp (points); points = xcdr (points))
+        chars.push_back (Char (fixnum_value (xcar (points))));
+    }
+  else
+    FEtype_error (points, Qsequence);
+
+  const Char *cp = chars.empty () ? 0 : &chars[0];
+  octet_encoder oe (encoding);
+  if (!one_by_one)
+    oe.scan (cp, chars.size ());
+  std::vector <u_char> out;
+  oe.convert (cp, chars.size (), out);
+  oe.finish (out);
+  lisp r = make_vector (int (out.size ()), Qnil);
+  for (size_t i = 0; i < out.size (); i++)
+    xvector_contents (r)[i] = make_fixnum (out[i]);
+  return r;
 }
