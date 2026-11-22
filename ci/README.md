@@ -3,7 +3,8 @@
 - 定義: `.github/workflows/test.yml`。`feature/x64-only` と `develop` への push、または手動（Actions の画面の Run workflow）で走る。
 - 中身: `ci/ci-test.ps1` = `install.bat` → 一度起動してダンプ（xyzzy.wxp）を書かせる → `run-tests.bat`。ログは成果物 `test-logs`（`ci-out/`）。
 - 走る場所: この PC の自己ホストのランナー（ラベル `self-hosted, windows, x64, xyzzy`）。GitHub のクラウドのマシンは使わない。
-- 作業用のブランチ `worktree-agent-*`（エージェントの作業ツリー）への push でも走る。文書だけの変更（`*.md`・`docs/`・`bugs/`・`.pair-agent/`）では走らない。`[skip ci]` を書いたコミットも走らない。
+- CI は統合の門。統合のブランチだけで走る（2026-11-22 改め。作業用のブランチ `worktree-agent-*` では走らない）。役は自分の試験をこの PC の別のデスクトップで流し（`tools/gui-verify/deskrun.exe` から `ci-test.ps1 -Tests …`）、親が小片をまとめて統合して CI を 1 回流す。文書だけの変更（`*.md`・`docs/`・`bugs/`・`.pair-agent/`）と `[skip ci]` を書いたコミットでも走らない。
+- 全件の実行（`-Tests` なし）の最後に、値の切り替え `XYZZY_CHAR_UNICODE=1` でビルドとリンクが通るかを確かめる（[4/4]）。
 - 同じブランチに新しく push すると、そのブランチの古い実行は取り消される。ランナーは 1 台なので、別のブランチの実行は順番待ちになる。
 
 ## 作業用のブランチで試験を流す

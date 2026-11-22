@@ -5,15 +5,16 @@
 # workflow never runs on pull_request (a fork's PR would run its code here).
 # Only pushes to the branches below (collaborators only) and manual runs.
 #
-# worktree-agent-* are the branches of the agents' work trees: an agent pushes
-# its branch and waits for the result with ci/wait-run.ps1, instead of running
-# the tests on the desktop. There is one runner, so pushes that change only
-# documents do not start a run.
+# CI is the integration gate: it runs on the integration branches only. The
+# agents' branches (worktree-agent-*) do not start runs; an agent checks its
+# own tests on this PC on a separate desktop (tools/gui-verify/deskrun) and the
+# parent runs CI once per batch of merged parts. There is one runner, so
+# pushes that change only documents do not start a run either.
 name: test
 
 on:
   push:
-    branches: [feature/x64-only, develop, 'worktree-agent-*']
+    branches: [feature/x64-only, develop]
     paths-ignore:
       - '**.md'
       - 'docs/**'

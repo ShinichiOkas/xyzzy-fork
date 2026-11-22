@@ -57,4 +57,23 @@ $t.WaitForExit()
 $r = $t.ExitCode
 Select-String -Path $log -Pattern '\.\.\.Failed' | ForEach-Object { $_.Line }
 Get-Content $log -Tail 3
+
+if ($Tests.Count -eq 0) {
+  # The S4 value switch: the 1 side must build and link (it is not tested
+  # yet). Rebuild, because the CL variable is not tracked by an incremental
+  # build. This leaves a 1-side xyzzy.exe; the next job checks out clean.
+  Write-Host '[4/4] build with XYZZY_CHAR_UNICODE=1 (build and link only)'
+  $env:CL = '/DXYZZY_CHAR_UNICODE=1'
+  $b = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"`"$root\build.bat`" Release Rebuild minimal > `"$out\build-unicode1.log`" 2>&1`"" -PassThru -WindowStyle Hidden
+  if (-not $b.WaitForExit(1200000)) { Stop-Tree $b.Id; Write-Host 'the 1-side build timed out (20 min)'; exit 1 }
+  $b.WaitForExit()
+  Remove-Item Env:CL
+  if ($b.ExitCode -ne 0) {
+    Select-String -Path "$out\build-unicode1.log" -Pattern ' error ' | Select-Object -First 20 | ForEach-Object { $_.Line }
+    Write-Host "the 1-side build failed ($($b.ExitCode))"
+    if ($r -eq 0) { $r = 1 }
+  } else {
+    Write-Host '  OK: the 1 side builds and links'
+  }
+}
 exit $r
