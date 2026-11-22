@@ -64,7 +64,7 @@
 
 (defun load-history-file ()
   (let ((vars *history-variable-list*))
-    (load (history-file-name) :if-does-not-exist nil :verbose nil :print nil)
+    (load-data-file (history-file-name) :if-does-not-exist nil :verbose nil :print nil)
     (mapcar #'register-history-variable vars))
   (ignore-errors (run-hooks '*load-history-hook*))
   (setq *history-file-loaded* t)
@@ -77,7 +77,7 @@
 				     :wild (concat (resume-file-name-base) "*")
 				     :absolute t :file-only t))
 	      (when (ignore-errors (rename-file file tempfile :if-exists :overwrite))
-		(load tempfile :verbose nil :print nil)
+		(load-data-file tempfile :verbose nil :print nil)
 		(return))))
 	(and tempfile
 	     (ignore-errors (delete-file tempfile)))))))
@@ -121,7 +121,9 @@
       (with-open-file (s (history-file-name)
 			 :direction :output
 			 :if-exists :supersede
-			 :if-does-not-exist :create)
+			 :if-does-not-exist :create
+			 :char-encoding *encoding-utf8n*)
+	(write-data-file-mark s)
 	(flet ((put (var value)
 		 (unless (eq *package* (symbol-package var))
 		   (setq *package* (symbol-package var))
@@ -151,8 +153,10 @@
 					    (user-config-path))
 			   :direction :output
 			   :if-exists nil
-			   :if-does-not-exist :create)
+			   :if-does-not-exist :create
+			   :char-encoding *encoding-utf8n*)
 	  (when s
+	    (write-data-file-mark s)
 	    (save-session-info s)
 	    (return)))))))
 

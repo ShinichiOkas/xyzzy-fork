@@ -129,9 +129,24 @@
   (with-open-file (s filename
 		     :direction :output
 		     :if-exists :supersede
-		     :if-does-not-exist :create)
+		     :if-does-not-exist :create
+		     :char-encoding *encoding-utf8n*)
+    (write-data-file-mark s)
     (save-session-info s)
     t))
+
+;; The magic is on the first line (the old form) or on the second line,
+;; below the mark of the data file (the new form).
+(defun session-file-p (filename)
+  (with-open-file (s filename
+		     :direction :input
+		     :if-does-not-exist :error)
+    (let ((line (read-line s nil)))
+      (when (and line (find #\* line))
+	(setq line (read-line s nil)))
+      (and line
+	   (string= (string-right-trim '(#\Return) line)
+		    ";;; xyzzy session file.")))))
 
 (defun session-directory ()
   (or *default-session-directory*
@@ -189,17 +204,14 @@
     :title0 "Load session" :history0 '*session-file-history*
     :default0 (session-directory))
   (setq filename (namestring filename))
-  (with-open-file (s filename
-		     :direction :input
-		     :if-does-not-exist :error)
-    (unless (equal (read-line s nil) ";;; xyzzy session file.")
-      (error "セッションファイルではありません")))
+  (unless (session-file-p filename)
+    (error "セッションファイルではありません"))
   (unwind-protect
       (progn
 	(or not-close
 	    (close-session nil nil (if (interactive-p)
 				       #'write-file #'save-buffer-dialog)))
-	(load filename :verbose nil :print nil)
+	(load-data-file filename :verbose nil :print nil)
 	(setq *current-session-file-name* filename))
     (init-pseudo-frame))
   t)
