@@ -30,7 +30,7 @@ provenance: xyzzy-fork S4 後（師匠の指示 2026-11-22。一般の規則は�
 ## 結果の見方
 
 - 一覧: `gh run list`
-- 待つ（失敗で非 0）: `gh run watch <id> --exit-status`
+- 待つ: `ci/wait-run.ps1`（0 合格・1 不合格・2 まだ・3 実行なし）。**`gh run watch` や gh を繰り返し呼ぶ待ち方は使わない。** GitHub の API は 1 時間 5000 回でアカウントの共有。2026-11-22 に、役たちが数秒ごとに問い合わせて使い切り、全員の待ちが止まった。wait-run.ps1 は 1 分に 1 回、1 回の呼び出しで問い合わせ、上限に当たると戻る時刻まで待つ（戻る時刻は `gh api rate_limit` で見る。これは回数に数えられない）
 - ログ・成果物: `gh run download <id> -n test-logs`
 - 手動で起こす: `gh workflow run test.yml --ref <ブランチ>`
 
