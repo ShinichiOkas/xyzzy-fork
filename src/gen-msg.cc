@@ -21,15 +21,21 @@ print_quote (const char *p)
 {
   while (*p)
     {
-      if ((*p & 0xff) < ' ')
-        printf ("\\%03o", *p++);
+      int c = *p++ & 0xff;
+      if (c < ' ' || c >= 0x80)
+        {
+          /* Non-ASCII bytes are written as octal escapes so that the
+             generated file is ASCII and yields the same bytes whatever
+             the compiler's /source-charset is.  */
+          printf ("\\%03o", c);
+          if (SJISP (c) && *p)
+            printf ("\\%03o", *p++ & 0xff);
+        }
       else
         {
-          if (*p == '\\' || *p == '"')
+          if (c == '\\' || c == '"')
             putchar ('\\');
-          putchar (*p);
-          if (SJISP (*p++ & 0xff))
-            putchar (*p++);
+          putchar (c);
         }
     }
 }

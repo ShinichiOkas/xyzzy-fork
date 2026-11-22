@@ -2262,7 +2262,7 @@ static symbols ed[] =
   DEFCMD3 (save-buffer, 0, 2, 0, ""),
   DEFUN3 (delete-auto-save-file, 1, 0, 0),
   DEFUN3 (do-auto-save, 0, 1, 0),
-  DEFCMD3 (write-region, 3, 3, 0, "r\nF�t�@�C����: \np"),
+  DEFCMD3 (write-region, 3, 3, 0, "r\nFファイル名: \np"),
   MAKE_SYMBOL2 (to-ascii-fileio),
   MAKE_SYMBOL2 (to-kanji-fileio),
   MAKE_SYMBOL2 (to-kana-fileio),
@@ -2928,15 +2928,20 @@ putq (const char *p)
   putchar ('"');
   while (*p)
     {
-      if ((*p & 0xff) < ' ')
-        printf ("\\%03o", *p++);
+      int c = *p++ & 0xff;
+      if (c < ' ' || c >= 0x80)
+        {
+          /* 非 ASCII は 8 進のエスケープで出す。生成物を ASCII にして、
+             ソースの文字コード（/source-charset）に依らず同じバイトにする */
+          printf ("\\%03o", c);
+          if (((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc)) && *p)
+            printf ("\\%03o", *p++ & 0xff);
+        }
       else
         {
-          if (*p == '\\' || *p == '"')
+          if (c == '\\' || c == '"')
             putchar ('\\');
-          putchar (*p);
-          if (_ismbblead (*p++ & 0xff))
-            putchar (*p++);
+          putchar (c);
         }
     }
   putchar ('"');

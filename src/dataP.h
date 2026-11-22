@@ -12,7 +12,7 @@ DECLARE_LDATA (lsimple_string, Tsimple_string)
 DECLARE_LARRAY (lcomplex_string, Tcomplex_string)
 DECLARE_LARRAY (lgeneral_array, Tarray)
 DECLARE_LARRAY (lstring_array, Tstring_array)
-DECLARE_LDATA (lcons, Tcons)     // ‹¤—L”z—ñ‚ÌGC‚Å•s“s‡‚ª‚ ‚é‚½‚ßarray‚æ‚èŒã‚ë
+DECLARE_LDATA (lcons, Tcons)     // å…±æœ‰é…åˆ—ã®GCã§ä¸éƒ½åˆãŒã‚ã‚‹ãŸã‚arrayã‚ˆã‚Šå¾Œã‚
 DECLARE_LDATA (lsymbol, Tsymbol)
 DECLARE_LDATA (llong_int, Tlong_int)
 DECLARE_LDATA (lbignum, Tbignum)
@@ -39,7 +39,7 @@ DECLARE_LDATA (lprocess, Tprocess)
 DECLARE_LDATA (lwin32_menu, Twin32_menu)
 DECLARE_LDATA (lchunk, Tchunk)
 DECLARE_LDATA (ldll_module, Tdll_module)
-DECLARE_LDATA (ldll_function, Tdll_function)  // undump‚Ì‚½‚ßdll-module‚æ‚èŒã‚ë
+DECLARE_LDATA (ldll_function, Tdll_function)  // undumpã®ãŸã‚dll-moduleã‚ˆã‚Šå¾Œã‚
 DECLARE_LDATA (lwait_object, Twait_object)
 DECLARE_LDATA (lchar_encoding, Tchar_encoding)
 DECLARE_LDATA (lenvironment, Tenvironment)

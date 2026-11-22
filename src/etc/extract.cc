@@ -28,7 +28,7 @@ int __stdcall
 WinMain (HINSTANCE, HINSTANCE, LPSTR, int)
 {
   const char *cl = skip_argv0 (GetCommandLine ());
-  if (*cl && MessageBox (0, "��낵?", cl, MB_ICONQUESTION | MB_YESNO) == IDYES)
+  if (*cl && MessageBox (0, "よろし?", cl, MB_ICONQUESTION | MB_YESNO) == IDYES)
     Unlha (0, cl, 0, 0);
   ExitProcess (0);
 }

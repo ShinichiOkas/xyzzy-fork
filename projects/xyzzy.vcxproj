@@ -66,7 +66,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CallingConvention>StdCall</CallingConvention>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <AdditionalOptions>/Gs %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Gs /source-charset:utf-8 /execution-charset:.932 %(AdditionalOptions)</AdditionalOptions>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>Async</ExceptionHandling>
@@ -110,7 +110,7 @@
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalOptions>/Gs %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Gs /source-charset:utf-8 /execution-charset:.932 %(AdditionalOptions)</AdditionalOptions>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <CallingConvention>StdCall</CallingConvention>
       <WholeProgramOptimization>false</WholeProgramOptimization>
