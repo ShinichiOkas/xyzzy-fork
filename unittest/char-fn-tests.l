@@ -23,10 +23,7 @@
   (map 'list #'char-unicode string))
 
 (defun char-fn-string (codes)
-  (let ((s (make-string (length codes))))
-    (dotimes (i (length codes))
-      (setf (char s i) (unicode-char (nth i codes))))
-    s))
+  (map 'string #'unicode-char codes))
 
 ;;; the switch
 
