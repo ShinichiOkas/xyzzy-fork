@@ -779,6 +779,50 @@ S4-d ─┬─ S4-k ─┐
 | xyzzycli.exe → xyzzy.exe の受け渡し | xyzzycli は引数から作った Lisp の式を、共有メモリ（xyzzysrv_param の `char data[]`）に ACP（cp932）のバイトで書く。xyzzy は listen.cc の eval_xyzzysrv_param で `make_string (param->data)`（s2w）で読む。xyzzy だけ UTF-8 にすると、日本語の名前のファイルを xyzzycli から開けなくなる | R8 で受け渡しを UTF-8 に決める: xyzzycli は GetCommandLineW から UTF-8 を作って書き、xyzzy は UTF-8 として読む。listen.h の `xyzzysrv_name`（"xyzzy-server v2"）を v3 に上げ、版の違う組み合わせは繋がらないようにする |
 | xyzzycli.exe・xyzzyenv.exe のそのほか（IsDBCSLeadByte で引数を区切る、xyzzycli.ini を A 版で読む） | 別の exe。manifest を入れなければ今のまま | S5 で扱う |
 
+### 10.5 段 1・段 2 からの申し送り（2026-11-22。段 3 の各片はここを読む）
+
+値の切り替え `XYZZY_CHAR_UNICODE`（cdecl.h で定義。既定 0）:
+
+- 書き方は `if constexpr (XYZZY_CHAR_UNICODE) { 新しい動き } else { 今の動き }` を基本にする。関数の中なら、どちらの側も毎回コンパイルされる（1 の側が V まで一度もコンパイルされない、を防ぐ）。
+- 宣言や表のように `#if XYZZY_CHAR_UNICODE` が避けられない所は、片を渡す前に 1 でもビルドとリンクが通ることを確かめる（`set CL=/DXYZZY_CHAR_UNICODE=1` で build.bat。1 では試験は通らなくてよい）。
+- 片の完了の基準: 0 で全件が合格し、1 でビルドとリンクが通る。
+
+W（Char を 32bit に。統合 d1a0ba8）から:
+
+- `CHAR_NONE` は 0xFFFFFFFF。16bit の表の空きは `CHAR16_NONE`（0xFFFF）と `UCS2_NONE` で、別物。ucs2tab.h の静的な表は `Char16`。実行時に作る 64K の表（`wc2internal_table` など）は `Char` のまま。
+- `i2w`・`code_charset`・`char_width` は下位 16bit で引いている（`& 0xffff`。16bit の表を越えて読まないための保険）。**V で外す。残すと BMP の外の文字が黙って畳まれる。**
+- `text_char (lChar)`（keycode.h）は、リーダ（lread.cc の `Char (c)` 18 箇所）、echo ストリーム（stream.cc）、byte-stream.cc（2 箇所）で、キーの値を下位 16bit に切っている。**V で「キーを弾く」形に替える（R4・R5）。**
+- std- の UTF の hash（encoding.cc）は `#xffff` を空きの印にしている（`cc != Char (0xffff)`）。V で U+FFFF が普通の文字になるので条件を見直す（R9）。
+- regex.cc の `char_class_fastmap` の `p[1] == ((256 / NBITS) << 16)` は常に偽に見える（`<< 8` の書き違いか。結果には効かない）。R1 で確かめる。
+- 画面と印刷の表の引き（`char_width_table`、disp.cc・print.cc の `c >> 8`、`lucida_spacing_table`）は 16bit 前提のまま（R3）。
+- ダンプの形式は DUMP_FORMAT 2（見出しに `sizeof (Char)` も入れた）、DOC の magic は `CDX4`、クリップボードの形式名は `"xyzzy internal text v2"`。レジストリの REG_BINARY（write-registry-literally）は W の前の値を読めない（lisp/ に使う所は無い。公開の変更として C4 で書く）。
+- kbd.cc の reconvert は、バイト列を別の領域に持つ形になった。ACP のバイトを経由する形はそのまま（R8 で Char から UTF-16 を直接作る形に）。
+
+S4-c（W 版のファイルの層。統合 aabf8d8）から:
+
+- 変換は wfile.cc の 4 関数（`narrow_to_wide`・`chars_to_wide`・`wide_to_narrow`・`wide_to_chars`。今は MultiByteToWideChar の 932）。WINFS の呼び出し側は今も `w2s` で作った cp932 の `char*` を渡している。V（または R8）で `Char*` の入口（`wfile::path (const Char *)` など）に置き換える。
+- `SetCurrentDirectory` には `\?\` を付けない（OS の longPathAware に頼る）。Lisp のパス長は `WPATH_MAX` で 511 文字まで。
+- A 版のまま残したもの: conf.cc の ini（R6）、dialogs.cc の GetOpenFileName（S7）、except.cc（S5）、Shell 系と CreateProcess（S5）。
+
+段 3 の片が受け持つ票（完了の基準に入れる）:
+
+| 票 | 中身 | 片 |
+|---|---|---|
+| BUG-0056 | 否定の文字クラス `[^…]` が、上位バイトがクラスの範囲にある文字に当たらない | R1 |
+| BUG-0051 | std- の UTF が ASCII の `\`・`~` を ¥・‾ で書く | R4（V で閉じる） |
+| BUG-0052 | UTF-8 の不正なバイトが保存で変わる | R4（V で閉じる。生のバイトの文字） |
+| BUG-0053 | 定義の無いバイトが別の文字として読まれる | R4・R7（V で閉じる） |
+| BUG-0054 | EUC の書きが ESC 列を出す、EUC-KR の é が e になる | R4（V で閉じる） |
+
+段 3 の片の境界（同じファイルを触る片）:
+
+- string.cc: R7（Fsi_octet_length・make_string_simple）と R8（s2w・w2s）。**R7 と R8 は 1 つの役にまとめる。**
+- kbd.cc: R3（kbd_encoding_font だけ）、R8（reconvert）、R10（putc・puts）。関数を分ける。
+- lread.cc: R4（load_file）の後に R5（.lc の 1 行目）。
+- gen-syms.cc・lisp/builtin.l・data.cc・projects: 足すだけの変更。取り込みで合わせる。
+- 画面を使う確かめ（R3・R8・R10 と画面の確かめの役）は、ロック（スクラッチパッドの `gui.lock` フォルダを `mkdir` で作れたら使ってよい。終わったら消す）で 1 つずつ行う。IMM32 の IME はこの PC では実機で確かめられない（plan.md §4.6）。限界として記録し、繰り返さない。
+
+
 ## 11. リスクと、この PC で確かめられないこと
 
 | リスク | 内容 | 対策 |

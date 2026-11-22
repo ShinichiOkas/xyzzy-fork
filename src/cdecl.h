@@ -45,6 +45,16 @@ typedef u_long u_int32_t;
 
 typedef uintptr_t pointer_t;
 
+// The value switch of S4 (docs/refactoring/s4-char-design.md 10.1, 10.5).
+// 0: a Char holds the old internal code (the current behaviour).
+// 1: a Char holds a Unicode code point (turned on by the V step).
+// Write `if constexpr (XYZZY_CHAR_UNICODE) ... else ...` so that both sides
+// are compiled every time.  Where #if cannot be avoided, check that the tree
+// also builds with `set CL=/DXYZZY_CHAR_UNICODE=1`.
+#ifndef XYZZY_CHAR_UNICODE
+# define XYZZY_CHAR_UNICODE 0
+#endif
+
 typedef u_int32_t Char;
 # define CHAR_LIMIT 0x10000
 typedef u_long lChar;
