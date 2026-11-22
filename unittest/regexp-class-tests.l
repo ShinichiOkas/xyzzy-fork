@@ -59,7 +59,7 @@ fastmap of the buffer search)."
       (setq codes (nreverse codes))
       (goto-char (point-min))
       (let ((matched nil))
-        (while (scan-buffer re :regexp t :no-dup t)
+        (while (scan-buffer re :regexp t)
           (push (char-code (char-after (match-beginning 0))) matched)
           (goto-char (match-end 0)))
         (setq matched (nreverse matched))
@@ -113,13 +113,14 @@ fastmap of the buffer search)."
 ;;; Classes with a large range of the double byte characters.
 
 (defun regexp-class-wide-char (kind)
-  (ecase kind
+  (case kind
     (:hira-a (unicode-char #x3041))
     (:hira-n (unicode-char #x3093))
     (:kanji-first (unicode-char #x4e00))
     (:kanji-last (unicode-char #x9fa0))
     (:fullwidth-a (unicode-char #xff21))
-    (:kata-a (unicode-char #x30a1))))
+    (:kata-a (unicode-char #x30a1))
+    (t (error "regexp-class-wide-char: ~S" kind))))
 
 (defun regexp-class-range-test (lo-kind hi-kind)
   "Failures of [LO-HI], [^LO-HI] and [LO-HI] in a buffer against every code."
@@ -397,9 +398,11 @@ the other characters, including code points outside the BMP."
 
 (deftest regexp-class-test-many-ranges ()
   "A class with many ranges (the first 16 codes of every block of 64)."
-  (let ((ranges (loop for i from 0 below 4000
-                      collect (cons (+ #x10000 (* i 64)) (+ #x10000 (* i 64) 15))))
+  (let ((ranges nil)
         (bad nil))
+    (dotimes (i 4000)
+      (push (cons (+ #x10000 (* i 64)) (+ #x10000 (* i 64) 15)) ranges))
+    (setq ranges (nreverse ranges))
     (dotimes (n 4000)
       (let ((base (+ #x10000 (* n 64))))
         (dolist (c (list base (+ base 15) (+ base 16) (+ base 63)))
