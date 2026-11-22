@@ -56,7 +56,7 @@ static void
 init_ucs2tab (int min, int max)
 {
   Char o = wc2internal_table[0xffff];
-  for (Char cc = max; cc >= min; cc--)
+  for (Char cc = max; cc >= Char (min); cc--)
     wc2internal_table[i2w (cc)] = cc;
   wc2internal_table[0xffff] = o;
 }
@@ -80,13 +80,13 @@ init_iso8859 (wc2int_hash &hash, wc2int_hash_rep *rep, int size, int ccs)
         rep[n].wc = w;
         rep[n].cc = ccs | i;
         Char ic = wc2internal_table[w];
-        if (ic == Char (-1) || w < 0x2000 || code_charset (ic) != ccs_jisx0208)
+        if (ic == CHAR_NONE || w < 0x2000 || code_charset (ic) != ccs_jisx0208)
           wc2internal_table[w] = ccs | i;
       }
 }
 
 static void
-init_wincp (wc2int_hash &hash, wc2int_hash_rep *rep, int size, const Char *to_int)
+init_wincp (wc2int_hash &hash, wc2int_hash_rep *rep, int size, const Char16 *to_int)
 {
   hash.size = size;
   hash.rep = rep;
@@ -96,7 +96,7 @@ init_wincp (wc2int_hash &hash, wc2int_hash_rep *rep, int size, const Char *to_in
 
   for (int i = 0; i < 128; i++)
     {
-      ucs2_t wc = i2w (to_int[i]);
+      ucs2_t wc = i2w (Char (to_int[i]));
       if (wc != ucs2_t (-1))
         {
           int n = wc % size;
@@ -136,7 +136,7 @@ init_cp932 ()
   for (int i = 0; i < 0x10000; i++)
     {
       Char cc = wc2cp932 (i);
-      if (cc != Char (-1))
+      if (cc != CHAR_NONE)
         wc2internal_table[i] = cc;
     }
 }
@@ -153,15 +153,15 @@ init_cp932 ()
 static void
 copy_diff_table (Char *const tab,
 #ifdef RUNTIME_TEST_DIFF_TABLE
-                 const char *name, const Char *diff, int ndiff,
+                 const char *name, const Char16 *diff, int ndiff,
 #endif
-                 const Char *both, int nboth,
-                 const Char *wsame, int nwsame,
-                 const Char *iincr, int niincr,
-                 const Char *wincr, int nwincr,
-                 const Char *rest, int nrest)
+                 const Char16 *both, int nboth,
+                 const Char16 *wsame, int nwsame,
+                 const Char16 *iincr, int niincr,
+                 const Char16 *wincr, int nwincr,
+                 const Char16 *rest, int nrest)
 {
-  const Char *p, *pe;
+  const Char16 *p, *pe;
 
 #ifdef RUNTIME_TEST_DIFF_TABLE
   Char test[65536];
@@ -245,15 +245,15 @@ static void
 make_wc2cp932_table ()
 {
   for (int i = 0; i < 0x10000; i++)
-    wc2cp932_table[i] = Char (-1);
+    wc2cp932_table[i] = CHAR_NONE;
   for (int i = 0; i < 0x100; i++)
-    if (i2w (i) != Char (-1))
+    if (i2w (i) != UCS2_NONE)
       wc2cp932_table[i2w (i)] = i;
   for (int i = 0x8100; i <= 0x9fff; i++)
     wc2cp932_table[i2w (i)] = i;
   for (int i = 0xe000; i <= 0xfcff; i++)
     wc2cp932_table[i2w (i)] = i;
-  wc2cp932_table[0xffff] = Char (-1);
+  wc2cp932_table[0xffff] = CHAR_NONE;
   for (int i = CCS_UTF16_SURROGATE_HIGH_MIN; i <= CCS_UTF16_SURROGATE_LOW_MAX; i++)
     wc2cp932_table[i] = i;
 
@@ -278,22 +278,22 @@ make_wc2cp932_table ()
 static void
 init_wc2perlang_table (Char *const tab, int min, int max,
 #ifdef RUNTIME_TEST_DIFF_TABLE
-                       const char *name, const Char *diff, int ndiff,
+                       const char *name, const Char16 *diff, int ndiff,
 #endif
-                       const Char *both, int nboth,
-                       const Char *wsame, int nwsame,
-                       const Char *iincr, int niincr,
-                       const Char *wincr, int nwincr,
-                       const Char *rest, int nrest)
+                       const Char16 *both, int nboth,
+                       const Char16 *wsame, int nwsame,
+                       const Char16 *iincr, int niincr,
+                       const Char16 *wincr, int nwincr,
+                       const Char16 *rest, int nrest)
 {
   int i;
   for (i = 0; i < 0x80; i++)
     tab[i] = i;
   for (; i < 0x10000; i++)
-    tab[i] = Char (-1);
+    tab[i] = CHAR_NONE;
   for (i = min; i <= max; i++)
     tab[i2w (i)] = i;
-  tab[0xffff] = Char (-1);
+  tab[0xffff] = CHAR_NONE;
 
   COPY_DIFF_TABLE (tab, name, diff, ndiff, both, nboth, wsame, nwsame,
                    iincr, niincr, wincr, nwincr, rest, nrest);
@@ -367,7 +367,7 @@ make_cns_table (Char *buf, Char cc, const cns_table *cnstab, int csize)
       else
         {
           for (e = i + cp->c; i < e; i++)
-            buf[i] = Char (-1);
+            buf[i] = CHAR_NONE;
         }
     }
   return i;
@@ -437,7 +437,7 @@ init_unicode (int min, int max, int off)
   for (int i = min; i <= max; i++)
     {
       Char c = wc2internal_table[i];
-      if (c == Char (-1) || char_width (c) == 2)
+      if (c == CHAR_NONE || char_width (c) == 2)
         wc2internal_table[i] = i + off;
     }
 }
@@ -523,7 +523,7 @@ init_ucs2_table ()
   make_wc2cp932_table ();
 
   for (int i = 0; i < numberof (wc2internal_table); i++)
-    wc2internal_table[i] = Char (-1);
+    wc2internal_table[i] = CHAR_NONE;
 
   init_charset_category ();
 
@@ -600,11 +600,11 @@ Char
 w2i_half_width (ucs2_t wc)
 {
   Char cc = w2i (wc);
-  if (cc != Char (-1) && char_width (cc) != 1)
+  if (cc != CHAR_NONE && char_width (cc) != 1)
     for (int i = 0; i < numberof (to_half_width_hashtabs); i++)
       {
         Char t = lookup_wc2int_hash (*to_half_width_hashtabs[i], wc);
-        if (t != Char (-1))
+        if (t != CHAR_NONE)
           return t;
       }
   return cc;

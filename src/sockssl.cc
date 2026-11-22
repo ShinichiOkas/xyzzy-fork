@@ -412,8 +412,10 @@ sockssl::verify_certificate (const char *server_name, DWORD cert_flags)
   policy_https.fdwChecks = cert_flags;
 
   size_t len = strlen (server_name) + 1;
-  Char *w = (Char *)alloca (len * sizeof (Char));
-  a2w (w, server_name, len);
+  // The server name is for Win32 (UTF-16), not xyzzy's Char.
+  wchar_t *w = (wchar_t *)alloca (len * sizeof (wchar_t));
+  for (size_t i = 0; i < len; i++)
+    w[i] = u_char (server_name[i]);
   policy_https.pwszServerName = w;
 
   memset (&policy_para, 0, sizeof (policy_para));

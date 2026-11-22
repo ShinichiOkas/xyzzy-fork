@@ -3880,11 +3880,12 @@ Fmessage_box (lisp lmsg, lisp ltitle, lisp styles, lisp args)
   check_string (lmsg);
   int l = count_crlf (xstring_contents (lmsg),
                       xstring_contents (lmsg) + xstring_length (lmsg));
-  char *msg = (char *)alloca (l * 2 + 3);
-  copy_crlf ((Char *)msg + 1,
+  Char *wmsg = (Char *)alloca (sizeof (Char) * (l + 1));
+  copy_crlf (wmsg,
              xstring_contents (lmsg),
              xstring_contents (lmsg) + xstring_length (lmsg));
-  w2s (msg, (Char *)msg + 1, l);
+  char *msg = (char *)alloca (l * 2 + 3);
+  w2s (msg, wmsg, l);
 
   const char *title;
   if (!ltitle || ltitle == Qnil)
@@ -3941,18 +3942,19 @@ putmsg (wStream &stream, int msgboxp, int style, int beep)
 {
   stream.finish ();
   int l = stream.length ();
-  Char *b = (Char *)alloca (sizeof (Char) * l + sizeof (Char) + 1);
-  stream.copy (b + 1);
+  Char *b = (Char *)alloca (sizeof (Char) * l);
+  stream.copy (b);
 
   if (msgboxp)
     {
-      w2s ((char *)b, b + 1, l);
+      char *s = (char *)alloca (l * 2 + 1);
+      w2s (s, b, l);
       app.status_window.clear ();
-      return MsgBox (get_active_window (), (char *)b, TitleBarString, style, beep);
+      return MsgBox (get_active_window (), s, TitleBarString, style, beep);
     }
   else
     {
-      app.status_window.puts (b + 1, l);
+      app.status_window.puts (b, l);
       app.status_window.putc ('\n');
       if (beep)
         Fding ();

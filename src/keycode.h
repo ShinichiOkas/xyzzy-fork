@@ -189,6 +189,18 @@ keycode_to_char (keycode_t k)
   return Char (keycode_value (k));
 }
 
+// A character that was read from a stream, as text.  The keyboard stream gives
+// keys (KEY_BASE and above, and the marks of the key queue), and a key is not
+// text.  Keep the low 16 bits, which is what a 16bit Char did to a key, so that
+// the reader and the echo stream never get a value that no table can take.
+// Every place that makes a text Char (a string, a buffer, a token) from an
+// lChar that may come from the keyboard stream goes through this function.
+inline Char
+text_char (lChar c)
+{
+  return Char (c >= KEY_BASE ? c & 0xffff : c);
+}
+
 // The key part (KEY_BASE..KEY_LIMIT), whatever its low bits are.
 inline bool
 keycode_in_key_range_p (keycode_t k)

@@ -122,7 +122,7 @@ standard_char_name2Char (const Char *name, int l)
        p < pe; p++)
     if (l == p->l && seql (name, (const u_char *)p->name))
       return Char (p->code);
-  return Char (-1);
+  return CHAR_NONE;
 }
 
 // The key of a name of a function key ("F1", "PageUp").  False if it is not a name.

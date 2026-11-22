@@ -176,11 +176,15 @@
 #define CP_KOI8R          878
 #define CP_PSEUDO_KOI8U   100878
 
+// The tables of code_charset, char_width and i2w have 16bit indexes (until V).  A
+// Char is 32bit since W, and a value that is not a 16bit code (CHAR_NONE that
+// leaked, ...) is looked up by its low 16 bits, as a 16bit Char did, so that it
+// can never read beyond the table.
 static inline u_char
 code_charset (Char cc)
 {
   extern u_char code_charset_table[];
-  return code_charset_table[cc >> 7];
+  return code_charset_table[(cc & 0xffff) >> 7];
 }
 
 static inline u_int
@@ -376,14 +380,14 @@ static inline int
 char_width (Char cc)
 {
   extern u_char char_width_table[];
-  return char_width_table[cc >> 3] & (1 << (cc & 7)) ? 2 : 1;
+  return char_width_table[(cc & 0xffff) >> 3] & (1 << (cc & 7)) ? 2 : 1;
 }
 
 static inline const ucs2_t &
 i2w (Char cc)
 {
   extern ucs2_t internal2wc_table[];
-  return internal2wc_table[cc];
+  return internal2wc_table[cc & 0xffff];
 }
 
 static inline const Char &
@@ -485,7 +489,7 @@ lookup_wc2int_hash (const wc2int_hash &hash, ucs2_t wc)
   int n = wc % hash.size;
   if (hash.rep[n].wc == wc)
     return hash.rep[n].cc;
-  return Char (-1);
+  return CHAR_NONE;
 }
 
 extern wc2int_hash wc2int_iso8859_1_hash;
@@ -498,14 +502,14 @@ extern wc2int_hash wc2int_iso8859_9_hash;
 extern wc2int_hash wc2int_iso8859_10_hash;
 extern wc2int_hash wc2int_iso8859_13_hash;
 
-extern Char windows_latin1_to_internal[];
-extern Char windows_latin2_to_internal[];
-extern Char windows_cyrillic_to_internal[];
-extern Char windows_greek_to_internal[];
-extern Char windows_turkish_to_internal[];
-extern Char windows_baltic_to_internal[];
-extern Char koi8r_to_internal[];
-extern Char koi8u_to_internal[];
+extern Char16 windows_latin1_to_internal[];
+extern Char16 windows_latin2_to_internal[];
+extern Char16 windows_cyrillic_to_internal[];
+extern Char16 windows_greek_to_internal[];
+extern Char16 windows_turkish_to_internal[];
+extern Char16 windows_baltic_to_internal[];
+extern Char16 koi8r_to_internal[];
+extern Char16 koi8u_to_internal[];
 
 extern ucs2_t internal2wc_table[];
 

@@ -780,7 +780,7 @@ Fmap_to_half_width_region (lisp from, lisp to, lisp keys)
       Char c = point.ch ();
       if (c < thp.fmin || c > thp.fmax)
         for (int i = 0; i < numberof (toh); i++)
-          if (c >= toh[i].min && c <= toh[i].max)
+          if (c >= Char (toh[i].min) && c <= Char (toh[i].max))
             {
               c = toh[i].b[c - toh[i].min];
               if (c >= thp.hmin && c <= thp.hmax)
@@ -791,7 +791,7 @@ Fmap_to_half_width_region (lisp from, lisp to, lisp keys)
           || (thp.flags & CYRILLIC && CP932_CYRILLIC_P (c)))
         {
           c = w2i (i2w (c));
-          if (c != Char (-1))
+          if (c != CHAR_NONE)
             point.ch () = c;
         }
     next:
@@ -807,7 +807,7 @@ Fmap_to_half_width_region (lisp from, lisp to, lisp keys)
           Char c = point.ch ();
           if (c < thp.fmin || c > thp.fmax)
             for (int i = 0; i < numberof (ssh); i++)
-              if (c >= ssh[i].min && c <= ssh[i].max)
+              if (c >= Char (ssh[i].min) && c <= Char (ssh[i].max))
                 {
                   c = ssh[i].b[c - ssh[i].min];
                   if (c)
@@ -871,7 +871,7 @@ Fmap_to_full_width_region (lisp from, lisp to, lisp keys)
                || (flags & CYRILLIC && INTERNAL_CYRILLIC_P (c)))
         {
           c = wc2cp932 (i2w (c));
-          if (c != Char (-1))
+          if (c != CHAR_NONE)
             point.ch () = c;
         }
       if (!bp->forward_char (point, 1))
@@ -974,7 +974,7 @@ Fmap_to_half_width_string (lisp string, lisp keys)
       if (c < thp.fmin || c > thp.fmax)
         for (int i = 0; i < numberof (toh); i++)
           {
-            if (c >= toh[i].min && c <= toh[i].max)
+            if (c >= Char (toh[i].min) && c <= Char (toh[i].max))
               {
                 c = toh[i].b[c - toh[i].min];
                 if (c >= thp.hmin && c <= thp.hmax)
@@ -986,7 +986,7 @@ Fmap_to_half_width_string (lisp string, lisp keys)
           || (thp.flags & CYRILLIC && CP932_CYRILLIC_P (c)))
         {
           c = w2i (i2w (c));
-          if (c != Char (-1))
+          if (c != CHAR_NONE)
             *s = c;
         }
     next:;
@@ -1003,7 +1003,7 @@ Fmap_to_half_width_string (lisp string, lisp keys)
       *--d = c;
       if (c < thp.fmin || c > thp.fmax)
         for (int i = 0; i < numberof (ssh); i++)
-          if (c >= ssh[i].min && c <= ssh[i].max)
+          if (c >= Char (ssh[i].min) && c <= Char (ssh[i].max))
             {
               c = ssh[i].b[c - ssh[i].min];
               if (c)
@@ -1042,7 +1042,7 @@ Fmap_to_full_width_string (lisp string, lisp keys)
                || (flags & CYRILLIC && INTERNAL_CYRILLIC_P (c)))
         {
           c = wc2cp932 (i2w (c));
-          if (c != Char (-1))
+          if (c != CHAR_NONE)
             *s = c;
         }
     }

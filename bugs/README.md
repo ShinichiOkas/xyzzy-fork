@@ -61,3 +61,5 @@
 | [BUG-0053](BUG-0053-undefined-bytes-read-as-other-characters.md) | 符号に定義のないバイトが、別の文字（半角カナ・U+30FB・私用領域）として読まれる | 未修正（2026-11-22、P1） |
 | [BUG-0054](BUG-0054-euc-writer-emits-escape-sequences.md) | EUC-JP の書きが、EUC にない文字で ISO-2022 のエスケープ列を出す。EUC-KR の書きが é を e にする | 未修正（2026-11-22、P1） |
 | [BUG-0055](BUG-0055-mapf-fails-over-2gb.md) | mapf（mman.cc）が 2GB を超えるファイルを開けず、2〜4GB のファイルの compare-file が失敗する | 修正済み（2026-11-22。mapf を size_t に。試験を追加） |
+| [BUG-0056](BUG-0056-negated-regexp-class-misses-high-byte-rows.md) | 否定の文字クラス `[^…]` が、符号の上位バイトがクラスの範囲にある文字（`[^A]` に対する 0x4142 など）に当たらない | 未修正（2026-11-22） |
+| [BUG-0057](BUG-0057-iso2022cn-writer-loses-big5-char-without-cns.md) | ISO-2022-CN の書きが、CNS 11643 に無い Big5 の文字（U+FF64 など）で、でたらめなバイト列（7bit の符号に 0x80 以上のバイト）を出す | 修正済み（2026-11-22、S4 の W） |

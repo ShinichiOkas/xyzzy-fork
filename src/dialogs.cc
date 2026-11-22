@@ -1567,7 +1567,7 @@ DriveDialog::init_dialog ()
   set_window_icon (id_hwnd);
 
   if (dd_defalt > 0)
-    dd_defalt = alpha_char_p (dd_defalt) ? char_downcase (dd_defalt) : Char (-1);
+    dd_defalt = alpha_char_p (dd_defalt) ? char_downcase (dd_defalt) : CHAR_NONE;
   dd_drives = GetLogicalDrives ();
 
   HWND hwnd = GetDlgItem (id_hwnd, IDC_LIST);
@@ -1683,7 +1683,7 @@ DriveDialog::WndProc (UINT msg, WPARAM wparam, LPARAM lparam)
 lisp
 Fdrive_dialog (lisp drive)
 {
-  Char d = Char (-1);
+  Char d = CHAR_NONE;
   if (drive && drive != Qnil)
     {
       check_char (drive);

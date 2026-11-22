@@ -362,10 +362,10 @@ public:
 class windows_codepage_to_internal_stream: public xbuffered_read_stream
 {
 protected:
-  const Char *const s_translate;
+  const Char16 *const s_translate;
   virtual void refill_internal ();
 public:
-  windows_codepage_to_internal_stream (xinput_stream <u_char> &in, const Char *translate)
+  windows_codepage_to_internal_stream (xinput_stream <u_char> &in, const Char16 *translate)
        : xbuffered_read_stream (in), s_translate (translate) {}
 };
 
