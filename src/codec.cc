@@ -318,7 +318,7 @@ public:
 // ---------------------------------------------------------------------------
 // Big5
 
-inline int
+static inline int
 big5_trail_index (int t)
 {
   if (t >= 0x40 && t <= 0x7e)
@@ -468,7 +468,7 @@ protected:
     {return m_windows ? c : codec_jis_form (c);}
 };
 
-inline bool
+static inline bool
 surrogate_p (codec_char c)
 {
   return c >= 0xd800 && c <= 0xdfff;
@@ -1016,7 +1016,7 @@ public:
 // ---------------------------------------------------------------------------
 // UTF-5
 
-inline int
+static inline int
 utf5_digit (int c)
 {
   if (c >= '0' && c <= '9')

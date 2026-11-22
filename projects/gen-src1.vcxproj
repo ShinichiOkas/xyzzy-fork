@@ -181,11 +181,13 @@
   <Target Name="GenCharWidth" Inputs="$(GenCharWidthInputs)" Outputs="$(GenCharWidthOutput)" DependsOnTargets="PrepareGenerate">
     <Exec Command="&quot;$(TargetPath)&quot; gen-char-width &gt; &quot;$(GenCharWidthOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
   </Target>
+  <ItemGroup>
+    <GenCodecInput Include="..\src\gen-codec.cc;..\src\unicode\*.TXT;..\src\unicode\*.txt" />
+  </ItemGroup>
   <PropertyGroup>
-    <GenCodecInputs>..\src\gen-codec.cc;..\src\unicode\*.TXT;..\src\unicode\*.txt</GenCodecInputs>
     <GenCodecOutput>$(GenerateDir)codec-tab.cc</GenCodecOutput>
   </PropertyGroup>
-  <Target Name="GenCodec" Inputs="$(GenCodecInputs)" Outputs="$(GenCodecOutput)" DependsOnTargets="PrepareGenerate">
+  <Target Name="GenCodec" Inputs="@(GenCodecInput)" Outputs="$(GenCodecOutput)" DependsOnTargets="PrepareGenerate">
     <Exec Command="&quot;$(TargetPath)&quot; gen-codec &gt; &quot;$(GenCodecOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
   </Target>
   <PropertyGroup>

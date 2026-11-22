@@ -787,6 +787,26 @@ that has no Unicode in encoding.cc), the Windows code pages and KOI8."
   => ((#x4a #x30 #x34 #x32 #x4b #x31 #x48 #x46 #x36 #x30 #x30 #x47)
       (#x3042 #x41 #x1f600 0)))
 
+(deftest codec-std-utf-writes-the-jis-form ()
+  "The std- encodings write the 6 characters that Windows and JIS see
+differently (U+FF5E and so on) in the JIS form (U+301C and so on). The others
+write what they are given. Reading converts nothing. (The old converter also
+wrote the ASCII backslash and tilde as the yen sign and the overline: see
+BUG-0051. They are not changed here.)"
+  (list
+   (codec-test-encode *encoding-std-utf8n*
+                      '(#xff5e #x2225 #xff0d #xffe0 #xffe1 #xffe2 #x41 #x5c #x7e))
+   (codec-test-encode *encoding-utf8n* '(#xff5e #x2225 #x5c))
+   (codec-test-decode *encoding-std-utf8n* '(#xe3 #x80 #x9c))
+   (codec-test-encode *encoding-std-utf16le* '(#xff5e))
+   (codec-test-decode *encoding-std-utf16le* '(#x1c #x30)))
+  => ((#xe3 #x80 #x9c #xe2 #x80 #x96 #xe2 #x88 #x92 #xc2 #xa2 #xc2 #xa3 #xc2 #xac
+       #x41 #x5c #x7e)
+      (#xef #xbd #x9e #xe2 #x88 #xa5 #x5c)
+      (#x301c)
+      (#x1c #x30)
+      (#x301c)))
+
 
 ;;;; the escape sequences and the shifts of ISO 2022 and EUC
 
