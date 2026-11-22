@@ -1,6 +1,20 @@
 # CI entry point: install.bat -> start once to write the dump image -> run-tests.bat.
 # Run from anywhere; works in the repository root. Exit code 0 = all tests passed.
 # Logs go to ci-out/ (uploaded as an artifact by the workflow).
+#
+# -Tests <file>...  run only these test files (default: all). For a check on
+#                   this PC before pushing, run the whole script on a separate
+#                   desktop so no window reaches the user's screen:
+#   & <deskrun.exe> 2400 'C:\Program Files\PowerShell\7\pwsh.exe' -NoProfile -ExecutionPolicy Bypass -File <tree>\ci\ci-test.ps1 -Tests unittest\a-tests.l,unittest\b-tests.l
+#                   Start it from PowerShell, not Git Bash (which rewrites
+#                   arguments such as /c), and use pwsh: Windows PowerShell 5.1
+#                   fails to start on a separate desktop. Separate several files
+#                   with commas (-File passes one string). deskrun.exe: build it
+#                   with tools\gui-verify\build.ps1.
+#                   The clipboard is still the user's there: never run tests
+#                   that touch the clipboard this way, and never the whole suite.
+param([string[]]$Tests = @())
+$Tests = @($Tests | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -14,7 +28,7 @@ function Stop-Tree([int]$id) {
 
 Write-Host '[1/3] install.bat (build, byte compile, check)'
 $i = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"`"$root\install.bat`" > `"$out\install.log`" 2>&1`"" -PassThru -WindowStyle Hidden
-if (-not $i.WaitForExit(2700000)) { Stop-Tree $i.Id; Write-Host 'install.bat timed out (45 min)'; exit 1 }
+if (-not $i.WaitForExit(1200000)) { Stop-Tree $i.Id; Write-Host 'install.bat timed out (20 min)'; exit 1 }
 $i.WaitForExit()
 if ($i.ExitCode -ne 0) {
   Get-Content "$out\install.log" -Tail 60
@@ -36,8 +50,9 @@ Remove-Item -Recurse -Force $cfg
 
 Write-Host '[3/3] run-tests.bat'
 $log = Join-Path $out 'tests.log'
-$t = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"`"$root\run-tests.bat`" > `"$log`" 2>&1`"" -PassThru -WindowStyle Hidden
-if (-not $t.WaitForExit(3600000)) { Stop-Tree $t.Id; Write-Host 'run-tests.bat timed out (60 min)'; exit 1 }
+$targs = ($Tests | ForEach-Object { "`"$_`"" }) -join ' '
+$t = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', "`"`"$root\run-tests.bat`" $targs > `"$log`" 2>&1`"" -PassThru -WindowStyle Hidden
+if (-not $t.WaitForExit(1200000)) { Stop-Tree $t.Id; Write-Host 'run-tests.bat timed out (20 min)'; exit 1 }
 $t.WaitForExit()
 $r = $t.ExitCode
 Select-String -Path $log -Pattern '\.\.\.Failed' | ForEach-Object { $_.Line }

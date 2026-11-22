@@ -31,7 +31,8 @@ permissions:
 jobs:
   test:
     runs-on: [self-hosted, windows, x64, xyzzy]
-    timeout-minutes: 90
+    # A run takes about 5 minutes; a hung run must not hold the one runner long.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - name: Build (install.bat), write the dump image, run all tests
