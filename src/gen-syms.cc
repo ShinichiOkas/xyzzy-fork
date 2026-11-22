@@ -1070,6 +1070,9 @@ static symbols sys[] =
   SI_DEFUN3 (uprops-version, 0, 0, 0),
   SI_DEFUN3 (uprops-table-size, 0, 0, 0),
 
+  /* syntax.cc */
+  SI_DEFUN3 (syntax-unicode-default, 1, 0, 0),
+
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),
 };

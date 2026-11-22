@@ -9,13 +9,28 @@
 # define SYNTAX_OPT_COLUMN_CHAR 16
 # define SYNTAX_OPT_CPLUSPLUS_CLI 32
 
+// The syntax of a character that the dense table (0..255) does not cover:
+// the characters of 256 or more that set-syntax-* has set.  A character that
+// has no entry here takes the default rule (wide_syntax).
+struct syntax_override
+{
+  Char c;
+  Char match;
+  u_char type;
+  u_char comment;
+  u_char has_type;              // type was set (comment may be set alone)
+};
+
 struct syntax_table
 {
-  u_char type[256];
-  u_char match[256];
+  u_char type[256];             // dense table: 0..255
+  Char match[256];
   u_char comment[256];
   int flags;
   int comment_column;
+  syntax_override *ov;          // sparse overrides: c >= 256, sorted by c
+  int nov;
+  int ovcap;
 };
 
 class lsyntax_table: public lisp_object
@@ -23,7 +38,12 @@ class lsyntax_table: public lisp_object
 public:
   syntax_table *table;
 
-  ~lsyntax_table () {xfree (table);}
+  ~lsyntax_table ()
+    {
+      if (table)
+        xfree (table->ov);
+      xfree (table);
+    }
 };
 
 # define syntax_table_p(X) typep ((X), Tsyntax_table)
@@ -85,18 +105,49 @@ enum syntax_code
 
 # define xchar_syntax(t, c) ((t)->type[(c)])
 
-// The syntax of any character, for regexp (\w \sX) and skip-syntax-spec. The
-// table covers 0..255 only. A character of 256 or more is SCword when
-// forward-word and word-char-p take it for a word character (Latin, Greek,
-// Cyrillic letters; wide_syntax), SCkanji otherwise. Do not index the table
-// with (c >> 8) or (u_char)c.
+// The syntax of any character, for regexp (\w \sX) and skip-syntax-spec.
+// The dense table covers 0..255. A character of 256 or more has an entry in
+// the sparse overrides when set-syntax-* has set it; otherwise it takes the
+// default rule (wide_syntax): SCword when forward-word and word-char-p take
+// it for a word character (Latin, Greek, Cyrillic letters), SCkanji
+// otherwise. Do not index the table with (c >> 8) or (u_char)c.
+//
+// wide_syntax is the default rule only. With XYZZY_CHAR_UNICODE it asks the
+// Unicode properties (uprops); unicode_wide_syntax is that side, always
+// compiled, and takes a Unicode code point.
 u_char wide_syntax (Char c);
+u_char unicode_wide_syntax (Char c);
+
+// The sparse overrides.
+const syntax_override *syntax_find_override (const syntax_table *, Char);
+syntax_override *syntax_make_override (syntax_table *, Char);
+
+u_char syntax_of_wide (const syntax_table *, Char);
+
+// True when PRED holds for the syntax of some override. A fastmap that is
+// made from the default syntax of the characters of 256 or more (SCword or
+// SCkanji) has to take these in too.
+template <class F>
+inline bool
+syntax_any_override (const syntax_table *tab, F pred)
+{
+  for (int i = 0; i < tab->nov; i++)
+    if (tab->ov[i].has_type && pred (tab->ov[i].type))
+      return true;
+  return false;
+}
 
 inline u_char
 syntax_of (const syntax_table *tab, Char c)
 {
-  return c < 256 ? xchar_syntax (tab, c) : wide_syntax (c);
+  return c < 256 ? xchar_syntax (tab, c) : syntax_of_wide (tab, c);
 }
+
+// The match character and the comment bits of any character.
+Char syntax_match_of (const syntax_table *, Char);
+u_char syntax_comment_of (const syntax_table *, Char);
+
+// The dense table only (c < 256).
 # define xchar_match(t, c) ((t)->match[(c)])
 # define xchar_comment(t, c) ((t)->comment[(c)])
 

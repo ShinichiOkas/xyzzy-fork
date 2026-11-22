@@ -1116,7 +1116,7 @@ syntax_fastmap (const syntax_table *tab, char *fastmap, F pred)
   for (int i = 0; i < 256; i++)
     if (pred (xchar_syntax (tab, i)))
       fastmap[i] = 1;
-  if (pred (SCkanji) || pred (SCword))
+  if (pred (SCkanji) || pred (SCword) || syntax_any_override (tab, pred))
     for (int i = 1; i < 256; i++)
       fastmap[i] = 1;
 }

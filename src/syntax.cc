@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "ed.h"
 #include "syntaxinfo.h"
+#include "uprops.h"
 
 char syntax_spec_table[128];
 
@@ -67,7 +68,130 @@ Fmake_syntax_table ()
   xchar_match (p, '}') = '{';
   xchar_match (p, ']') = '[';
 #endif
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      // 0x80..0xff are the code points U+0080..U+00FF: the default rule.
+      for (i = 0x80; i <= 0xff; i++)
+        xchar_syntax (p, i) = unicode_wide_syntax (i);
+    }
   return x;
+}
+
+// The sparse overrides: the characters of 256 or more that set-syntax-* has
+// set, sorted by code.
+
+const syntax_override *
+syntax_find_override (const syntax_table *tab, Char c)
+{
+  int lo = 0, hi = tab->nov;
+  while (lo < hi)
+    {
+      int mid = (lo + hi) / 2;
+      Char mc = tab->ov[mid].c;
+      if (mc == c)
+        return &tab->ov[mid];
+      if (mc < c)
+        lo = mid + 1;
+      else
+        hi = mid;
+    }
+  return 0;
+}
+
+syntax_override *
+syntax_make_override (syntax_table *tab, Char c)
+{
+  int lo = 0, hi = tab->nov;
+  while (lo < hi)
+    {
+      int mid = (lo + hi) / 2;
+      Char mc = tab->ov[mid].c;
+      if (mc == c)
+        return &tab->ov[mid];
+      if (mc < c)
+        lo = mid + 1;
+      else
+        hi = mid;
+    }
+  if (tab->nov == tab->ovcap)
+    {
+      tab->ovcap = tab->ovcap ? tab->ovcap * 2 : 16;
+      tab->ov = (syntax_override *)xrealloc (tab->ov, tab->ovcap * sizeof *tab->ov);
+    }
+  memmove (tab->ov + lo + 1, tab->ov + lo, (tab->nov - lo) * sizeof *tab->ov);
+  tab->nov++;
+  syntax_override *o = &tab->ov[lo];
+  o->c = c;
+  o->match = 0;
+  o->type = 0;
+  o->comment = 0;
+  o->has_type = 0;
+  return o;
+}
+
+u_char
+syntax_of_wide (const syntax_table *tab, Char c)
+{
+  const syntax_override *o = syntax_find_override (tab, c);
+  return o && o->has_type ? o->type : wide_syntax (c);
+}
+
+Char
+syntax_match_of (const syntax_table *tab, Char c)
+{
+  if (c < 256)
+    return xchar_match (tab, c);
+  const syntax_override *o = syntax_find_override (tab, c);
+  return o ? o->match : 0;
+}
+
+u_char
+syntax_comment_of (const syntax_table *tab, Char c)
+{
+  if (c < 256)
+    return xchar_comment (tab, c);
+  const syntax_override *o = syntax_find_override (tab, c);
+  return o ? o->comment : 0;
+}
+
+static void
+syntax_set_type (syntax_table *tab, Char c, int type)
+{
+  if (c < 256)
+    xchar_syntax (tab, c) = type;
+  else
+    {
+      syntax_override *o = syntax_make_override (tab, c);
+      o->type = type;
+      o->has_type = 1;
+    }
+}
+
+static void
+syntax_set_match (syntax_table *tab, Char c, Char match)
+{
+  if (c < 256)
+    xchar_match (tab, c) = match;
+  else
+    syntax_make_override (tab, c)->match = match;
+}
+
+// A reference to the comment bits of C. The reference is good until the next
+// call (the overrides may move).
+static u_char &
+syntax_comment_ref (syntax_table *tab, Char c)
+{
+  return c < 256 ? xchar_comment (tab, c) : syntax_make_override (tab, c)->comment;
+}
+
+// Clear the bits of MASK's complement in every character.
+static void
+syntax_comment_and (syntax_table *tab, int mask)
+{
+  for (int i = 0; i < 256; i++)
+    xchar_comment (tab, i) &= mask;
+  for (int i = 0; i < tab->nov; i++)
+    tab->ov[i].comment &= mask;
 }
 
 lisp
@@ -92,19 +216,35 @@ Fcopy_syntax_table (lisp src, lisp dst)
 {
   check_syntax_table (src);
   check_syntax_table (dst);
-  memcpy (xsyntax_table (dst), xsyntax_table (src), sizeof *xsyntax_table (src));
+  syntax_table *d = xsyntax_table (dst);
+  const syntax_table *s = xsyntax_table (src);
+  if (d != s)
+    {
+      syntax_override *ov = 0;
+      if (s->nov)
+        {
+          ov = (syntax_override *)xmalloc (s->nov * sizeof *ov);
+          memcpy (ov, s->ov, s->nov * sizeof *ov);
+        }
+      xfree (d->ov);
+      *d = *s;
+      d->ov = ov;
+      d->ovcap = s->nov;
+    }
   return dst;
 }
+
+// set-syntax-*: a character of 256 or more goes to the sparse overrides.
+// A key (KEY_BASE and above) is not a character: NIL.
 
 static lisp
 set_syntax (lisp table, lisp ch, int syntax)
 {
   check_syntax_table (table);
   check_char (ch);
-  Char c = xchar_code (ch);
-  if (!ascii_char_p (c))
+  if (key_char_p (ch))
     return Qnil;
-  xchar_syntax (xsyntax_table (table), c) = syntax;
+  syntax_set_type (xsyntax_table (table), xchar_code (ch), syntax);
   return Qt;
 }
 
@@ -118,13 +258,11 @@ set_syntax_multi_comment (lisp table, lisp string, int first, int second)
   syntax_table *tab = xsyntax_table (table);
   Char c1 = xstring_contents (string) [0];
   Char c2 = xstring_contents (string) [1];
-  if (!ascii_char_p (c1) || !ascii_char_p (c2))
+  if (c1 >= CHAR_LIMIT || c2 >= CHAR_LIMIT)
     return Qnil;
-  int mask = ~(first | second);
-  for (int i = 0; i <= 0x7f; i++)
-    xchar_comment (tab, i) &= mask;
-  xchar_comment (tab, c1) |= first;
-  xchar_comment (tab, c2) |= second;
+  syntax_comment_and (tab, ~(first | second));
+  syntax_comment_ref (tab, c1) |= first;
+  syntax_comment_ref (tab, c2) |= second;
   return Qt;
 }
 
@@ -133,19 +271,20 @@ set_syntax_single_comment (lisp table, lisp ch, lisp ignore, lisp maybe, int syn
 {
   check_syntax_table (table);
   check_char (ch);
-  Char c = xchar_code (ch);
-  if (!ascii_char_p (c))
+  if (key_char_p (ch))
     return Qnil;
+  Char c = xchar_code (ch);
   syntax_table *tab = xsyntax_table (table);
-  xchar_syntax (tab, c) = syntax;
+  syntax_set_type (tab, c, syntax);
+  u_char &comm = syntax_comment_ref (tab, c);
   if (ignore && ignore != Qnil)
-    xchar_comment (tab, c) |= SFparse_sexp_ignore_comment;
+    comm |= SFparse_sexp_ignore_comment;
   else
-    xchar_comment (tab, c) &= ~SFparse_sexp_ignore_comment;
+    comm &= ~SFparse_sexp_ignore_comment;
   if (maybe && maybe != Qnil)
-    xchar_comment (tab, c) |= SFmaybe_comment_end;
+    comm |= SFmaybe_comment_end;
   else
-    xchar_comment (tab, c) &= ~SFmaybe_comment_end;
+    comm &= ~SFmaybe_comment_end;
   return Qt;
 }
 
@@ -154,18 +293,18 @@ set_syntax_comment (lisp table, lisp ch, lisp ignore, int code, int clear)
 {
   check_syntax_table (table);
   check_char (ch);
-  Char c = xchar_code (ch);
-  if (!ascii_char_p (c))
+  if (key_char_p (ch))
     return Qnil;
+  Char c = xchar_code (ch);
   syntax_table *tab = xsyntax_table (table);
   if (clear)
-    for (int i = 0; i <= 0x7f; i++)
-      xchar_comment (tab, i) &= ~code;
-  xchar_comment (tab, c) |= code;
+    syntax_comment_and (tab, ~code);
+  u_char &comm = syntax_comment_ref (tab, c);
+  comm |= code;
   if (ignore && ignore != Qnil)
-    xchar_comment (tab, c) |= SFparse_sexp_ignore_comment;
+    comm |= SFparse_sexp_ignore_comment;
   else
-    xchar_comment (tab, c) &= ~SFparse_sexp_ignore_comment;
+    comm &= ~SFparse_sexp_ignore_comment;
   return Qt;
 }
 
@@ -187,15 +326,15 @@ set_syntax_match (lisp table, lisp openc, lisp closec, int osyntax, int csyntax)
   check_syntax_table (table);
   check_char (openc);
   check_char (closec);
+  if (key_char_p (openc) || key_char_p (closec))
+    return Qnil;
   Char o = xchar_code (openc);
   Char c = xchar_code (closec);
-  if (!ascii_char_p (o) || !ascii_char_p (c))
-    return Qnil;
   syntax_table *tab = xsyntax_table (table);
-  xchar_syntax (tab, o) = osyntax;
-  xchar_match (tab, o) = (u_char)c;
-  xchar_syntax (tab, c) = csyntax;
-  xchar_match (tab, c) = (u_char)o;
+  syntax_set_type (tab, o, osyntax);
+  syntax_set_match (tab, o, c);
+  syntax_set_type (tab, c, csyntax);
+  syntax_set_match (tab, c, o);
   return Qt;
 }
 
@@ -334,10 +473,9 @@ syntaxp (lisp ch, lisp table, int syntax)
   if (!table)
     table = selected_buffer ()->lsyntax_table;
   check_syntax_table (table);
-  Char c = xchar_code (ch);
-  if (!ascii_char_p (c))
+  if (key_char_p (ch))
     return Qnil;
-  return boole (xchar_syntax (xsyntax_table (table), c) == syntax);
+  return boole (syntax_of (xsyntax_table (table), xchar_code (ch)) == syntax);
 }
 
 static lisp
@@ -347,10 +485,9 @@ syntax_multi_comment_p (lisp ch, lisp table, int syntax)
   if (!table)
     table = selected_buffer ()->lsyntax_table;
   check_syntax_table (table);
-  Char c = xchar_code (ch);
-  if (!ascii_char_p (c))
+  if (key_char_p (ch))
     return Qnil;
-  return boole (xchar_comment (xsyntax_table (table), c) & syntax);
+  return boole (syntax_comment_of (xsyntax_table (table), xchar_code (ch)) & syntax);
 }
 
 lisp
@@ -525,7 +662,27 @@ word_state::char_category (const syntax_table *tab, Char c)
 {
   if (DBCP (c))
     {
-      ucs2_t wc = i2w (c);
+      // A character that set-syntax-* has set follows the table. TAB is 0
+      // when only the default rule is wanted (wide_syntax).
+      if (tab)
+        {
+          const syntax_override *o = syntax_find_override (tab, c);
+          if (o && o->has_type)
+            switch (o->type)
+              {
+              case SCword:
+                return WCword;
+              case SCkana:
+                return WCkana;
+              default:
+                return WCnot_word;
+              }
+        }
+      Char wc;
+      if constexpr (XYZZY_CHAR_UNICODE)
+        wc = c;
+      else
+        wc = i2w (c);
       for (int i = 0; i < numberof (ws_range); i++)
         {
           if (wc < ws_range[i].from)
@@ -537,7 +694,7 @@ word_state::char_category (const syntax_table *tab, Char c)
         }
       return WC2symbol;
     }
-  else
+  else if (SBCP (c) && tab)
     {
       switch (xchar_syntax (tab, c))
         {
@@ -551,13 +708,54 @@ word_state::char_category (const syntax_table *tab, Char c)
           return WCnot_word;
         }
     }
+  return WCnot_word;
+}
+
+// The default syntax of a character of 256 or more, from the Unicode
+// properties (uprops): the value of wide_syntax when Char holds a Unicode
+// code point. C is a code point.
+//   U+0080..U+009F             junk
+//   half width kana            kana
+//   not a code point           junk (a raw byte or a key)
+//   letter, mark, number of width 0 or 1 (Latin, Greek, Cyrillic, Hebrew,
+//   Arabic, Thai...)           word
+//   everything else            kanji (CJK, full width forms, symbols)
+u_char
+unicode_wide_syntax (Char c)
+{
+  if (c >= 0x80 && c < 0xa0)
+    return SCjunk;
+  if (c >= 0xff61 && c <= 0xff9f)
+    return SCkana;
+  if (c > 0x10ffff)
+    return SCjunk;
+  if (uc_word_char_p (c) && uc_width (c, 1) < 2)
+    return SCword;
+  return SCkanji;
+}
+
+// (si:syntax-unicode-default CODE-POINT) => the spec string ("w", "k", "j",
+// "x") of the default syntax that the Unicode side of wide_syntax gives to a
+// Unicode code point. It does not depend on XYZZY_CHAR_UNICODE.
+lisp
+Fsi_syntax_unicode_default (lisp c)
+{
+  long n = fixnum_value (c);
+  if (n < 0 || n > 0x10ffff)
+    FErange_error (c);
+  static const char spec[] = " .()$\"<>/\\'_wkjx{}@";
+  char buf[2] = {spec[unicode_wide_syntax (Char (n))], 0};
+  return make_string (buf);
 }
 
 u_char
 wide_syntax (Char c)
 {
-  return (word_state::char_category (0, c) == word_state::WCword
-          ? SCword : SCkanji);
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return unicode_wide_syntax (c);
+  else
+    return (word_state::char_category (0, c) == word_state::WCword
+            ? SCword : SCkanji);
 }
 
 int
