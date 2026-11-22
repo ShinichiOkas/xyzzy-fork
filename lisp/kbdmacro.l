@@ -10,7 +10,7 @@
 (export '(start-kbd-macro end-kbd-macro call-last-kbd-macro
 	  name-last-kbd-macro insert-kbd-macro
 	  save-last-kbd-macro load-kbd-macro
-	  save-kbd-macro-to-file
+	  save-kbd-macro-to-file write-kbd-macro-file load-kbd-macro-file
 	  *last-kbd-macro*))
 
 (defvar *last-kbd-macro* nil)
@@ -118,20 +118,34 @@
 	       (setq *saved-kbd-macro-alist*
 		     (delete selected *saved-kbd-macro-alist* :test #'eq))))))))
 
+(defun write-kbd-macro-file (filename)
+  "Writes *saved-kbd-macro-alist* to FILENAME in UTF-8.  The first line is
+the mark of the data file (datafile.l); the keys are written as they were."
+  (with-open-file (s filename
+		     :direction :output
+		     :if-exists :supersede
+		     :if-does-not-exist :create
+		     :char-encoding *encoding-utf8n*)
+    (write-data-file-mark s)
+    (format s ";;; This file contains keyboard macro definition.~%")
+    (format-date s ";;;   %d %b %Y %H:%M:%S %Z\n\n")
+    (format s "(setq editor::*saved-kbd-macro-alist*~%")
+    (format s "  '(~{~S~^~%    ~}))~%" *saved-kbd-macro-alist*)))
+
+(defun load-kbd-macro-file (filename)
+  "Loads a keyboard macro file written by write-kbd-macro-file (or by the
+older save-kbd-macro-to-file)."
+  (interactive "fLoad keyboard macro file: ")
+  (load-data-file filename)
+  t)
+
 (defun save-kbd-macro-to-file ()
   (interactive)
   (let ((filename (file-name-dialog :title "キーボードマクロを保存"
 				    :filter '(("Lispファイル(*.l;*.lisp)" . "*.l;*.lisp")
 					      ("すべてのファイル(*.*)" . "*.*")))))
     (when filename
-      (with-open-file (s filename
-			 :direction :output
-			 :if-exists :supersede
-			 :if-does-not-exist :create)
-	(format s ";;; This file contains keyboard macro definition.~%")
-	(format-date s ";;;   %d %b %Y %H:%M:%S %Z\n\n")
-	(format s "(setq editor::*saved-kbd-macro-alist*~%")
-	(format s "  '(~{~S~^~%    ~}))~%" *saved-kbd-macro-alist*)))))
+      (write-kbd-macro-file filename))))
 
 (define-key ctl-x-map #\( 'start-kbd-macro)
 (define-key ctl-x-map #\) 'end-kbd-macro)

@@ -271,7 +271,7 @@
   (interactive "fRead abbrev file: ")
   (or file
       (setq file *abbrev-file-name*))
-  (load file :verbose (not quietly) :print (not quietly))
+  (load-data-file file :verbose (not quietly) :print (not quietly))
   (cond ((path-equal file *abbrev-file-name*)
 	 (setq *save-abbrevs* t)
 	 (setq *abbrevs-changed* nil))
@@ -288,22 +288,19 @@
     :default0 *abbrev-file-name*)
   (or file
       (setq file *abbrev-file-name*))
-  (let (buffer)
-    (unwind-protect
-	(progn
-	  (setq buffer (create-new-buffer "*write abbrev*"))
-	  (save-excursion
-	    (set-buffer buffer)
-	    (with-output-to-selected-buffer
-	      (mapc #'(lambda (x)
-			(insert-abbrev-table-description x nil))
-		    *abbrev-table-name-list*))
-	    (write-region (point-min) (point-max) file)
-	    (when (path-equal file *abbrev-file-name*)
-	      (setq *abbrevs-changed* nil))))
-      (when buffer
-	(delete-buffer buffer)))
-    t))
+  (with-open-file (s file
+		     :direction :output
+		     :if-exists :supersede
+		     :if-does-not-exist :create
+		     :char-encoding *encoding-utf8n*)
+    (write-data-file-mark s)
+    (let ((*standard-output* s))
+      (mapc #'(lambda (x)
+		(insert-abbrev-table-description x nil))
+	    *abbrev-table-name-list*)))
+  (when (path-equal file *abbrev-file-name*)
+    (setq *abbrevs-changed* nil))
+  t)
 
 (defun save-abbrev-file ()
   (interactive)
