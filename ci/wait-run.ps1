@@ -19,12 +19,14 @@ Set-Location $root
 if (-not $Sha) { $Sha = (git rev-parse HEAD).Trim() }
 $deadline = (Get-Date).AddMinutes($Minutes)
 
-# The run appears a few seconds after the push.
+# The run is listed (queued) a few seconds after the push, even when the runner
+# is busy, so stop looking after 2 minutes.
+$findDeadline = (Get-Date).AddMinutes([Math]::Min(2, $Minutes))
 $id = ''
 while ($true) {
   $id = "$(gh run list --workflow test.yml --commit $Sha --limit 1 --json databaseId --jq '.[0].databaseId')".Trim()
   if ($id) { break }
-  if ((Get-Date) -gt $deadline) {
+  if ((Get-Date) -gt $findDeadline) {
     Write-Host "No CI run for $Sha."
     Write-Host 'Check: pushed? to feature/x64-only, develop or worktree-agent-*? no [skip ci]? not only docs (*.md, docs/, bugs/, .pair-agent/)?'
     exit 3
