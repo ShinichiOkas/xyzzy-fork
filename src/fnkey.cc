@@ -242,7 +242,7 @@ FKWin::OnLButtonUp (int x, int y, int keys)
   pt.x = x;
   pt.y = y;
 
-  Char cc = CCF_F1 + fk_cur_btn;
+  keycode_t cc = keycode_offset (KEY_F1, fk_cur_btn);
 
   fk_cur_btn = -1;
   button_on (-1);
@@ -251,13 +251,13 @@ FKWin::OnLButtonUp (int x, int y, int keys)
     return;
 
   if (fk_vkey & FVK_META)
-    cc = function_to_meta_function (cc);
+    cc = keycode_function_to_meta_function (cc);
   if (fk_vkey & FVK_SHIFT)
-    cc |= CCF_SHIFT_BIT;
+    cc = keycode_add_bits (cc, CCF_SHIFT_BIT);
   if (fk_vkey & FVK_CONTROL)
-    cc |= CCF_CTRL_BIT;
+    cc = keycode_add_bits (cc, CCF_CTRL_BIT);
 
-  app.kbdq.putc (cc);
+  app.kbdq.putc (keycode_value (cc));
 }
 
 void
@@ -426,23 +426,24 @@ Fset_function_bar_label (lisp lcc, lisp label)
   if (label != Qnil)
     check_string (label);
 
-  Char cc = xchar_code (lcc);
+  keycode_t key = xkeycode (lcc);
   int meta = 0;
-  if (meta_function_char_p (cc))
+  if (keycode_meta_function_p (key))
     {
       meta = 1;
-      cc = meta_function_to_function (cc);
+      key = keycode_meta_function_to_function (key);
     }
-  if (!function_char_p (cc))
+  if (!keycode_function_p (key))
     FEprogram_error (Ewrong_function_bar_char, lcc);
 
+  u_int cc = keycode_low (key);
   int shift = cc & CCF_SHIFT_BIT;
   int ctl = cc & CCF_CTRL_BIT;
   cc &= ~(CCF_SHIFT_BIT | CCF_CTRL_BIT);
-  if (cc < CCF_F1 || cc > CCF_Fn_MAX)
+  if (cc < keycode_low (KEY_F1) || cc > keycode_low (KEY_Fn_MAX))
     FEprogram_error (Ewrong_function_bar_char, lcc);
 
-  int index = cc - CCF_F1;
+  int index = cc - keycode_low (KEY_F1);
   int n = index;
   if (shift)
     index += SHIFT_OFFSET;

@@ -54,7 +54,7 @@
   (let ((symbol (intern name "user")))
     (when (fboundp symbol)
       (let ((def (symbol-function symbol)))
-	(unless (stringp def)
+	(unless (*kbd-macro-p def)
 	  (error "~aはキーボードマクロでないものが定義されています" name))
 	(unless (y-or-n-p "~aのキーボードマクロ定義を置き換えますか?" name)
 	  (return-from name-last-kbd-macro nil))))
@@ -65,7 +65,7 @@
   (unless (fboundp command)
     (error "~aはコマンドが定義されていません" command))
   (let ((def (symbol-function command)))
-    (unless (stringp def)
+    (unless (*kbd-macro-p def)
       (error "~aはキーボードマクロでないものが定義されています" command))
     (insert (format nil "(setf (symbol-function '~S)\n      ~S)\n"
 		    command def))))

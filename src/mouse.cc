@@ -91,14 +91,14 @@ rowcol_from_point (Window *wp, int *xx, int *yy)
 void
 mouse_state::dispatch (Window *wp, WPARAM wparam, LPARAM lparam, int op)
 {
-  Char c;
-  static const Char keys[][3] =
+  keycode_t c;
+  static const keycode_t keys[][3] =
     {
-      {CCF_LBTNDOWN, CCF_LBTNUP, CCF_LBTNMOVE},
-      {CCF_MBTNDOWN, CCF_MBTNUP, CCF_MBTNMOVE},
-      {CCF_RBTNDOWN, CCF_RBTNUP, CCF_RBTNMOVE},
-      {CCF_XBTN1DOWN, CCF_XBTN1UP, CCF_XBTN1MOVE},
-      {CCF_XBTN2DOWN, CCF_XBTN2UP, CCF_XBTN2MOVE},
+      {KEY_LBTNDOWN, KEY_LBTNUP, KEY_LBTNMOVE},
+      {KEY_MBTNDOWN, KEY_MBTNUP, KEY_MBTNMOVE},
+      {KEY_RBTNDOWN, KEY_RBTNUP, KEY_RBTNMOVE},
+      {KEY_XBTN1DOWN, KEY_XBTN1UP, KEY_XBTN1MOVE},
+      {KEY_XBTN2DOWN, KEY_XBTN2UP, KEY_XBTN2MOVE},
     };
 
   int mouse_move_p = 0;
@@ -128,17 +128,17 @@ mouse_state::dispatch (Window *wp, WPARAM wparam, LPARAM lparam, int op)
     default:
       if (op != MOVE || !app.toplevel_is_active)
         return;
-      c = CCF_MOUSEMOVE;
+      c = KEY_MOUSEMOVE;
       mouse_move_p = 1;
       break;
     }
 
   if (wparam & MK_SHIFT)
-    c |= CCF_SHIFT_BIT;
+    c = keycode_add_bits (c, CCF_SHIFT_BIT);
   if (wparam & MK_CONTROL)
-    c |= CCF_CTRL_BIT;
+    c = keycode_add_bits (c, CCF_CTRL_BIT);
   if (GetKeyState (VK_MENU) < 0)
-    c = function_to_meta_function (c);
+    c = keycode_function_to_meta_function (c);
 
   if (mouse_move_p)
     {
@@ -221,7 +221,7 @@ mouse_state::dispatch (Window *wp, WPARAM wparam, LPARAM lparam, int op)
   if (op == MOVE && ms_line == oline && ms_column == ocolumn)
     return;
 
-  ms_kbdq.putc (c | LCHAR_MOUSE);
+  ms_kbdq.putc (keycode_value (c) | LCHAR_MOUSE);
 }
 
 void

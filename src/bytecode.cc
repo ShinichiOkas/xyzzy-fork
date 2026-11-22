@@ -799,14 +799,14 @@ ByteCode::xsave_window_excursion (lex_env &lex)
   x = top (); \
   check_char (x); \
   check_char (y); \
-  top () = boole (xchar_code (x) OP xchar_code (y))
+  top () = boole (xchar_value (x) OP xchar_value (y))
 
 #define CHAR_CASE_PRED(OP) \
   y = pop (); \
   x = top (); \
   check_char (x); \
   check_char (y); \
-  top () = boole (char_upcase (xchar_code (x)) OP char_upcase (xchar_code (y)))
+  top () = boole (char_value_upcase (xchar_value (x)) OP char_value_upcase (xchar_value (y)))
 
 #define CALL_0(FN) \
   push ((FN)())
@@ -1370,11 +1370,11 @@ after_jump:
         case BCchar_code:
           x = top ();
           check_char (x);
-          top () = make_fixnum (xchar_code (x));
+          top () = make_fixnum (xchar_value (x));
           break;
 
         case BCcode_char:
-          top () = make_char (Char (fixnum_value (top ())));
+          top () = Fcode_char (top ());
           break;
 
         case BCbobp:

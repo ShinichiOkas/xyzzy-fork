@@ -53,7 +53,7 @@ void warn_msgbox (message_code, lisp = 0);
 void warn (message_code, lisp = 0);
 void format_message (message_code, ...);
 int format_yes_or_no_p (message_code, ...);
-char *print_key_sequence (char *, char *, Char);
+char *print_key_sequence (char *, char *, keycode_t);
 void ding (int);
 int get_glyph_width (Char, const struct glyph_width &);
 
@@ -64,9 +64,10 @@ void init_environ ();
 void init_readtable ();
 
 /* keymap.cc */
-lisp lookup_keymap (Char, lisp *, int);
-Char *lookup_command_keyseq (lisp, lisp, const lisp *, int, Char *, Char *, Char *);
-int find_in_current_keymaps (Char);
+lisp lookup_keymap (keycode_t, lisp *, int);
+keycode_t *lookup_command_keyseq (lisp, lisp, const lisp *, int,
+                                 keycode_t *, keycode_t *, keycode_t *);
+int find_in_current_keymaps (keycode_t);
 
 /* data.cc */
 lisp interactive_string (lisp);
@@ -105,9 +106,9 @@ lisp minibuffer_read_integer (const Char *, long);
 
 /* chname.cc */
 Char standard_char_name2Char (const Char *, int);
-Char function_char_name2Char (const Char *, int);
+int function_key_name2key (const Char *, int, keycode_t &);
 Char char_bit_name2Char (const Char *, int, int &);
-const char *function_Char2name (Char);
+const char *function_key2name (keycode_t);
 const char *standard_Char2name (Char);
 
 /* process.cc */

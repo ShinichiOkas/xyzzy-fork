@@ -914,23 +914,26 @@ number_backslash_reader (lisp stream, Char, dispmacro_param &param)
   if (!l)
     reader_error (stream, Einvalid_char_code_syntax, token.make_string ());
 
-  Char c = function_char_name2Char (p, l);
-  if (c != Char (-1))
+  Char c;
+  keycode_t key;
+  if (function_key_name2key (p, l, key))
     {
       if (ctl)
-        c |= CCF_CTRL_BIT;
+        key = keycode_add_bits (key, CCF_CTRL_BIT);
       if (shift)
-        c |= CCF_SHIFT_BIT;
+        key = keycode_add_bits (key, CCF_SHIFT_BIT);
       if (meta)
-        c = function_to_meta_function (c);
+        key = keycode_function_to_meta_function (key);
+      return make_key_char (key);
     }
   else if (l == 1 && ctl && *p < 128 && pseudo_char2ctl_table[*p])
     {
       if (shift)
         reader_error (stream, Ecannot_specify_shift_bit, token.make_string ());
-      c = CCF_CHAR_MIN + pseudo_char2ctl_table[*p];
+      key = keycode_offset (KEY_CHAR_MIN, pseudo_char2ctl_table[*p]);
       if (meta)
-        c = function_to_meta_function (c);
+        key = keycode_function_to_meta_function (key);
+      return make_key_char (key);
     }
   else
     {
@@ -954,7 +957,7 @@ number_backslash_reader (lisp stream, Char, dispmacro_param &param)
         }
 
       if (meta && ascii_char_p (c))
-        c = char_to_meta_char (c);
+        return make_key_char (keycode_meta_ascii (c));
     }
 
   return make_char (c);
@@ -2017,14 +2020,14 @@ Fread_char (lisp stream, lisp eof_error_p, lisp eof_value, lisp /*recursive_p*/)
   lChar c = readc_stream (stream);
   if (c == lChar_EOF)
     return end_of_file (stream, eof_error_p, eof_value);
-  return make_char (Char (c));
+  return make_char_value (c);
 }
 
 lisp
 Funread_char (lisp cc, lisp stream)
 {
   check_char (cc);
-  unreadc_stream (xchar_code (cc), input_stream (stream));
+  unreadc_stream (xchar_value (cc), input_stream (stream));
   return Qnil;
 }
 
@@ -2037,7 +2040,7 @@ Fpeek_char (lisp peek_type, lisp stream, lisp eof_error_p, lisp eof_value, lisp 
     c = peekc_stream (stream);
   else if (charp (peek_type))
     {
-      lChar lc = xchar_code (peek_type);
+      lChar lc = xchar_value (peek_type);
       while (1)
         {
           c = peekc_stream (stream);
@@ -2059,7 +2062,7 @@ Fpeek_char (lisp peek_type, lisp stream, lisp eof_error_p, lisp eof_value, lisp 
     }
   if (c == lChar_EOF)
     return end_of_file (stream, eof_error_p, eof_value);
-  return make_char (Char (c));
+  return make_char_value (c);
 }
 
 lisp
@@ -2077,7 +2080,7 @@ Fread_char_no_hang (lisp stream, lisp eof_error_p, lisp eof_value, lisp /*recurs
   lChar c = readc_stream (stream);
   if (c == lChar_EOF)
     return end_of_file (stream, eof_error_p, eof_value);
-  return make_char (Char (c));
+  return make_char_value (c);
 }
 
 lisp

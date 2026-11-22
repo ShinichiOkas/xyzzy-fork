@@ -532,11 +532,15 @@ init_menu_popup (lisp lmenu, int enablep)
 }
 
 static char *
-keyname (char *p, Char c)
+keyname (char *p, keycode_t k)
 {
-  if (function_char_p (c))
+  // The keys in a key sequence that lookup_command_keyseq finds are never meta
+  // keys (a meta key is ESC followed by the key), so there is nothing to do for
+  // them here.
+  if (keycode_function_p (k))
     {
-      if (pseudo_ctlchar_p (c))
+      u_int c = keycode_low (k);
+      if (keycode_pseudo_ctl_p (k))
         {
           p = stpcpy (p, "Ctrl+");
           *p++ = pseudo_ctl2char_table[c & 0xff];
@@ -550,7 +554,8 @@ keyname (char *p, Char c)
             p = stpcpy (p, "Shift+");
           if (c & CCF_CTRL_BIT)
             p = stpcpy (p, "Ctrl+");
-          const char *x = function_Char2name (c & ~(CCF_SHIFT_BIT | CCF_CTRL_BIT));
+          const char *x = function_key2name
+            (make_keycode (keycode_value (k) & ~u_int32_t (CCF_SHIFT_BIT | CCF_CTRL_BIT)));
           if (x)
             p = stpcpy (p, x);
           else
@@ -559,6 +564,7 @@ keyname (char *p, Char c)
     }
   else
     {
+      Char c = keycode_to_char (k);
       const char *x = standard_Char2name (c);
       if (x)
         p = stpcpy (p, x);
@@ -584,7 +590,7 @@ keyname (char *p, Char c)
 #define ACC_SEP '\010'
 
 static void
-modify_menu_string (HMENU hmenu, int id, int pos, const Char *b, const Char *be)
+modify_menu_string (HMENU hmenu, int id, int pos, const keycode_t *b, const keycode_t *be)
 {
   char olds[1024], news[2048];
   if (!GetMenuString (hmenu, pos, olds, sizeof olds, MF_BYPOSITION))
@@ -641,8 +647,8 @@ modify_menu_string (lisp lmenu)
           && symbolp (xwin32_menu_command (item)))
         for (int i = 0; i < nmaps; i++)
           {
-            Char b[5];
-            Char *be = lookup_command_keyseq (xwin32_menu_command (item),
+            keycode_t b[5];
+            keycode_t *be = lookup_command_keyseq (xwin32_menu_command (item),
                                               map[i], map, i,
                                               b, b, b + numberof (b));
             if (be)

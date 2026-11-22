@@ -1683,13 +1683,13 @@ Filer::dispatch (lChar cc)
     return 0;
   if (f_lkeymap == Qunbound)
     f_lkeymap = xsymbol_value (Vfiler_keymap);
-  lisp fn = lookup_keymap (Char (cc), &f_lkeymap, 1);
+  lisp fn = lookup_keymap (lchar_to_keycode (cc), &f_lkeymap, 1);
   if (!fn)
     {
-      f_keyseq.push (Char (cc), 1);
+      f_keyseq.push (lchar_to_keycode (cc), 1);
       return 1;
     }
-  f_keyseq.done (Char (cc), 1);
+  f_keyseq.done (lchar_to_keycode (cc), 1);
   f_lkeymap = Qunbound;
   if (fn == Qnil)
     {
@@ -1700,7 +1700,7 @@ Filer::dispatch (lChar cc)
   try
     {
       f_fdispatch = 1;
-      xsymbol_value (Vfiler_last_command_char) = make_char (Char (cc));
+      xsymbol_value (Vfiler_last_command_char) = make_key_char (lchar_to_keycode (cc));
       Ffuncall (fn, Qnil);
     }
   catch (nonlocal_jump &)
@@ -2473,7 +2473,7 @@ Filer::read_char () const
           if (msg.hwnd == app.toplev && GetActiveWindow () == id_hwnd)
             {
               xsymbol_value (Vquit_flag) = Qnil;
-              return xchar_code (app.lquit_char);
+              return xchar_value (app.lquit_char);
             }
           DispatchMessage (&msg);
           QUIT;
@@ -2652,6 +2652,8 @@ Ffiler_isearch (lisp cc, lisp nowrap, lisp v)
   if (!cc || cc == Qnil)
     cc = xsymbol_value (Vfiler_last_command_char);
   check_char (cc);
+  if (key_char_p (cc))
+    return Qnil;
   return boole (Filer::view (v)->isearch (xchar_code (cc), nowrap != Qnil));
 }
 
@@ -2782,7 +2784,7 @@ lisp
 Ffiler_read_char ()
 {
   lChar cc = Filer::current_filer ()->read_char ();
-  return cc != lChar_EOF ? make_char (Char (cc)) : Qnil;
+  return cc != lChar_EOF ? make_char_value (cc) : Qnil;
 }
 
 static void

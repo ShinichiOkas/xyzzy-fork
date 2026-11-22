@@ -5,7 +5,7 @@ LRESULT CALLBACK fnkey_wndproc (HWND, UINT, WPARAM, LPARAM);
 
 extern const char FunctionKeyClassName[];
 
-# define MAX_Fn (CCF_Fn_MAX - CCF_F1 + 1)
+# define MAX_Fn (int (keycode_value (KEY_Fn_MAX) - keycode_value (KEY_F1)) + 1)
 # define MAX_FUNCTION_BAR_LABEL (MAX_Fn * 8)
 
 class FKWin

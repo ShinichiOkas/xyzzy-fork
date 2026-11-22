@@ -244,7 +244,7 @@
 	     (setq args (safe-cadr def)))))
     (with-output-to-temp-buffer ("*Help*")
       (format t "~s: " symbol)
-      (cond ((stringp def)
+      (cond ((*kbd-macro-p def)
 	     (princ "a keyboard macro."))
 	    ((special-form-p symbol)
 	     (princ "a special form."))

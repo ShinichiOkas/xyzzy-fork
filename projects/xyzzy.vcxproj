@@ -294,6 +294,7 @@
     <ClInclude Include="..\src\charset.h" />
     <ClInclude Include="..\src\ChooseFont.h" />
     <ClInclude Include="..\src\chtype.h" />
+    <ClInclude Include="..\src\keycode.h" />
     <ClInclude Include="..\src\chunk.h" />
     <ClInclude Include="..\src\clipboard.h" />
     <ClInclude Include="..\src\closure.h" />

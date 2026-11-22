@@ -1828,7 +1828,7 @@ process_interactive_string (lisp fmt, lisp args)
           if (consp (x))
             {
               lisp ch = xcar (x);
-              if (charp (ch) && xchar_code (ch) == c)
+              if (charp (ch) && xchar_value (ch) == c)
                 {
                   xsymbol_value (Vprefix_value) = prefix_val;
                   xsymbol_value (Vprefix_args) = prefix_args;
@@ -2080,7 +2080,7 @@ Fcommand_execute (lisp command, lisp hook)
         FEundefined_function (command);
     }
 
-  if (stringp (fn))
+  if (kbd_macro_p (fn))
     return execute_string (fn);
 
   protect_gc gcpro1 (fn);
@@ -2142,7 +2142,7 @@ Fcommandp (lisp object)
         return Qnil;
     }
 
-  if (stringp (object))
+  if (kbd_macro_p (object))
     return Qt;
 
   if (functionp (object))

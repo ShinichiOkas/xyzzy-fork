@@ -863,7 +863,7 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
       {
         HWND active = get_active_window ();
         if (active == hwnd)
-          app.kbdq.putc (xchar_code (app.lquit_char));
+          app.kbdq.putc (xchar_value (app.lquit_char));
         else
           PostMessage (active, msg, wparam, lparam);
         return 0;
@@ -1363,7 +1363,7 @@ public:
   void init ();
   void finish () {v_finished = 1;}
   int finished_p () const {return v_finished;}
-  lisp lookup (Char c) {return lookup_keymap (c, v_vec, v_length);}
+  lisp lookup (keycode_t c) {return lookup_keymap (c, v_vec, v_length);}
   void translate (lisp, lisp);
   void gc_mark_object (void (*)(lisp));
 };
@@ -1440,18 +1440,20 @@ static lisp
 dispatch (lChar cc)
 {
   lisp command;
-  Char c = Char (cc);
+  // The marks of the key queue (mouse, menu) are not a part of the key.
+  keycode_t c = lchar_to_keycode (cc);
 
   app.gc_itimer.reset ();
   app.as_itimer.reset ();
   app.last_cmd_tick = GetTickCount ();
 
-  if (cc & LCHAR_MENU)
+  if (lchar_menu_p (cc))
     {
-      if (c >= MENU_ID_RANGE_MIN && c < MENU_ID_RANGE_MAX)
-        command = lookup_menu_command (c);
-      else if (c >= TOOL_ID_RANGE_MIN && c < TOOL_ID_RANGE_MAX)
-        command = g_frame.lookup_command (c);
+      u_int id = cc & 0xffff;
+      if (id >= MENU_ID_RANGE_MIN && id < MENU_ID_RANGE_MAX)
+        command = lookup_menu_command (id);
+      else if (id >= TOOL_ID_RANGE_MIN && id < TOOL_ID_RANGE_MAX)
+        command = g_frame.lookup_command (id);
       else
         return Qt;
       if (command == Qnil)
@@ -1466,9 +1468,8 @@ dispatch (lChar cc)
           xsymbol_value (Vprefix_value) = xsymbol_value (Vnext_prefix_value);
           xsymbol_value (Vnext_prefix_value) = Qnil;
 
-          if (!meta_char_p (c) && !meta_function_char_p (c)
-              && !function_char_p (c)
-              && (DBCP (c) || (SBCP (c) && !ascii_char_p (c))))
+          // A text character that is not ASCII is input, not a key.
+          if (keycode_text_p (c) && !ascii_char_p (int (keycode_value (c))))
             {
               command = symbol_value (Vdefault_input_function, selected_buffer ());
               if (command == Qnil || command == Qunbound)
@@ -1493,7 +1494,7 @@ dispatch (lChar cc)
 run_command:
   xsymbol_value (Vlast_command) = xsymbol_value (Vthis_command);
   xsymbol_value (Vthis_command) = command;
-  xsymbol_value (Vlast_command_char) = make_char (Char (c));
+  xsymbol_value (Vlast_command_char) = make_key_char (c);
   if (command != Qnil)
     {
       selected_buffer ()->safe_run_hook (Vpre_command_hook, 1);
@@ -1525,7 +1526,7 @@ run_command:
 
   if (command == Qnil)
     {
-      if (!char_mouse_move_p (CCF_MOUSEMOVE))
+      if (!char_mouse_move_p (KEY_MOUSEMOVE))
         {
           app.status_window.puts (Ekey_not_bound, 1);
           if (xsymbol_value (Vbeep_on_warn) != Qnil)
@@ -1623,13 +1624,14 @@ execute_string (lisp string)
 {
   check_stack_overflow ();
   save_command_key_index sck (app.kbdq);
-  check_string (string);
+  if (!kbd_macro_p (string))
+    FEtype_error (string, Qstring);
   if (app.kbdq.lookup_kbd_macro (string))
     FEsimple_error (Ekbd_macro_called_recursively);
   lisp val = xsymbol_value (Vprefix_value);
   int n = val == Qnil ? 1 : fixnum_value (val);
   lisp result = Qt;
-  if (xstring_length (string))
+  if (kbd_macro_length (string))
     for (int i = 0; !n || i < n; i++)
       {
         kbd_macro_context macro (app.kbdq, string);
@@ -1648,6 +1650,22 @@ execute_string (lisp string)
           }
         QUIT;
       }
+  return result;
+}
+
+// For tests: run the keys in the key queue as commands, as the main loop does
+// (without redisplay).  The queue must not wait for the keyboard, so mouse
+// moves are accepted.
+lisp
+Fsi_kbd_queue_dispatch ()
+{
+  lisp result = Qt;
+  lChar c;
+  while ((c = app.kbdq.peek (1)) != lChar_EOF)
+    {
+      result = dispatch (c);
+      QUIT;
+    }
   return result;
 }
 
@@ -1758,22 +1776,24 @@ Fset_quit_char (lisp ch)
 {
   check_char (ch);
 
-  Char cc = xchar_code (ch);
+  keycode_t key = xkeycode (ch);
   int vk = -1, mod = 0;
-  if (meta_char_p (cc))
+  if (keycode_meta_ascii_p (key))
     {
       mod |= MOD_ALT;
-      cc = meta_char_to_char (cc);
+      key = keycode_meta_ascii_to_char (key);
     }
-  else if (meta_function_char_p (cc))
+  else if (keycode_meta_function_p (key))
     {
       mod |= MOD_ALT;
-      cc = meta_function_to_function (cc);
+      key = keycode_meta_function_to_function (key);
     }
 
-  if (function_char_p (cc))
+  int cc;
+  if (keycode_function_p (key))
     {
-      if (pseudo_ctlchar_p (cc))
+      cc = int (keycode_low (key));
+      if (keycode_pseudo_ctl_p (key))
         {
           mod |= MOD_CONTROL;
           cc = pseudo_ctl2char_table[cc & 0xff];
@@ -1785,18 +1805,19 @@ Fset_quit_char (lisp ch)
           if (cc & CCF_CTRL_BIT)
             mod |= MOD_CONTROL;
           cc &= ~(CCF_SHIFT_BIT | CCF_CTRL_BIT);
-          if (cc == CCF_APPS)
+          if (cc == int (keycode_low (KEY_APPS)))
             vk = VK_APPS;
-          else if (cc >= CCF_PRIOR && cc <= CCF_HELP)
-            vk = VK_PRIOR + cc - CCF_PRIOR;
+          else if (cc >= int (keycode_low (KEY_PRIOR)) && cc <= int (keycode_low (KEY_HELP)))
+            vk = VK_PRIOR + cc - int (keycode_low (KEY_PRIOR));
           else
-            vk = VK_F1 + cc - CCF_F1;
+            vk = VK_F1 + cc - int (keycode_low (KEY_F1));
         }
     }
   else
     {
-      if (!ascii_char_p (cc))
+      if (!keycode_text_p (key) || !ascii_char_p (int (keycode_value (key))))
         return Qnil;
+      cc = int (keycode_value (key));
 
       if (cc < ' ')
         {

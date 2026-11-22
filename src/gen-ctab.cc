@@ -1,6 +1,7 @@
 #include "gen-stdafx.h"
 #define NOT_COMPILE_TIME
 #include "chtype.h"
+#include "keycode.h"
 
 static void
 dump (const char *b, int size, int hex = 1)
@@ -104,41 +105,41 @@ ctlchars ()
   char buf[128], buf2[256];
   memset (buf, 0, sizeof buf);
   memset (buf2, 0, sizeof buf2);
-  buf['!'] = static_cast<byte> (CCF_EXCLAM & 0xFF);
-  buf['"'] = static_cast<byte> (CCF_DQUOTE & 0xFF);
-  buf['#'] = static_cast<byte> (CCF_NUMBER & 0xFF);
-  buf['$'] = static_cast<byte> (CCF_DOLLAR & 0xFF);
-  buf['%'] = static_cast<byte> (CCF_PERCENT & 0xFF);
-  buf['&'] = static_cast<byte> (CCF_AMPER & 0xFF);
-  buf['\''] = static_cast<byte> (CCF_QUOTE & 0xFF);
-  buf['('] = static_cast<byte> (CCF_LPAREN & 0xFF);
-  buf[')'] = static_cast<byte> (CCF_RPAREN & 0xFF);
-  buf['*'] = static_cast<byte> (CCF_ASTER & 0xFF);
-  buf['+'] = static_cast<byte> (CCF_PLUS & 0xFF);
-  buf[','] = static_cast<byte> (CCF_COMMA & 0xFF);
-  buf['-'] = static_cast<byte> (CCF_MINUS & 0xFF);
-  buf['.'] = static_cast<byte> (CCF_DOT & 0xFF);
-  buf['/'] = static_cast<byte> (CCF_SLASH & 0xFF);
-  buf['0'] = static_cast<byte> (CCF_0 & 0xFF);
-  buf['1'] = static_cast<byte> (CCF_1 & 0xFF);
-  buf['2'] = static_cast<byte> (CCF_2 & 0xFF);
-  buf['3'] = static_cast<byte> (CCF_3 & 0xFF);
-  buf['4'] = static_cast<byte> (CCF_4 & 0xFF);
-  buf['5'] = static_cast<byte> (CCF_5 & 0xFF);
-  buf['6'] = static_cast<byte> (CCF_6 & 0xFF);
-  buf['7'] = static_cast<byte> (CCF_7 & 0xFF);
-  buf['8'] = static_cast<byte> (CCF_8 & 0xFF);
-  buf['9'] = static_cast<byte> (CCF_9 & 0xFF);
-  buf[':'] = static_cast<byte> (CCF_COLON & 0xFF);
-  buf[';'] = static_cast<byte> (CCF_SEMI & 0xFF);
-  buf['<'] = static_cast<byte> (CCF_LT & 0xFF);
-  buf['='] = static_cast<byte> (CCF_EQ & 0xFF);
-  buf['>'] = static_cast<byte> (CCF_GT & 0xFF);
-  buf['`'] = static_cast<byte> (CCF_BACKQ & 0xFF);
-  buf['{'] = static_cast<byte> (CCF_LBRACE & 0xFF);
-  buf['|'] = static_cast<byte> (CCF_VER & 0xFF);
-  buf['}'] = static_cast<byte> (CCF_RBRACE & 0xFF);
-  buf['~'] = static_cast<byte> (CCF_TILDE & 0xFF);
+  buf['!'] = static_cast<byte> (keycode_value (KEY_EXCLAM) & 0xFF);
+  buf['"'] = static_cast<byte> (keycode_value (KEY_DQUOTE) & 0xFF);
+  buf['#'] = static_cast<byte> (keycode_value (KEY_NUMBER) & 0xFF);
+  buf['$'] = static_cast<byte> (keycode_value (KEY_DOLLAR) & 0xFF);
+  buf['%'] = static_cast<byte> (keycode_value (KEY_PERCENT) & 0xFF);
+  buf['&'] = static_cast<byte> (keycode_value (KEY_AMPER) & 0xFF);
+  buf['\''] = static_cast<byte> (keycode_value (KEY_QUOTE) & 0xFF);
+  buf['('] = static_cast<byte> (keycode_value (KEY_LPAREN) & 0xFF);
+  buf[')'] = static_cast<byte> (keycode_value (KEY_RPAREN) & 0xFF);
+  buf['*'] = static_cast<byte> (keycode_value (KEY_ASTER) & 0xFF);
+  buf['+'] = static_cast<byte> (keycode_value (KEY_PLUS) & 0xFF);
+  buf[','] = static_cast<byte> (keycode_value (KEY_COMMA) & 0xFF);
+  buf['-'] = static_cast<byte> (keycode_value (KEY_MINUS) & 0xFF);
+  buf['.'] = static_cast<byte> (keycode_value (KEY_DOT) & 0xFF);
+  buf['/'] = static_cast<byte> (keycode_value (KEY_SLASH) & 0xFF);
+  buf['0'] = static_cast<byte> (keycode_value (KEY_0) & 0xFF);
+  buf['1'] = static_cast<byte> (keycode_value (KEY_1) & 0xFF);
+  buf['2'] = static_cast<byte> (keycode_value (KEY_2) & 0xFF);
+  buf['3'] = static_cast<byte> (keycode_value (KEY_3) & 0xFF);
+  buf['4'] = static_cast<byte> (keycode_value (KEY_4) & 0xFF);
+  buf['5'] = static_cast<byte> (keycode_value (KEY_5) & 0xFF);
+  buf['6'] = static_cast<byte> (keycode_value (KEY_6) & 0xFF);
+  buf['7'] = static_cast<byte> (keycode_value (KEY_7) & 0xFF);
+  buf['8'] = static_cast<byte> (keycode_value (KEY_8) & 0xFF);
+  buf['9'] = static_cast<byte> (keycode_value (KEY_9) & 0xFF);
+  buf[':'] = static_cast<byte> (keycode_value (KEY_COLON) & 0xFF);
+  buf[';'] = static_cast<byte> (keycode_value (KEY_SEMI) & 0xFF);
+  buf['<'] = static_cast<byte> (keycode_value (KEY_LT) & 0xFF);
+  buf['='] = static_cast<byte> (keycode_value (KEY_EQ) & 0xFF);
+  buf['>'] = static_cast<byte> (keycode_value (KEY_GT) & 0xFF);
+  buf['`'] = static_cast<byte> (keycode_value (KEY_BACKQ) & 0xFF);
+  buf['{'] = static_cast<byte> (keycode_value (KEY_LBRACE) & 0xFF);
+  buf['|'] = static_cast<byte> (keycode_value (KEY_VER) & 0xFF);
+  buf['}'] = static_cast<byte> (keycode_value (KEY_RBRACE) & 0xFF);
+  buf['~'] = static_cast<byte> (keycode_value (KEY_TILDE) & 0xFF);
 
   for (int i = 0; i < sizeof buf; i++)
     if (buf[i])

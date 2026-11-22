@@ -1562,6 +1562,7 @@ static symbols unint[] =
   MAKE_SYMBOL2Q (or-real-integer-1-star),
 
   MAKE_SYMBOL2Q (temporary-string),
+  MAKE_SYMBOL2 (text-character),
   MAKE_SYMBOL2 (minibuffer-message),
   MAKE_SYMBOL2 (minibuffer-prompt),
   MAKE_SYMBOL2 (default-menu),
@@ -2439,6 +2440,9 @@ static symbols ed[] =
   DEFUN3 (kbd-macro-saving-p, 0, 0, 0),
   DEFCMD3 (toggle-ime, 0, 1, 0, ""),
   DEFUN3 (get-recent-keys, 0, 0, 0),
+  SI_DEFUN3 (*kbd-queue-put, 1, 1, 0),
+  SI_DEFUN3 (*kbd-queue-dispatch, 0, 0, 0),
+  SI_DEFUN3 (*kbd-macro-p, 1, 0, 0),
   DEFUN3 (get-ime-mode, 0, 0, 0),
   DEFUN3 (get-ime-composition-string, 0, 0, 0),
   DEFUN3 (pop-ime-composition-string, 0, 0, 0),

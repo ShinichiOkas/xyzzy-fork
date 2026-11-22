@@ -14,9 +14,9 @@ class kbd_queue
   int tail;
   lChar pending;
   enum {KBDMACRO_MAX = 2048};
-  Char saved[KBDMACRO_MAX];
+  keycode_t saved[KBDMACRO_MAX];
   int nsaved;
-  Char macro_char ();
+  lChar macro_char ();
   kbd_macro_context *kbd_macro;
   int last_ime_status;
   enum {ACTIVATE = 1, DEACTIVATE = 2, LAST_ACTIVE = 4};
@@ -100,6 +100,7 @@ public:
   kbd_queue ();
   ~kbd_queue ();
   int putc (lChar);
+  int put_key (lChar c) {return putraw (c);}
   int putw (int);
   int puts (const char *, int);
   lChar peek (int);
@@ -118,7 +119,7 @@ public:
   enum {IME_MODE_OFF = 1, IME_MODE_ON, IME_MODE_TOGGLE};
   int toggle_ime (int, int = 1);
   int lookup_kbd_macro (lisp) const;
-  int copy_queue (Char *, int) const;
+  int copy_queue (keycode_t *, int) const;
   void paste () const;
   int reconvert (RECONVERTSTRING *, int);
   int documentfeed (RECONVERTSTRING *, int);
@@ -230,11 +231,16 @@ save_command_key_index::~save_command_key_index ()
   q.restore_last_command_key (v1, v2);
 }
 
+// A kbd macro is a vector of characters (keys and text).  A string is the
+// form before S4-k (16bit values), still accepted.
+int kbd_macro_p (lisp);
+int kbd_macro_length (lisp);
+
 class kbd_macro_context
 {
   kbd_macro_context *last;
   kbd_queue &kbdq;
-  lisp string;
+  lisp string; // a kbd macro: a string (old form) or a vector of characters
   int index;
 public:
   kbd_macro_context (kbd_queue &, lisp);
@@ -247,7 +253,7 @@ inline
 kbd_macro_context::kbd_macro_context (kbd_queue &q, lisp s)
      : kbdq (q), string (s), index (0)
 {
-  if (!xstring_length (string))
+  if (!kbd_macro_length (string))
     return;
   last = kbdq.kbd_macro;
   kbdq.kbd_macro = this;
@@ -269,17 +275,17 @@ kbd_macro_context::running () const
 class key_sequence
 {
   enum {MAX_KEYSEQ = 32};
-  Char k_seq[MAX_KEYSEQ];
+  keycode_t k_seq[MAX_KEYSEQ];
   int k_used;
   int k_last_used;
 
-  void store (Char);
+  void store (keycode_t);
   void notice (int, int);
 public:
   key_sequence ();
-  void push (Char, int);
+  void push (keycode_t, int);
   void again (int);
-  void done (Char, int);
+  void done (keycode_t, int);
 };
 
 class ime_comp_queue
@@ -320,6 +326,6 @@ lChar decode_keys (WPARAM, LPARAM);
 lChar lookup_translate_table (lChar);
 lChar decode_syschars (WPARAM);
 lChar decode_chars (WPARAM);
-int char_mouse_move_p (Char);
+int char_mouse_move_p (keycode_t);
 
 #endif
