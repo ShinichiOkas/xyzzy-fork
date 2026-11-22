@@ -1,0 +1,36 @@
+# Build and run the full test suite on the self-hosted runner (this project's
+# Windows PC). See ci/README.md.
+#
+# Security: the repository is public and the runner is a real PC, so this
+# workflow never runs on pull_request (a fork's PR would run its code here).
+# Only pushes to the branches below (collaborators only) and manual runs.
+name: test
+
+on:
+  push:
+    branches: [feature/x64-only, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: [self-hosted, windows, x64, xyzzy]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (install.bat), write the dump image, run all tests
+        shell: powershell
+        run: ./ci/ci-test.ps1
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: ci-out/
+          if-no-files-found: ignore
