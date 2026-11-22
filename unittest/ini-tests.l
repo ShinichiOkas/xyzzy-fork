@@ -439,6 +439,13 @@
 ;;; ------------------------------------------------------------------
 ;;; xyzzy.ini of a started xyzzy (end to end)
 
+(defun ini-t-contains-p (bytes sub)
+  (let ((n (length sub)))
+    (do ((i 0 (1+ i)))
+        ((> (+ i n) (length bytes)) nil)
+      (when (equal (subseq bytes i (+ i n)) sub)
+        (return t)))))
+
 (deftest ini-xyzzy-restart-keeps-the-font-name-0 ()
   ;; A folder (XYZZYCONFIGPATH) with a cp932 xyzzy.ini that has a Japanese
   ;; name of a font. xyzzy starts, reads it, changes the size and saves; the
@@ -459,10 +466,9 @@
                            (getf (get-text-font :japanese) :face))
                         :options "-q" :environ env))
                    (bytes (ini-t-get-bytes ini))
-                   (found (and (search (ini-t-bytes-of "japanese=30,\""
-                                                        *ini-t-font-cp932* "\",128")
-                                       bytes)
-                               t))
+                   (found (ini-t-contains-p bytes
+                                         (ini-t-bytes-of "japanese=30,\""
+                                                         *ini-t-font-cp932* "\",128")))
                    (r2 (multiple-value-list
                         (eval-in-another-xyzzy
                          '(let ((f (get-text-font :japanese)))
