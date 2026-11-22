@@ -435,3 +435,43 @@
                        "a=" '(#xed #x40) *ini-t-crlf*
                        "z=" '(#xfd) "x" *ini-t-crlf*
                        "n=1" *ini-t-crlf*))
+
+;;; ------------------------------------------------------------------
+;;; xyzzy.ini of a started xyzzy (end to end)
+
+(deftest ini-xyzzy-restart-keeps-the-font-name-0 ()
+  ;; A folder (XYZZYCONFIGPATH) with a cp932 xyzzy.ini that has a Japanese
+  ;; name of a font. xyzzy starts, reads it, changes the size and saves; the
+  ;; file has the name in cp932; xyzzy starts again and reads the name.
+  (with-temp-dirs (cfg)
+    (let ((ini (merge-pathnames "xyzzy.ini" cfg))
+          (env `(("XYZZYCONFIGPATH" . ,cfg))))
+      (unwind-protect
+          (progn
+            (ini-t-put-bytes ini (ini-t-bytes-of "[Font]" *ini-t-crlf*
+                                                 "japanese=-16,\"" *ini-t-font-cp932*
+                                                 "\",128" *ini-t-crlf*))
+            (let* ((r1 (eval-in-another-xyzzy
+                        '(progn
+                           (set-text-font :japanese
+                                          :face (getf (get-text-font :japanese) :face)
+                                          :size 15 :size-pixel-p nil)
+                           (getf (get-text-font :japanese) :face))
+                        :options "-q" :environ env))
+                   (bytes (ini-t-get-bytes ini))
+                   (found (and (search (ini-t-bytes-of "japanese=30,\""
+                                                        *ini-t-font-cp932* "\",128")
+                                       bytes)
+                               t))
+                   (r2 (multiple-value-list
+                        (eval-in-another-xyzzy
+                         '(let ((f (get-text-font :japanese)))
+                            (values (getf f :face) (getf f :size)))
+                         :options "-q" :environ env))))
+              (list (equal r1 *ini-t-font-name*)
+                    found
+                    (equal (first r2) *ini-t-font-name*)
+                    (second r2))))
+        (when (file-exist-p ini)
+          (delete-file ini)))))
+  => (t t t 15))
