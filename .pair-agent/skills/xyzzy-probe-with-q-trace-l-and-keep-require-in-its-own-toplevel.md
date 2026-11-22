@@ -11,6 +11,7 @@ provenance: xyzzy-fork S3（BUG-0028・0031 の実測と foreign の試験）。
 ## 手順
 
 - プローブ（一回きりの実測スクリプト）は `xyzzy.exe -q -trace -l script.l` で走らせる（`run-tests.bat` も同じ形）。GUI を人が見なくても、標準出力と trace で結果が取れる
+- 2026-11-22 から、手元で xyzzy を起こすときは必ず別デスクトップ（deskrun）越しにする。素で起こすと窓が師匠の画面に出て、マウス・前面を奪う（`xyzzy-verify-gui-on-a-separate-desktop`）。プローブに使う関数が xyzzy にあるかは `xyzzy-lisp-pitfalls-for-test-writers`
 - **読み取りエラーは toplevel を落とし、ダイアログで止まる。** 例: `c:size_t` のように外部シンボルでないものを、その名前空間が読み込まれる前に 1 つの toplevel で読むと、読み取りの段階で落ちる
 - 対策: **`(require "foreign")` などを別の toplevel に置き**（1 つ目）、参照する式は次の toplevel に書く。シンボルは **`c::size_t`**（内部のシンボルの参照）で書くと、外部でなくても読める
 - ダイアログで止まったプローブは人が閉じるまで走り続ける。夜間や並列の役が走らせるものは、読み取りエラーが起きない書き方にしておく

@@ -40,9 +40,27 @@ xyzzy の画面を伴う確かめ（ダイアログ・filer・キー入力・ウ
 - **WM_DROPFILES は `SendMessage` で送る**（`PostMessage` は ERROR_INVALID_HANDLE で拒否される）。HDROP のメモリは **xyzzy の中で確保**する（`dropfiles.exe` が CreateRemoteThread の小さな stub で GlobalAlloc させる）。xyzzy は Explorer からの落としと同じに DragQueryFileW で読む
 - **PrintWindow は活性でないプロパティシートのタブの列を描かない**（ダイアログの上端が空く）。タブの列の見た目は撮影で示せない。コントロールの列挙（`[G]::Kids`）の座標・文字列で補う
 - IME（IMM32）はこの PC では確かめられない
+- **印刷プレビューは、この PC のプリンタ（Canon TS5400）が通る経路しか示さない。** GB・KSC・Big5 の文字はこのプリンタでは比例幅の経路（`pe_fixed_pitch` が 0）に入り、固定幅の経路の直し（BUG-0059 の全角のずらし）を通らないので、プレビューの撮影では確かめられなかった（BUG-0058 は同じ方法で確かめられた）。印刷の直しを確かめる前に、その文字がこのプリンタでどちらの経路に入るかを見る（2026-11-22 段 3。AI の観測）
 - **新しいビルドはダンプイメージ（`xyzzy.wxp`）を最初の 1 回書く**。その 1 回も deskrun 越しに走らせる（xyzzy を起動して殺す台本）。書かれた後の台本を流す
 - **ラベルの前に、その exe がどのビルドかを確かめる**（`XYZZY_CHAR_UNICODE` が 0 か 1 か）。0 は旧内部コード（あ = 0x82A0）、1 はコードポイント（あ = 0x3042）。結果を「合格・不合格」と書く前に `r10.ps1` の F5（バッファの文字コード）などで識別する
 - **変更の前後の画面は、同じ窓を PrintWindow で撮って画素で比べる**（`r3.ps1` で 2 つのビルドを同じ場面で撮り、`cmp.exe <dir> <tagA> <tagB>` が帯ごとに差の画素数と範囲を出す。before を 2 回撮って before == before になること（雑音の床）を先に確かめる）。キャレットは PrintWindow に写って点滅するので、`r3.ps1` が書く `.mask`（GetGUIThreadInfo の矩形）を `cmp.exe` が除く。印刷プレビューの比較は倍率を 200% に固定する（既定の「窓に合わせる」は同じ exe でも 2 回で変わる）。手順は `tools/gui-verify/README.md`。0 と 1 の見分けは `r10.ps1` で WM_CHAR 0x82 0xA0 を送る（0 は 33440、1 は 12354。`(char "あ" 0)` だけでは見分けられない）
+
+## 役が自分の試験を手元で流す（`ci-test.ps1 -Tests` を deskrun 越しに）
+
+AI の観測（2026-11-22 段 3。forming 相当）。この節は、上の確定した規則（師匠の画面・入力・前面に触れない）を守ったまま、役が自分の試験を秒〜分で回すための運用。段 3 の 21:15 から、役の門は「増分ビルド + 自分の試験をこの形で流す」になった（`xyzzy-run-tests-via-ci-on-this-pc` の「役は CI を待たない」）。
+
+形（詳細は `ci/ci-test.ps1` の先頭の注釈）:
+
+    & <リポジトリ>\tools\gui-verify\deskrun.exe 2400 'C:\Program Files\PowerShell\7\pwsh.exe' -NoProfile -ExecutionPolicy Bypass -File <作業ツリー>\ci\ci-test.ps1 -Tests unittest\a-tests.l,unittest\b-tests.l
+
+つまずいた点:
+- **pwsh 7 を使う。** Windows PowerShell 5.1 は別デスクトップで起動に失敗する
+- **PowerShell から起動する。Git Bash から呼ばない。** Git Bash は `/c` などの引数をパスに書き換え、`\r` を改行にして壊す
+- **`-Tests` の複数のファイルはカンマで区切る。** `-File` で渡すと 1 つの文字列になる。`ci-test.ps1` がカンマで割る
+- **全件（`-Tests` なし）とクリップボードに触る試験は、この形で流さない。** クリップボードは WinSta0 の中で師匠と共有。全件は親の統合の CI で流す
+- **`-Tests` に無いファイルを含めると、実行が終わらない**（BUG-0062）。渡す前にファイルがあるかを見る。子の xyzzy が終わらない試験も実行を止める（BUG-0060）。deskrun の時間切れ（終了コード 99）で止まったら、残ったプロセスのうち自分が起こした PID だけを止める
+- **手元のビルドは同時に 3 つまで。** 並列の役のビルドが重なってメモリが足りなくなり、処理が止められたことがある。親が依頼文で渡す枠（`build-slot-1`〜`3` のフォルダ。`mkdir` できたら取れた）を取ってからビルドする
+- **段 3 の結果**: この形にした後、R5 の部品は 1 件を起こしてから統合まで約 10〜15 分で回った（R5-A は約 10 分。親の記録）
 
 ## Why
 
