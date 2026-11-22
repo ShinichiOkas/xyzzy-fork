@@ -203,15 +203,17 @@ Lisp の文字との出し入れ（char.h）:
 | lread.cc | number_backslash_reader（キーの名前を keycode.h で組み立てる）。Fread_char などの `make_char (Char (c))` は、キーボードから来た値なら make_key_char。parse_digit_char は今のまま（数で書けるのはテキストだけ） |
 | lprint.cc | print_char をキーとテキストに分ける。キーは princ でも名前で書く（`(princ #\M-x)` は `M-x`） |
 | chname.cc | 名前の表の値を keycode_t にする |
-| char.cc | Fset_meta_bit を keycode.h で。Fchar_code と char=〜char-not-lessp は xchar_value。Fcode_char は値の範囲を検査する（不具合 F1 を直す） |
-| bytecode.cc | BCchar_code・BCcode_char・文字の比較の命令を char.cc と同じにする |
-| hash.cc | 文字のハッシュ（Char_hash など）を xchar_value で |
+| char.cc | 文字の関数は全部キーを受ける（xchar_value）。述語（alpha-char-p、digit-char-p、upper-case-p、graphic-char-p など）はキーなら nil、大文字小文字（char-upcase など）はキーならそのまま、比べる関数（char=〜char-not-lessp、char-equal〜）は値で比べる。今と同じ結果になる（例: cmds.l の process-prefix-args は `(digit-char-p #\F1)` を呼ぶ）。Fset_meta_bit を keycode.h で。Fcode_char は値の範囲を検査する（不具合 F1 を直す） |
+| pred.cc | equalp の文字の比較（char_upcase (xchar_code …) の 2 箇所）を xchar_value で |
+| eval.cc | Fcommand_execute（上の行）と、文字を比べる所（xchar_code の 1 箇所）を xchar_value で |
+| bytecode.cc | BCchar_code・BCcode_char・文字の比較の命令（CHAR_CASE_PRED など）を char.cc と同じにする |
+| hash.cc | 文字のハッシュ（equalp の表で char_upcase (xchar_code …) を使う所）を xchar_value で |
 | stream.cc | キーボードの流れ（st_keyboard）の読みで、lChar を make_key_char にする |
 | lisp/kbdmacro.l | `(stringp def)` を「キーボードマクロか（文字列か文字のベクタ）」の判定に替える（name-last-kbd-macro・insert-kbd-macro） |
 | lisp/help.l | view-lossage が get-recent-keys のベクタを扱う（`~:C` で印字しているので、列として回せばよい） |
 | unittest/ | 新しい試験（3.7） |
 
-- xchar_code の呼び出しは 27 ファイル 136 箇所ある。テキストの所（pathname.cc・string.cc・sequence.cc・array.cc・syntax.cc など）は**変えない**。xchar_code が中で検査するので、キーが来れば type-error になる。直すのは上の表のキーの所だけ。
+- xchar_code の呼び出しは 27 ファイル 136 箇所ある。分け方: キーを受けるべき所（char.cc 43、keymap.cc 7、lprint.cc 4、hash.cc 4、kbd.cc 3、filer.cc 3、bytecode.cc 3、pred.cc 2、toplev.cc 2、fnkey.cc 1、eval.cc 1、lread.cc の一部）は上の表のとおり xchar_value・xkeycode に替える。文字列・バッファ・パスにテキストとして入れる所（array.cc、sequence.cc、string.cc、vector.cc、insdel.cc、stream.cc の write-char、pathname.cc、syntax.cc、search.cc、move.cc、disp.cc、dialogs.cc、stdctl.cc、ldialog.cc、hashpjw.cc）は**変えない**。xchar_code が中で検査するので、キーが来れば type-error になる。
 - gen-ctab.cc の疑似の制御文字の表（pseudo_char2ctl_table・pseudo_ctl2char_table）は番号だけを持つので、そのまま。
 
 ### 3.6 Lisp から見える変化（S4-k）
@@ -376,7 +378,25 @@ lisp decode_bytes (lisp encoding, const void *, size_t);   // バイト → Lisp
 
 ### 4.7 octet の関数（文字列をバイトとして扱う所）
 
-（4.7 は w2s・s2w の分類の結果で書く。10.4 も参照）
+事実:
+- 文字列 → バイト（byte-stream.cc の byte_input_string_stream・byte_input_streams_stream）: 256 未満の Char は 1 バイト、DBCP は上位と下位の 2 バイト。
+- バイト → 文字列（byte_output_wstream::sflush）: 先行バイトなら次のバイトと組にして 1 つの Char、それ以外は 1 バイト 1 Char。つまり「内部の符号 = SJIS のバイト」の生の規則。
+- この 2 つを使う関数（xstream_ibyte_helper・xstream_obyte_helper）: si:base64-decode・-encode、si:uudecode・uuencode、si:quoted-printable-decode・-encode、si:www-url-encode・-decode、si:binhex-decode、si:md5・si:sha-1〜512・si:hmac-*（encdec.cc）。:encoding は受けない。digest の `:binary t` は、1 バイト 1 文字の文字列（make_string_simple）を返す。hmac の鍵は w2s を通す。
+- si:octet-length は :encoding が無ければ w2sl（内部の 2 バイト）で数え、あれば変換器で数える（string.cc Fsi_octet_length）。
+- Lisp は「バイトの文字列」をこの規則で受け渡している: `(convert-encoding-to-internal charset (si:base64-decode …))`（encdec.l decode-mime-field）、map-char-encoding-region（kanji.l。バッファの文字を「元のバイト」とみなして別の符号で読み直す）、text-decode-region（encdec.l。復号したバイトをそのまま insert）、system-tests.l の HMAC と md5 の試験（`(code-char #xaa)` などで作ったバイトの列）。
+- si:make-string-chunk・si:pack-string・si:unpack-string（chunk.cc）は、FFI で C の文字列を作るための w2s・s2w。これはバイトではなく Win32 の文字列（10.4 の ACP の規則に従う）。
+
+推奨（「バイトの文字列」の規則。V で入れ、R7 で準備する）:
+- バイト → 文字列: 1 バイト 1 文字。バイト b は U+00bb（Latin-1 と同じ）。`(char-code c)` がバイトの値になる（:binary のストリームと同じ。4.4）。
+- 文字列 → バイト: `:encoding` を受ける関数はその符号で変換する（今 :encoding を受けない上の関数にも足す）。省いたときの既定の規則:
+  - 全部の文字が U+00FF 以下か生のバイトなら、1 文字 1 バイト（バイトの文字列とみなす）。
+  - それ以外は `*default-fileio-encoding*`（既定 sjis）で変換する。生のバイトの文字は元のバイト。
+- この規則で、今と結果が変わらないもの: ASCII だけの文字列、`(code-char #xaa)` などで作ったバイトの列、digest の :binary の結果、日本語の文（cp932 のバイト。半角カナも 1 バイト）、si:octet-length の `"あ"` → 2、`"漢字"` → 4。
+- 今と変わるもの:
+  - base64-decode などの結果の文字列は、cp932 の日本語でも読める文字にならず、1 バイト 1 文字になる（今は SJIS の組で読める文字になっていた）。text-decode-region（encdec.l）は、insert の前に `*expected-fileio-encoding*` で読む形に直す。convert-encoding-to-internal を通している decode-mime-field は直さなくてよい。
+  - ISO-8859 の文字（今は内部の 2 バイトという意味の無いバイト）は、Latin-1 の 1 バイトになる。
+- map-char-encoding-region（kanji.l）は、「元のバイト」を作るときにバッファの符号（buffer-fileio-encoding）で書き戻してから読み直す形に直す（生のバイトと重複符号の覚えで、元のバイトに戻る）。
+- 採らない案: バイト 0x80–0xFF を生のバイトの文字（0x1100xx）で表す。既定の規則は要らなくなるが、`(char-code (read-char s))` がバイトの値でなくなり、:binary のストリームを読む利用者のコード（imagehdr.l など）が全部壊れる。
 
 ## 5. cp932 の往復
 
@@ -558,6 +578,8 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 | map-to-half-width-*・map-to-full-width-* | cp932 の表 | Unicode で作り直す（kanji.cc、gen-ktab）。キーワード（:ascii :hiragana :katakana :greek :cyrillic）は同じ |
 | `*unicode-to-half-width*` | unicode-char と UTF の読みで半角へ寄せる | 意味が無くなる（変数は残す） |
 | si:octet-length（:encoding なし） | 内部の 2 バイトで数える | 4.7 の既定の規則で数える（"あ" は 2、"漢字" は 4 のまま） |
+| si:base64-decode など復号の結果 | SJIS の組で読める文字列 | 1 バイト 1 文字（U+00bb）。文字にするには convert-encoding-to-internal を通す（4.7） |
+| open の :char-encoding（新） | — | 文字の符号を指定する。省くと `*default-fileio-encoding*`（4.4） |
 | 履歴・session・.lc の形式 | 生の SJIS と内部の符号の `\X` | UTF-8 と版の印（9 章） |
 | キーボードマクロ | 文字列 | 文字のベクタ（S4-k） |
 
@@ -569,7 +591,7 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 
 | 場所 | 中身 | 扱い |
 |---|---|---|
-| charname.l 12〜25 行 | `(make-vector 65536)`、`(dotimes (i char-code-limit))` で全部の内部の値を回し、char-unicode と iso-char-charset で名前（`JISX0208_…` など）を作る | cnamedef.l の Unicode の値を直接回す形に書き直す（値に依らない。S4-k と並行してできる） |
+| charname.l 12〜25 行 | `(make-vector 65536)`、`(dotimes (i char-code-limit))` で全部の内部の値を回し、char-unicode と iso-char-charset で名前（`JISX0208_…` など）を作る | cnamedef.l の Unicode の値を直接回す形に書き直す。前置きの名前は変換器で付ける（R9） |
 | cmds.l 774〜821 行（quote-char） | 内部の符号を 16 進で打ち込む（dbc-first-byte-p で 2 バイト目を待つ）。unicode-char が 2 文字の文字列を返す場合を扱う | 「内部の符号」の入力を Unicode の入力と同じにする。2 文字の場合の扱いを消す（V の後） |
 | cmds.l 865〜867 行（what-cursor-position） | `Char: ~:c (0x~x / U+~4,'0X / 0x~2,'0X[~A])` で内部の符号と Unicode と ISO の符号を出す | 内部 = Unicode なので 1 つにする。`U+~4,'0X` は BMP の外で 5〜6 桁にする |
 | compile.l 1826〜1853 行 | バイトコードの命令・PC・定数の番号を `(code-char n)` で文字列に入れる。命令の値は 0x81E7–0x8327、定数は 40000±1024 | 文字列のまま（Char が 32bit なので値は入る）。.lc の書き方は 9.2 |
@@ -627,7 +649,8 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 ### 9.4 旧い形のデータの読み替え（V）
 
 - 履歴（.xyzzy.history）、resume、session（*.ssn）、キーボードマクロのファイルは、xyzzy が自分で書いたデータ。V の前に書いたものには、内部の符号の `\XNNNN`・`\xNN`・`#\xNNNN` が入っている。
-- これらを読む関数（history.l の load-history-file、session.l の load-session、kbdmacro.l で読むもの）は、1 行目に `Xyzzy-Data-Format: 2` が無ければ、旧い形として読む。符号は cp932（4.5 の判定でそうなる）。`\X`・`\x`・`#\x` の値は「旧内部 → Unicode」の表で読み替える（旧いキーの値 0x8000–0x807F・0xFE00–0xFFFF はキーに、表に無い値は U+FFFD に）。
+- これらを読む関数（history.l の load-history-file、session.l の load-session、kbdmacro.l で読むもの）は、1 行目に `Xyzzy-Data-Format: 2` が無ければ、旧い形として読む（読みの変数 `si:*read-legacy-internal-codes*` を束縛して load する）。符号は cp932（4.5 の判定でそうなる）。`\X`・`\x`・`#\x` の値は「旧内部 → Unicode」の表で読み替える（旧いキーの値 0x8000–0x807F・0xFE00–0xFFFF はキーに、表に無い値は U+FFFD に）。
+- 旧いキーの値を含む文字列（S4-k より前のキーボードマクロ）は、文字列ではなく文字のベクタとして読む。キーは文字列に入らないため。S4-k の execute_string の読み替え（3.6）は V で消す。
 - 読み替えの表は、今の internal2wc_table（128KB）を名前を変えて移行の間だけ残す。何版か後で消す。
 - 利用者が書いた .l の `\X`・`#\x` は読み替えない（V の後は Unicode の意味になる。公開の変更として案内する）。
 - 旧い履歴を読むと、次に保存するとき新しい形で書かれる。
@@ -651,9 +674,9 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 | S4-c ファイル | W 版のファイルの層（長いパス、8.3 の削除、GetFileSizeEx）。Char → UTF-16 の変換は 1 つの関数にまとめる | pathname.cc・pathname.h、fileio.cc、mman.cc・mman.h、stream.cc の create_file_stream（fopen）、filer.cc のファイル操作、ほか S4-c の役が決める | M〜L | S4-d | 合意の S4-c の基準。260 文字を超えるパス、4GB を超えるファイルの大きさ、既存の試験 |
 | P1 変換器 | 4.2 の変換器（バイト ⇔ コードポイントの列）。生成器と表。試験用の si:%codec-decode・si:%codec-encode（コードポイントの整数の列を返す。内部の値に依らない） | 新規: codec.h、codec*.cc、gen-codec.cc、src/unicode/CP932.TXT。projects/gen-src1.vcxproj・xyzzy.vcxproj、gen-syms.cc（関数の登録を足すだけ） | L | なし | cp932 の全 1 バイト・2 バイトが OS（MB_ERR_INVALID_CHARS）と一致。5.3 の表の各場合の往復。重複符号の覚え（判断 A）。ほかの符号は今の表（i2w を通した結果）と一致するか、差を記録 |
 | P2 属性の表 | 7.2 の uprops。試験用の si:%uprop-width など | 新規: uprops.h・uprops.cc、gen-uprops.cc、src/unicode/ucd/。projects、gen-syms.cc | M | なし | 代表の文字（ASCII、かな、漢字、ハングル、曖昧、絵文字、結合文字）の幅と群が UCD どおり |
-| P3 Lisp の値の依存 | 8.2 の charname.l（Unicode の値で回す）、encoding.l の表の挿入。値に依らない形にする | lisp/charname.l、lisp/encoding.l（900 行台だけ） | S | なし | 文字の名前の表が今と同じ（`#\HIRAGANA_LETTER_A` などが読める）。全件 |
 
 - gen-syms.cc と projects の .vcxproj は P1・P2・S4-c が足すだけの変更をする。取り込みのときに合わせる。
+- 8.2 の Lisp の直し（charname.l など）は、16bit のままでは今と同じ名前の集まりを保てない（charname.l は内部の値を全部回して、同じ Unicode に当たる別の文字集合の文字にも名前を付けている）。だから段 1 には置かず、R9 の切り替え 1 の側で行う。
 - stream.cc は S4-k（st_keyboard）と S4-c（create_file_stream）が別の関数を触る。filer.cc も同じ。
 
 段 2（W。1 人で順に）:
@@ -672,9 +695,9 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 | R4 ストリームと load | 4.4・4.5。ファイルとソケットのストリームに変換器を持たせる（切り替え 0 では「今の生の SJIS」を 1 つの変換器として包む）。load の判定 | stream.cc・stream.h、lread.cc（load_file）、lisp/misc.l・evalmacs.l の mc- の関数 | M | W、P1 | 既存の全件。UTF-8（BOM あり・なし・印あり）と cp932 の .l を load できる。:binary で 0〜255 の全バイトが往復する |
 | R5 xyzzy のデータファイル | 4.3 の履歴・resume・session・キーボードマクロのファイル・abbrev を UTF-8 と版の印で書く。9.4 の旧い形の読み（切り替え 1 の側）。.lc の版の印と load の検査（9.2） | lisp/history.l、session.l、kbdmacro.l、abbrev.l、compile.l、lread.cc（.lc の 1 行目の検査だけ。R4 と同じファイルなので R4 の後） | M | R4 | 旧い履歴（今の形で書いたもの）を読んで、同じ値になる。新しい形で書いて読み戻す |
 | R6 ini | 4.3。conf.cc に ini の読み書きを作る | conf.cc・conf.h | S | W、P1 | 今の cp932 の ini を読める。書いて読み戻す。フォントの名前（日本語）が往復する |
-| R7 octet の関数 | 4.7 | encdec.cc、chunk.cc、string.cc（octet-length と make_string_simple だけ） | S〜M | W、P1 | system-tests.l の HMAC・md5・octet-length が、直さずに通る |
+| R7 octet の関数 | 4.7 の「バイトの文字列」の規則（切り替え 1 の側）と、:encoding を足す | byte-stream.cc・byte-stream.h、encdec.cc、string.cc（Fsi_octet_length と make_string_simple だけ）、lisp/encdec.l（text-decode-region）、lisp/kanji.l（map-char-encoding-region） | S〜M | W、P1 | system-tests.l の HMAC・md5・octet-length が、直さずに通る。MIME のヘッダの復号（decode-mime-header）の試験を足す |
 | R8 Win32 の境界 | 10.4。s2w・w2s を「ACP の変換器」1 つに通す（切り替え 0 は今の cp932、1 は UTF-8）。CP_ACP・CP_OEMCP・IsDBCSLeadByte・_ismbblead の所を直す | string.cc（s2w・w2s の中身だけ）、DnD.cc、com.cc、filer.cc（480 行の所）、kbd.cc（再変換 864〜941 行）、gen-syms.cc（2938 行。生成器） | M | W | 既存の全件。ドラッグ＆ドロップ、ショートカットの解決、IME の再変換を画面で確かめる |
-| R9 文字の関数 | 8.1 の unicode-char・char-unicode・iso-*・kanji-char-p・kana-char-p・char-columns・graphic-char-p・map-to-half/full-width-*、kanjitab の作り直し | char.cc、kanji.cc、move.cc（Fchar_columns・iso8859_word_char_p）、gen-ktab.cc、ces.cc（parse-char-encoding-*） | M | W、P1、P2 | 切り替え 0 で既存の全件。切り替え 1 の側の試験（8.1 の表の各行）を用意しておく |
+| R9 文字の関数 | 8.1 の unicode-char・char-unicode・iso-*・kanji-char-p・kana-char-p・char-columns・graphic-char-p・map-to-half/full-width-*、kanjitab の作り直し。8.2 の Lisp の直し（charname.l は cnamedef.l の Unicode の値を回し、文字集合の前置きの名前〈`JISX0208_…`〉は変換器の can_encode で付ける。cmds.l の quote-char・what-cursor-position。encoding.l の insert-internal-char-table と map-* の関数） | char.cc、kanji.cc、move.cc（Fchar_columns・iso8859_word_char_p）、gen-ktab.cc、ces.cc（parse-char-encoding-*）、lisp/charname.l、lisp/cmds.l、lisp/encoding.l | M | W、P1、P2 | 切り替え 0 で既存の全件。切り替え 1 の側の試験（8.1 の表の各行、`#\HIRAGANA_LETTER_A` と `#\JISX0208_HIRAGANA_LETTER_A` が読める）を用意しておく |
 | R10 キー入力 | WM_CHAR・WM_IME_CHAR・ImmGetCompositionString を UTF-16 で受ける経路に寄せる（切り替え 1 で） | kbd.cc（putc・puts の所）、toplev.cc（WM_CHAR・WM_PRIVATE_WCHAR・WM_IME_CHAR・IME の確定の所） | S〜M | W、S4-k | 画面で日本語の入力（IME）、BMP の外の文字（絵文字の入力）を確かめる |
 
 - R4 と R5 は lread.cc を、R3 と R10 は kbd.cc を共有する。関数が違うが、それぞれ後の片が前の片の上で作る（R5 は R4 の後、R10 は R3 と並列でよいが取り込みで合わせる）。
@@ -697,14 +720,17 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 ### 10.3 順番と依存
 
 ```
-S4-d ──┬─ S4-k ──────┐
-       ├─ S4-c ──────┤
-       ├─ P1 ─────────┼─ W ─┬─ R1, R2, R6, R8 ───────────────┐
-       ├─ P2 ─────────┤     ├─ R3（P2）, R9（P1, P2）────────┤
-       └─ P3 ─────────┘     ├─ R4（P1）─ R5 ──────────────────┼─ V ─┬─ C1, C2, C3, C4
-                            ├─ R7（P1）───────────────────────┤     │
-                            └─ R10（S4-k）────────────────────┘     │
+S4-d ─┬─ S4-k ─┐
+      ├─ S4-c ─┴─ W ─┬─ R1, R2, R8, R10 ──────────────┐
+      │              ├─ R3 ·····(P2) ──────────────────┤
+      ├─ P1 ·········├─ R4 ·····(P1) ─ R5 ─────────────┼─ V ─┬─ C1
+      │              ├─ R6, R7 ·(P1) ──────────────────┤     ├─ C2
+      └─ P2 ·········└─ R9 ·····(P1, P2) ──────────────┘     ├─ C3
+                                                              └─ C4
 ```
+
+- W は S4-k と S4-c の後。P1・P2 は W を待たない（新しいファイルだけ）。点線は「その片が P1・P2 を使う」の意味。
+- 段 3 の片は W の後に並列。R5 は R4 の後。V は段 3 の全部の後。段 5 は V の後に並列。
 
 - 各段の共通の完了の基準（plan.md §6 と合意）: install.bat → ダンプを書く起動 → run-tests.bat が通る。コミットして push。
 
