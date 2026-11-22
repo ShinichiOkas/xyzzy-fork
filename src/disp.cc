@@ -4,7 +4,6 @@
 #include "syntaxinfo.h"
 #define DEFINE_LUCIDA_OFFSET_TABLE
 #include "lucida-width.h"
-#include "jisx0212-hash.h"
 #include "mainframe.h"
 #include "regex.h"
 
@@ -182,7 +181,7 @@ Window::caret_size (SIZE &size) const
                     symbol_value (Voverwrite_mode, w_bufp) != Qnil,
                     (w_point.p_offset != w_point.p_chunk->c_used
                      && w_point.ch () >= 256
-                     && char_width (w_point.ch ()) == 2),
+                     && char_display_width (w_point.ch ()) == 2),
                     ((w_selection_type != Buffer::SELECTION_VOID
                       && (w_selection_point == NO_MARK_SET
                           || ((w_selection_point <= w_selection_marker)
@@ -353,218 +352,119 @@ class paint_chars_ctx
   int p_right;
   const int p_cellw;
 public:
-  paint_chars_ctx (int x, int y, const RECT &r, int w)
-       : p_x (x), p_y (y), p_cellw (w * app.text_font.cell ().cx)
+  paint_chars_ctx (int x, int y, const RECT &r)
+       : p_x (x), p_y (y), p_cellw (app.text_font.cell ().cx)
     {
       p_r.left = r.left;
       p_r.top = r.top;
       p_r.bottom = r.bottom;
       p_right = r.right;
     }
-  void paint (HDC hdc, ucs2_t wc, int flags)
+  // Draw one character of CELLS cells (NWC may be 0: only the background).
+  void paint (HDC hdc, const ucs2_t *wc, int nwc, int cells, int flags)
     {
-      p_r.right = min (int (p_r.left + p_cellw), p_right);
-      ExtTextOutW (hdc, p_x, p_y, flags, &p_r, &wc, 1, 0);
+      p_r.right = min (int (p_r.left + p_cellw * cells), p_right);
+      ExtTextOutW (hdc, p_x, p_y, flags, &p_r, (const WCHAR *)wc, nwc, 0);
       p_r.left = p_r.right;
-      p_x += p_cellw;
+      p_x += p_cellw * cells;
     }
-  void paint_lucida (HDC, ucs2_t, int);
+  void paint_lucida (HDC, const ucs2_t *, int, int);
 };
 
 void
-paint_chars_ctx::paint_lucida (HDC hdc, ucs2_t wc, int flags)
+paint_chars_ctx::paint_lucida (HDC hdc, const ucs2_t *wc, int nwc, int flags)
 {
   const FontObject &f = app.text_font.font (FONT_ASCII);
-  int o = (LUCIDA_OFFSET (wc - UNICODE_SMLCDM_MIN) * f.size ().cy / LUCIDA_BASE_HEIGHT
-           + app.text_font.cell ().cx / 2);
+  int o = app.text_font.cell ().cx / 2;
+  if (nwc)
+    o += LUCIDA_OFFSET (wc[0] - UNICODE_SMLCDM_MIN) * f.size ().cy / LUCIDA_BASE_HEIGHT;
   p_r.right = min (int (p_r.left + p_cellw), p_right);
-  ExtTextOutW (hdc, p_x + o, p_y, flags, &p_r, &wc, 1, 0);
+  ExtTextOutW (hdc, p_x + o, p_y, flags, &p_r, (const WCHAR *)wc, nwc, 0);
   p_r.left = p_r.right;
   p_x += p_cellw;
 }
 
-static inline void
-paint_ascii_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-                   const char *string, int len, const INT *padding)
-{
-  const FontObject &f = app.text_font.font (FONT_ASCII);
-  ExtTextOut (hdc, x + f.offset ().x, y + f.offset ().y, flags,
-              &r, string, len, f.need_pad_p () ? padding : 0);
-}
-
-static inline void
-paint_jp_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-                const char *string, int len, const INT *padding)
-{
-  const FontObject &f = app.text_font.font (FONT_JP);
-  HGDIOBJ of = SelectObject (hdc, f);
-  ExtTextOut (hdc, x + f.offset ().x, y + f.offset ().y, flags,
-              &r, string, len, f.need_pad_p () ? padding : 0);
-  SelectObject (hdc, of);
-}
-
-static inline void
-paint_full_width_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-                        const char *string, int len, const FontObject &f)
-{
-  HGDIOBJ of = SelectObject (hdc, f);
-  paint_chars_ctx ctx (x + f.offset ().x, y + f.offset ().y, r, 2);
-  for (const u_char *s = (const u_char *)string, *const se = s + len; s < se; s += 2)
-    ctx.paint (hdc, i2w ((s[0] << 8) | s[1]), flags);
-  SelectObject (hdc, of);
-}
-
-static inline void
-paint_half_width_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-                        const char *string, int len, const INT *padding,
-                        int c, const FontObject &f)
-{
-  HGDIOBJ of = SelectObject (hdc, f);
-  paint_chars_ctx ctx (x + f.offset ().x, y + f.offset ().y, r, 1);
-  for (const u_char *s = (const u_char *)string, *const se = s + len; s < se; s++)
-    ctx.paint (hdc, i2w (c + *s), flags);
-  SelectObject (hdc, of);
-}
-
-static inline void
-paint_jisx0212_half_width_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-                                 const char *string, int len, const INT *padding)
-{
-  const FontObject &f = app.text_font.font (FONT_JP);
-  HGDIOBJ of = SelectObject (hdc, f);
-  paint_chars_ctx ctx (x + f.offset ().x, y + f.offset ().y, r, 1);
-  for (const u_char *s = (const u_char *)string, *const se = s + len; s < se; s++)
-    ctx.paint (hdc, i2w (jisx0212_half_width_table[*s]), flags);
-  SelectObject (hdc, of);
-}
-
-static inline void
-paint_chars_lucida (HDC hdc, int x, int y, int flags, const RECT &r,
-                    const char *string, int len, const INT *padding, int c)
-{
-  static LOGFONT lf = {0,0,0,0,0,0,0,0,0,0,0,0,0,LUCIDA_FACE_NAME};
-  lf.lfHeight = app.text_font.font (FONT_ASCII).size ().cy;
-  HGDIOBJ of = SelectObject (hdc, CreateFontIndirect (&lf));
-  paint_chars_ctx ctx (x, y, r, 1);
-  for (const u_char *s = (const u_char *)string, *const se = s + len; s < se; s++)
-    ctx.paint_lucida (hdc, i2w (c + *s), flags);
-  DeleteObject (SelectObject (hdc, of));
-}
-
+// Draw the cells [g, ge) of a run of one font slot at X.  R is the rectangle
+// of the whole run.  Everything is drawn with ExtTextOutW.
 static void
-paint_chars (HDC hdc, int x, int y, int flags, const RECT &r,
-             glyph_t charset, const char *string, int len, const INT *padding)
+paint_text_cells (HDC hdc, int x, int y, int flags, const RECT &r, int font,
+                  const glyph_t *g, const glyph_t *ge, const INT *padding)
 {
-#define PAINT_FULL_WIDTH_CHARS(FONT) \
-  paint_full_width_chars (hdc, x, y, flags, r, string, len, app.text_font.font (FONT))
-#define PAINT_HALF_WIDTH_CHARS(OFFSET, FONT) \
-  paint_half_width_chars (hdc, x, y, flags, r, string, len, padding, \
-                          OFFSET, app.text_font.font (FONT))
-#define PAINT_JISX0212_HALF_WIDTH_CHARS() \
-  paint_jisx0212_half_width_chars (hdc, x, y, flags, r, string, len, padding)
-#define PAINT_CHARS_LUCIDA(OFFSET) \
-  paint_chars_lucida (hdc, x, y, flags, r, string, len, padding, OFFSET)
-
-  switch (charset)
+  if (font == FONT_ASCII)
     {
-    default:
-    case GLYPH_CHARSET_USASCII:
-      paint_ascii_chars (hdc, x, y, flags, r, string, len, padding);
-      break;
-
-    case GLYPH_CHARSET_JISX0201_KANA:
-    case GLYPH_CHARSET_JISX0208:
-      paint_jp_chars (hdc, x, y, flags, r, string, len, padding);
-      break;
-
-    case GLYPH_CHARSET_JISX0212:
-      PAINT_FULL_WIDTH_CHARS (FONT_JP);
-      break;
-
-    case GLYPH_CHARSET_GB2312:
-      PAINT_FULL_WIDTH_CHARS (FONT_CN_SIMPLIFIED);
-      break;
-
-    case GLYPH_CHARSET_BIG5:
-      PAINT_FULL_WIDTH_CHARS (FONT_CN_TRADITIONAL);
-      break;
-
-    case GLYPH_CHARSET_KSC5601:
-      PAINT_FULL_WIDTH_CHARS (FONT_HANGUL);
-      break;
-
-    case GLYPH_CHARSET_JISX0212_HALF:
-      PAINT_JISX0212_HALF_WIDTH_CHARS ();
-      break;
-
-    case GLYPH_CHARSET_ISO8859_1_2:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_1 << 7, FONT_LATIN);
-      break;
-
-    case GLYPH_CHARSET_ISO8859_3_4:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_3 << 7, FONT_LATIN);
-      break;
-
-    case GLYPH_CHARSET_ISO8859_5:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_5 << 7, FONT_CYRILLIC);
-      break;
-
-    case GLYPH_CHARSET_ISO8859_7:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_7 << 7, FONT_GREEK);
-      break;
-
-    case GLYPH_CHARSET_ISO8859_9_10:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_9 << 7, FONT_LATIN);
-      break;
-
-    case GLYPH_CHARSET_ISO8859_13:
-      PAINT_HALF_WIDTH_CHARS (ccs_iso8859_13 << 7, FONT_LATIN);
-      break;
-
-    case GLYPH_CHARSET_GEORGIAN:
-      PAINT_HALF_WIDTH_CHARS (CCS_GEORGIAN_MIN, FONT_GEORGIAN);
-      break;
-
-    case GLYPH_CHARSET_IPA:
-      PAINT_HALF_WIDTH_CHARS (CCS_IPA_MIN, FONT_JP); // XXX
-      break;
-
-    case GLYPH_CHARSET_SMLCDM:
-      PAINT_CHARS_LUCIDA (CCS_SMLCDM_MIN);
-      break;
-
-#ifdef CCS_ULATIN_MIN
-    case GLYPH_CHARSET_ULATIN1:
-      PAINT_HALF_WIDTH_CHARS (CCS_ULATIN_MIN, FONT_LATIN);
-      break;
-
-    case GLYPH_CHARSET_ULATIN2:
-      PAINT_HALF_WIDTH_CHARS (CCS_ULATIN_MIN + 256, FONT_LATIN);
-      break;
-#endif
-#ifdef CCS_UJP_MIN
-    case GLYPH_CHARSET_UJP:
-      PAINT_FULL_WIDTH_CHARS (FONT_JP);
-      break;
-
-    case GLYPH_CHARSET_UJP_H1:
-      PAINT_HALF_WIDTH_CHARS (CCS_UJP_MIN, FONT_JP);
-      break;
-
-    case GLYPH_CHARSET_UJP_H2:
-      PAINT_HALF_WIDTH_CHARS (CCS_UJP_MIN + 256, FONT_JP);
-      break;
-
-    case GLYPH_CHARSET_UJP_H3:
-      PAINT_HALF_WIDTH_CHARS (CCS_UJP_MIN + 512, FONT_JP);
-      break;
-#endif
+      // one call for the run; the font of the DC is the ASCII font
+      const FontObject &f = app.text_font.font (FONT_ASCII);
+      WCHAR *wb = (WCHAR *)alloca (sizeof (WCHAR) * (ge - g + 1));
+      int n = 0;
+      char_face fc;
+      for (; g < ge; g++)
+        {
+          Char ch = glyph_char (*g);
+          if (ch < 0x80)
+            wb[n++] = WCHAR (ch);
+          else
+            {
+              char_face_of (ch, FONT_JP, fc);
+              wb[n++] = fc.nwc ? fc.wc[0] : L' ';
+            }
+        }
+      ExtTextOutW (hdc, x + f.offset ().x, y + f.offset ().y, flags,
+                   &r, wb, n, f.need_pad_p () ? padding : 0);
+      return;
     }
+
+  HFONT lucida = 0;
+  HGDIOBJ of;
+  int ox, oy;
+  if (font == FONT_LUCIDA)
+    {
+      static LOGFONT lf = {0,0,0,0,0,0,0,0,0,0,0,0,0,LUCIDA_FACE_NAME};
+      lf.lfHeight = app.text_font.font (FONT_ASCII).size ().cy;
+      lucida = CreateFontIndirect (&lf);
+      of = SelectObject (hdc, lucida);
+      ox = x;
+      oy = y;
+    }
+  else
+    {
+      const FontObject &f = app.text_font.font (font);
+      of = SelectObject (hdc, f);
+      ox = x + f.offset ().x;
+      oy = y + f.offset ().y;
+    }
+
+  paint_chars_ctx ctx (ox, oy, r);
+  char_face fc;
+  while (g < ge)
+    {
+      const glyph_t cell = *g++;
+      if (glyph_trail_p (cell))
+        {
+          // its lead cell is out of the range: only the background
+          ctx.paint (hdc, 0, 0, 1, flags);
+          continue;
+        }
+      int cells = 1;
+      if (glyph_lead_p (cell))
+        {
+          cells = 2;
+          if (g < ge && glyph_trail_p (*g))
+            g++;
+        }
+      char_face_of (glyph_char (cell), FONT_JP, fc);
+      if (font == FONT_LUCIDA)
+        ctx.paint_lucida (hdc, fc.wc, fc.nwc, flags);
+      else
+        ctx.paint (hdc, fc.wc, fc.nwc, cells, flags);
+    }
+  SelectObject (hdc, of);
+  if (lucida)
+    DeleteObject (lucida);
 }
 
 void
 Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t *g,
-                      const glyph_t *ge, char *buf, const INT *padding,
+                      const glyph_t *ge, const INT *padding,
                       int x, int y, int yoffset) const
 {
   RECT r;
@@ -576,20 +476,15 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
 
   while (g < ge)
     {
-      const glyph_t *g0 = g;
-      char *be = buf;
+      const glyph_t *const gs = g;
       glyph_t c = *g++;
       gsum |= c;
-      *be++ = char (c);
-      c &= GLYPH_COLOR_MASK | GLYPH_CHARSET_MASK;
-      while (g < ge && (*g & (GLYPH_COLOR_MASK | GLYPH_CHARSET_MASK)) == c)
-        {
-          gsum |= *g;
-          *be++ = char (*g++);
-        }
+      c &= GLYPH_COLOR_MASK | GLYPH_FONT_MASK;
+      while (g < ge && (*g & (GLYPH_COLOR_MASK | GLYPH_FONT_MASK)) == c)
+        gsum |= *g++;
 
       r.left = r.right;
-      r.right += (be - buf) * app.text_font.cell ().cx;
+      r.right += (g - gs) * app.text_font.cell ().cx;
       if (r.right > w_clsize.cx)
         {
           r.right = w_clsize.cx;
@@ -597,27 +492,23 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
             break;
         }
 
-      char *b = buf;
-      if (!(c & GLYPH_CHARSET_MASK))
-        {
-          for (; b < be && *b == ' '; b++)
-            ;
-          g0 += b - buf;
-        }
+      const glyph_t *b = gs;
+      if (!(c & GLYPH_FONT_MASK))
+        for (; b < g && glyph_char (*b) == ' '; b++)
+          ;
       const glyph_t *g1;
       for (g1 = g;
-           g1 > g0 && (g1[-1] & ~GLYPH_COLOR_MASK) == ' ';
+           g1 > b && (g1[-1] & ~GLYPH_COLOR_MASK) == glyph_ch (' ');
            g1--)
         ;
-      be -= g - g1;
 
       COLORREF ofg = SetTextColor (hdc, glyph_forecolor (c));
       COLORREF obg = SetBkColor (hdc, glyph_backcolor (c));
 
       if (c & GLYPH_BITMAP_BIT)
         {
-          int x = r.left + (b - buf) * app.text_font.cell ().cx;
-          for (; b < be; b++, x += app.text_font.cell ().cx)
+          int x = r.left + (b - gs) * app.text_font.cell ().cx;
+          for (; b < g1; b++, x += app.text_font.cell ().cx)
             {
               int w = w_clsize.cx - x;
               if (w <= 0)
@@ -625,12 +516,14 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
               if (w > app.text_font.cell ().cx)
                 w = app.text_font.cell ().cx;
               BitBlt (hdc, x, r.top, w, app.text_font.cell ().cy,
-                      hdcmem, app.text_font.cell ().cx * (*b & 0xff), yoffset, SRCCOPY);
+                      hdcmem, app.text_font.cell ().cx * (glyph_char (*b) & 0xff),
+                      yoffset, SRCCOPY);
             }
         }
       else
-        paint_chars (hdc, r.left + (b - buf) * app.text_font.cell ().cx, y,
-                     ETO_OPAQUE | ETO_CLIPPED, r, GLYPH_CHARSET (c), b, be - b, padding);
+        paint_text_cells (hdc, r.left + (b - gs) * app.text_font.cell ().cx, y,
+                          ETO_OPAQUE | ETO_CLIPPED, r, GLYPH_FONT_OF (c),
+                          b, g1, padding);
 
       SetTextColor (hdc, ofg);
       SetBkColor (hdc, obg);
@@ -653,15 +546,13 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
             ;
           if (g == ge)
             break;
-          char *be = buf;
           const glyph_t *g0 = g;
           glyph_t c0 = *g++;
-          *be++ = char (c0);
           glyph_t c = c0 & (GLYPH_FORE_COLOR_MASK | GLYPH_BITMAP_BIT
-                            | GLYPH_CHARSET_MASK | GLYPH_BOLD);
+                            | GLYPH_FONT_MASK | GLYPH_BOLD);
           for (; g < ge && (*g & (GLYPH_FORE_COLOR_MASK | GLYPH_BITMAP_BIT
-                                  | GLYPH_CHARSET_MASK | GLYPH_BOLD)) == c; g++)
-            *be++ = char (*g);
+                                  | GLYPH_FONT_MASK | GLYPH_BOLD)) == c; g++)
+            ;
 
           COLORREF ofg = SetTextColor (hdc, glyph_forecolor (c0));
 
@@ -677,9 +568,9 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
           if (c & GLYPH_BITMAP_BIT)
             {
               COLORREF obg = SetBkColor (hdc, glyph_backcolor (c0));
-              char *b = buf;
-              for (int x = r.left; b < be; b++, x += app.text_font.cell ().cx)
-                if ((*b & 0xff) == FontSet::backsl)
+              const glyph_t *b = g0;
+              for (int x = r.left; b < g; b++, x += app.text_font.cell ().cx)
+                if ((glyph_char (*b) & 0xff) == FontSet::backsl)
                   {
                     int w = w_clsize.cx - x;
                     if (w <= 0)
@@ -692,8 +583,8 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
               SetBkColor (hdc, obg);
             }
           else
-            paint_chars (hdc, r.left, y, ETO_CLIPPED, r, GLYPH_CHARSET (c),
-                         buf, be - buf, padding);
+            paint_text_cells (hdc, r.left, y, ETO_CLIPPED, r, GLYPH_FONT_OF (c),
+                              g0, g, padding);
 
           SetTextColor (hdc, ofg);
         }
@@ -728,13 +619,13 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
             {
               r.bottom = y + app.text_font.size ().cy;
               r.top = r.bottom - app.text_font.line_width ();
-              ExtTextOut (hdc, r.left, r.top, ETO_OPAQUE, &r, "", 0, 0);
+              ExtTextOutW (hdc, r.left, r.top, ETO_OPAQUE, &r, L"", 0, 0);
             }
           if (!yoffset && c & GLYPH_STRIKEOUT)
             {
               r.top = y + app.text_font.size ().cy / 2;
               r.bottom = r.top + app.text_font.line_width ();
-              ExtTextOut (hdc, r.left, r.top, ETO_OPAQUE, &r, "", 0, 0);
+              ExtTextOutW (hdc, r.left, r.top, ETO_OPAQUE, &r, L"", 0, 0);
             }
 
           SetBkColor (hdc, obg);
@@ -744,7 +635,7 @@ Window::paint_glyphs (HDC hdc, HDC hdcmem, const glyph_t *gstart, const glyph_t 
 
 void
 Window::paint_line (HDC hdc, HDC hdcmem, glyph_data *ogd, const glyph_data *ngd,
-                    char *buf, int y, const INT *padding) const
+                    int y, const INT *padding) const
 {
   const glyph_t *n = ngd->gd_cc, *ne = n + ngd->gd_len;
   glyph_t *o = ogd->gd_cc, *oe = o + ogd->gd_len;
@@ -789,7 +680,7 @@ Window::paint_line (HDC hdc, HDC hdcmem, glyph_data *ogd, const glyph_data *ngd,
 
   if (!dl)
     {
-      paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, nls, buf, padding,
+      paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, nls, padding,
                     ((nfd - ngd->gd_cc - 1) * app.text_font.cell ().cx
                      + app.text_font.cell ().cx / 2),
                     y, 0);
@@ -800,7 +691,7 @@ Window::paint_line (HDC hdc, HDC hdcmem, glyph_data *ogd, const glyph_data *ngd,
     {
       if (ogd->gd_len - (ols - ogd->gd_cc) <= 3)
         {
-          paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, ne, buf, padding,
+          paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, ne, padding,
                         ((nfd - ngd->gd_cc - 1) * app.text_font.cell ().cx
                          + app.text_font.cell ().cx / 2),
                         y, 0);
@@ -847,7 +738,7 @@ Window::paint_line (HDC hdc, HDC hdcmem, glyph_data *ogd, const glyph_data *ngd,
                         }
                       else if (glyph_lead_p (*g))
                         l = 2;
-                      paint_glyphs (hdc, hdcmem, ngd->gd_cc, g, g + l, buf, padding,
+                      paint_glyphs (hdc, hdcmem, ngd->gd_cc, g, g + l, padding,
                                     (x - 1) * app.text_font.cell ().cx + app.text_font.cell ().cx / 2,
                                     y, 0);
                     }
@@ -865,7 +756,7 @@ Window::paint_line (HDC hdc, HDC hdcmem, glyph_data *ogd, const glyph_data *ngd,
                          + app.text_font.cell ().cx / 2);
               ValidateRect (w_hwnd, &r);
             }
-          paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, nls, buf, padding,
+          paint_glyphs (hdc, hdcmem, ngd->gd_cc, nfd, nls, padding,
                         ((nfd - ngd->gd_cc - 1) * app.text_font.cell ().cx
                          + app.text_font.cell ().cx / 2),
                         y, 0);
@@ -922,8 +813,7 @@ Window::erase_cursor_line (HDC hdc) const
           for (int i = 0; i < w_ch_max.cx; i++)
             padding[i] = app.text_font.cell ().cx;
         }
-      char *buf = (char *)alloca (w_ch_max.cx + 3);
-      paint_glyphs (hdc, hdcmem, gd->gd_cc, g, ge, buf, padding, x,
+      paint_glyphs (hdc, hdcmem, gd->gd_cc, g, ge, padding, x,
                     (w_cursor_line.ypixel - app.text_font.cell ().cy + 1),
                     app.text_font.cell ().cy - 1);
       SelectObject (hdcmem, obm);
@@ -1308,192 +1198,80 @@ Window::kwdmatch (lisp kwdhash, const Point &point,
   return f;
 }
 
-static inline glyph_t *
-glyph_dbchar (glyph_t *g, Char cc, int f, int flags)
+// The attribute word F (an int in the layout of the low 32 bits of a glyph)
+// as the low word of a cell.
+static inline glyph_t
+GL (int f)
 {
-  u_char c1, c2;
+  return glyph_t (u_int (f));
+}
 
-  switch (code_charset (cc))
+// The cells of a character that takes two columns.  The font slot, the
+// width and the UTF-16 units come from char_face_of.
+static inline glyph_t *
+glyph_dbchar (glyph_t *g, Char cc, int f, int flags, int han)
+{
+  const Char fullspc = XYZZY_CHAR_UNICODE ? Char (0x3000) : Char (0x8140);
+  if (flags & Window::WF_FULLSPC && cc == fullspc)
     {
-    default:
-      if (flags & Window::WF_FULLSPC && cc == 0x8140U)
-        {
-          *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_LEAD | GLYPH_BM_FULLSPC1;
-          *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_TRAIL | GLYPH_BM_FULLSPC2;
-        }
-      else
-        {
-          c1 = u_char (cc >> 8);
-          c2 = u_char (cc & 0xff);
-          if (!c2 || !SJISP (c1))
-            goto undef_char;
-          *g++ = f | c1 | GLYPH_LEAD | GLYPH_CHARSET_JISX0208;
-          *g++ = f | c2 | GLYPH_TRAIL | GLYPH_CHARSET_JISX0208;
-        }
-      break;
-
-    case ccs_jisx0212:
-      f |= GLYPH_CHARSET_JISX0212;
-      goto output;
-
-    case ccs_gb2312:
-      f |= GLYPH_CHARSET_GB2312;
-      goto output;
-
-    case ccs_big5:
-      f |= GLYPH_CHARSET_BIG5;
-      goto output;
-
-    case ccs_ksc5601:
-      f |= GLYPH_CHARSET_KSC5601;
-      goto output;
-
-#ifdef CCS_UJP_MIN
-    case ccs_ujp:
-      f |= GLYPH_CHARSET_UJP;
-      goto output;
-#endif
-
-    output:
-      if (i2w (cc) == ucs2_t (-1))
-        goto undef_char;
-      c1 = u_char (cc >> 8);
-      c2 = u_char (cc & 0xff);
-      *g++ = f | c1 | GLYPH_LEAD;
-      *g++ = f | c2 | GLYPH_TRAIL;
-      break;
-
-    undef_char:
-      *g++ = f | GLYPH_LEAD | GLYPH_BM_WBLANK1;
-      *g++ = f | GLYPH_TRAIL | GLYPH_BM_WBLANK2;
-      break;
+      *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_LEAD | GLYPH_BM_FULLSPC1;
+      *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_TRAIL | GLYPH_BM_FULLSPC2;
+      return g;
     }
+
+  char_face fc;
+  char_face_of (cc, han, fc);
+  if (!fc.nwc)
+    {
+      *g++ = GL (f) | GLYPH_LEAD | GLYPH_BM_WBLANK1;
+      *g++ = GL (f) | GLYPH_TRAIL | GLYPH_BM_WBLANK2;
+      return g;
+    }
+  const glyph_t c = GL (f) | GLYPH_FONT (fc.font) | glyph_ch (cc);
+  *g++ = c | GLYPH_LEAD;
+  *g++ = c | GLYPH_TRAIL;
   return g;
 }
 
+// The cell of a character that takes one column.
 static inline glyph_t *
-glyph_sbchar (glyph_t *g, Char cc, int f, int flags)
+glyph_sbchar (glyph_t *g, Char cc, int f, int flags, int han)
 {
-  int ccs = code_charset (cc);
-  switch (ccs)
+  if (cc < 0x80)
     {
-    case ccs_iso8859_1:
-    case ccs_iso8859_2:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 255) | GLYPH_CHARSET_ISO8859_1_2;
-      break;
-
-    case ccs_iso8859_3:
-    case ccs_iso8859_4:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 255) | GLYPH_CHARSET_ISO8859_3_4;
-      break;
-
-    case ccs_iso8859_5:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 127) | GLYPH_CHARSET_ISO8859_5;
-      break;
-
-    case ccs_iso8859_7:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 127) | GLYPH_CHARSET_ISO8859_7;
-      break;
-
-    case ccs_iso8859_9:
-    case ccs_iso8859_10:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 255) | GLYPH_CHARSET_ISO8859_9_10;
-      break;
-
-    case ccs_iso8859_13:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 255) | GLYPH_CHARSET_ISO8859_13;
-      break;
-
-    case ccs_jisx0212:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = (f | GLYPH_CHARSET_JISX0212_HALF
-              | jisx0212_half_width_hash[cc % JISX0212_HALF_WIDTH_HASH_SIZE]);
-      break;
-
-    case ccs_jisx0201_kana:
-      if (SJISP (cc))
-        goto bad_char;
-      *g++ = f | GLYPH_CHARSET_JISX0201_KANA | cc;
-      break;
-
-    case ccs_georgian:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 127) | GLYPH_CHARSET_GEORGIAN;
-      break;
-
-    case ccs_ipa:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 127) | GLYPH_CHARSET_IPA;
-      break;
-
-    case ccs_smlcdm:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = f | (cc & 255) | GLYPH_CHARSET_SMLCDM;
-      break;
-
-    case ccs_usascii:
       if (app.text_font.use_backsl_p () && cc == '\\')
-        *g++ = f | GLYPH_BM_BACKSL;
+        *g++ = GL (f) | GLYPH_BM_BACKSL;
       else if (flags & Window::WF_HALFSPC && cc == ' ')
-        *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_BM_HALFSPC;
+        *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | GLYPH_BM_HALFSPC;
       else
-        *g++ = f | cc;
-      break;
-
-#ifdef CCS_ULATIN_MIN
-    case ccs_ulatin:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = (f | (cc & 255) | (GLYPH_CHARSET_ULATIN1
-                                + MAKE_GLYPH_CHARSET ((cc - CCS_ULATIN_MIN) >> 8)));
-      break;
-#endif
-#ifdef CCS_UJP_MIN
-    case ccs_ujp:
-      if (i2w (cc) == ucs2_t (-1))
-        goto bad_char;
-      *g++ = (f | (cc & 255) | (GLYPH_CHARSET_UJP_H1
-                                + MAKE_GLYPH_CHARSET ((cc - CCS_UJP_MIN) >> 8)));
-      break;
-#endif
-
-    default:
-    bad_char:
-      *g++ = f | GLYPH_BM_BLANK;
-      break;
+        *g++ = GL (f) | glyph_ch (cc);
+      return g;
     }
+
+  char_face fc;
+  char_face_of (cc, han, fc);
+  if (!fc.nwc)
+    *g++ = GL (f) | GLYPH_BM_BLANK;
+  else
+    *g++ = GL (f) | GLYPH_FONT (fc.font) | glyph_ch (cc);
   return g;
 }
 
+// BM is a bitmap cell, or the cell of a character (glyph_ch) to be drawn
+// N times when the variable CH has no usable character.
 static inline glyph_t *
-glyph_bmchar (glyph_t *g, Char bm, lisp ch, int f, int n)
+glyph_bmchar (glyph_t *g, glyph_t bm, lisp ch, int f, int n, int han)
 {
   ch = xsymbol_value (ch);
   if (ch == Qnil)
     for (int i = 0; i < n; i++)
-      *g++ = f | ' ';
-  else if (charp (ch) && char_width (xchar_code (ch)) == 1)
+      *g++ = GL (f) | glyph_ch (' ');
+  else if (charp (ch) && char_display_width (xchar_code (ch)) == 1)
     for (int i = 0; i < n; i++)
-      g = glyph_sbchar (g, xchar_code (ch), f, 0);
+      g = glyph_sbchar (g, xchar_code (ch), f, 0, han);
   else
     for (int i = 0; i < n; i++)
-      *g++ = f | bm;
+      *g++ = GL (f) | bm;
   return g;
 }
 
@@ -1528,7 +1306,12 @@ public:
   void clear () {rk_match = 0;}
   int ctx_mask () const {return rk_ctx_mask;}
   int possible_match_p (Char c) const
-    {return !rk_can_fastmap || rk_fastmap[c >= 0x100 ? c >> 8 : c];}
+    {
+      // the fastmap folds a 16bit character by its high byte; a character
+      // beyond 16bit cannot be ruled out
+      return (!rk_can_fastmap || c >= 0x10000
+              || rk_fastmap[c >= 0x100 ? c >> 8 : c]);
+    }
 };
 
 // (regexp color [context [begin [end]]])
@@ -1834,9 +1617,11 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
 {
   glyph_t *g = gd->gd_cc;
   glyph_t *const ge = g + w_ch_max.cx;
+  // the slot of the Han characters (used when a Char is a Unicode code point)
+  const int han = encoding_han_font (w_bufp->lchar_encoding);
 
   if (g < ge)
-    *g++ = ' ';
+    *g++ = glyph_ch (' ');
 
   for (; tprop; tprop = tprop->t_next)
     if (*tprop > point.p_point)
@@ -1850,7 +1635,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                    : GLYPH_LINENUM);
       if (plinenum != -1 && point.p_point && point.prevch () != '\n')
         {
-          f |= ' ';
+          f |= glyph_ch (' ');
           for (glyph_t *e = min (ge, g + LINENUM_COLUMNS); g < e; g++)
             *g = f;
           if (g < ge)
@@ -1865,12 +1650,12 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
               glyph_t *p = g + LINENUM_COLUMNS;
               do
                 {
-                  *--p = f | (plinenum % 10 + '0');
+                  *--p = f | glyph_ch (plinenum % 10 + '0');
                   plinenum /= 10;
                 }
               while (p > g && plinenum);
               while (p > g)
-                *--p = f | ' ';
+                *--p = f | glyph_ch (' ');
               g += LINENUM_COLUMNS;
               *g++ = GLYPH_LINENUM | GLYPH_BM_SEP;
             }
@@ -1883,7 +1668,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                 sprintf (buf, "%6d", plinenum);
               int n = min (6, int (w_ch_max.cx));
               for (int i = 0; i < n; i++)
-                *g++ = f | buf[i];
+                *g++ = f | glyph_ch (u_char (buf[i]));
               if (g < ge)
                 *g++ = GLYPH_LINENUM | GLYPH_BM_SEP;
             }
@@ -1893,7 +1678,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
           && *tprop > point.p_point
           && tprop->t_attrib & 0xff
           && g == gd->gd_cc + LINENUM_COLUMNS + 2)
-        g[-2] = tprop->t_attrib & ~TEXTPROP_EXTEND_EOL_BIT;
+        g[-2] = glyph_from_attrib (int (u_int (tprop->t_attrib) & ~TEXTPROP_EXTEND_EOL_BIT));
     }
 
   if (w_bufp->b_prompt_columns)
@@ -1904,7 +1689,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
       if (vlinenum == 1)
         {
           for (const u_char *u = (u_char *)w_bufp->b_prompt_arg; *u && g < ge;)
-            *g++ = *u++;
+            *g++ = glyph_ch (*u++);
           const Char *s = w_bufp->b_prompt;
           const Char *se = s + w_bufp->b_prompt_length;
           while (s < se && g < ge)
@@ -1914,28 +1699,28 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                 {
                   if (g + 1 == ge)
                     break;
-                  *g++ = GLYPH_CTRL | '^';
-                  *g++ = cc + (GLYPH_CTRL | '@');
+                  *g++ = GLYPH_CTRL | glyph_ch ('^');
+                  *g++ = GLYPH_CTRL | glyph_ch (cc + '@');
                 }
               else if (cc == CC_DEL)
                 {
                   if (g + 1 == ge)
                     break;
-                  *g++ = GLYPH_CTRL | '^';
-                  *g++ = GLYPH_CTRL | '?';
+                  *g++ = GLYPH_CTRL | glyph_ch ('^');
+                  *g++ = GLYPH_CTRL | glyph_ch ('?');
                 }
-              else if (char_width (cc) == 2)
+              else if (char_display_width (cc) == 2)
                 {
                   if (g + 1 == ge)
                     break;
-                  g = glyph_dbchar (g, cc, 0, 0);
+                  g = glyph_dbchar (g, cc, 0, 0, han);
                 }
               else
-                g = glyph_sbchar (g, cc, 0, 0);
+                g = glyph_sbchar (g, cc, 0, 0, han);
             }
         }
       while (g < ge2)
-        *g++ = ' ';
+        *g++ = glyph_ch (' ');
     }
 
   int seltype = w_selection_type & Buffer::SELECTION_TYPE_MASK;
@@ -1978,8 +1763,8 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                   if (g < e && e < ge)
                     {
                       for (; g < e; g++)
-                        *g = ' ';
-                      *g++ = (GLYPH_CTRL | GLYPH_BM_FOLD_SEP0) + (vlinenum & 1);
+                        *g = glyph_ch (' ');
+                      *g++ = (GLYPH_CTRL | GLYPH_BM_FOLD_SEP0) + glyph_ch (vlinenum & 1);
                     }
                 }
             }
@@ -2026,7 +1811,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
             }
 
           while (n-- > 0)
-            *g++ = f | ' ';
+            *g++ = GL (f) | glyph_ch (' ');
         }
     }
   else
@@ -2098,7 +1883,7 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                                         << GLYPH_TEXTPROP_BG_SHIFT_BITS);
                   int n = min (ge - g, 5);
                   for (int i = 0; i < n; i++)
-                    *g++ = f | "[EOF]"[i];
+                    *g++ = GL (f) | glyph_ch (u_char ("[EOF]"[i]));
                 }
               break;
             }
@@ -2235,20 +2020,20 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                           * w_bufp->b_tab_columns);
               int n = min (goal - col, ge - g);
               while (n-- > 0)
-                *g++ = ' ';
+                *g++ = glyph_ch (' ');
             }
-          else if (char_width (cc) == 2)
+          else if (char_display_width (cc) == 2)
             {
               if (g + 1 == ge)
                 {
                   exceed = 1;
                   break;
                 }
-              *g++ = ' ';
-              *g++ = ' ';
+              *g++ = glyph_ch (' ');
+              *g++ = glyph_ch (' ');
             }
           else
-            *g++ = ' ';
+            *g++ = glyph_ch (' ');
         }
       else
         {
@@ -2262,9 +2047,9 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                     f &= ~GLYPH_SELECTED;
                   if (wflags & WF_NEWLINE)
                     g = glyph_bmchar (g, GLYPH_BM_NEWLINE, Vdisplay_newline_char,
-                                      (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, 1);
+                                      (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, 1, han);
                   else
-                    *g++ = (f & ~GLYPH_TEXT_MASK) | ' ';
+                    *g++ = GL (f & ~GLYPH_TEXT_MASK) | glyph_ch (' ');
                   eol = 1;
                   break;
                 }
@@ -2277,14 +2062,14 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                   if (wflags & WF_HTAB)
                     {
                       g = glyph_bmchar (g, GLYPH_BM_HTAB, Vdisplay_first_tab_char,
-                                        (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, 1);
+                                        (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, 1, han);
                       if (--n > 0)
-                        g = glyph_bmchar (g, '.', Vdisplay_rest_tab_char,
-                                          (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, n);
+                        g = glyph_bmchar (g, glyph_ch ('.'), Vdisplay_rest_tab_char,
+                                          (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL, n, han);
                     }
                   else
                     while (n-- > 0)
-                      *g++ = f | ' ';
+                      *g++ = GL (f) | glyph_ch (' ');
                 }
               else
                 {
@@ -2293,8 +2078,8 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                       exceed = 1;
                       break;
                     }
-                  *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | '^';
-                  *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | cc + '@';
+                  *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | glyph_ch ('^');
+                  *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | glyph_ch (cc + '@');
                 }
             }
           else if (cc == CC_DEL)
@@ -2304,20 +2089,20 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
                   exceed = 1;
                   break;
                 }
-              *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | '^';
-              *g++ = (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | '?';
+              *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | glyph_ch ('^');
+              *g++ = GL (f & ~GLYPH_TEXT_MASK) | GLYPH_CTRL | glyph_ch ('?');
             }
-          else if (char_width (cc) == 2)
+          else if (char_display_width (cc) == 2)
             {
               if (g + 1 == ge)
                 {
                   exceed = 1;
                   break;
                 }
-              g = glyph_dbchar (g, cc, f, wflags);
+              g = glyph_dbchar (g, cc, f, wflags, han);
             }
           else
-            g = glyph_sbchar (g, cc, f, wflags);
+            g = glyph_sbchar (g, cc, f, wflags, han);
 
           if (f & GLYPH_SELECTED
               && seltype == Buffer::SELECTION_RECTANGLE
@@ -2351,16 +2136,15 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
             *g++ = ((hiddenf
                      ? (GLYPH_CTRL | GLYPH_BM_FOLD_SEP0)
                      : (GLYPH_CTRL | GLYPH_BM_FOLD_MARK_SEP0))
-                    + (vlinenum & 1));
+                    + glyph_ch (vlinenum & 1));
           else
-            *g++ = GLYPH_CTRL | '<' | f | hiddenf;
+            *g++ = GLYPH_CTRL | glyph_ch ('<') | GL (f) | GL (hiddenf);
         }
 
       if (f)
         {
-          f |= ' ';
           for (; g < grev; g++)
-            *g = f;
+            *g = GL (f) | glyph_ch (' ');
         }
     }
 
@@ -2375,16 +2159,16 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
               && (revkwd & (15 << GLYPH_COLOR_SHIFT_BITS)) <= GLYPH_KEYWORD3R))
         {
           for (glyph_t *p = g0; p < g; p++)
-            *p = (*p & ~REVMASK) | revkwd;
-          revkwd |= ' ' | hiddenf;
+            *p = (*p & ~REVMASK) | GL (revkwd);
+          revkwd |= hiddenf;
           for (; g < grev; g++)
-            *g = revkwd;
+            *g = GL (revkwd) | glyph_ch (' ');
         }
       else
         {
           for (glyph_t *p = g0; p < g; p++)
             if (!(*p & GLYPH_CTRL))
-              *p = (*p & ~REVMASK) | revkwd;
+              *p = (*p & ~REVMASK) | GL (revkwd);
         }
     }
 
@@ -2392,11 +2176,11 @@ Window::redraw_line (glyph_data *gd, Point &point, long vlinenum, long plinenum,
       && wflags & WF_FOLD_LINE && g <= gfold && gfold < ge)
     {
       for (; g < gfold; g++)
-        *g = ' ';
-      *g++ = (GLYPH_CTRL | GLYPH_BM_FOLD_SEP0) + (vlinenum & 1);
+        *g = glyph_ch (' ');
+      *g++ = (GLYPH_CTRL | GLYPH_BM_FOLD_SEP0) + glyph_ch (vlinenum & 1);
     }
 
-  for (; g > gd->gd_cc && g[-1] == ' '; g--)
+  for (; g > gd->gd_cc && g[-1] == glyph_ch (' '); g--)
     ;
 
   *g = 0;
@@ -2639,14 +2423,13 @@ Window::paint_region (HDC hdc, int from, int to) const
       for (int i = 0; i < w_ch_max.cx; i++)
         padding[i] = app.text_font.cell ().cx;
     }
-  char *buf = (char *)alloca (w_ch_max.cx + 3);
   glyph_data **g = w_glyphs.g_rep->gr_nglyph + from;
   glyph_data **og = w_glyphs.g_rep->gr_oglyph + from;
   for (int y = from * app.text_font.cell ().cy, ye = to * app.text_font.cell ().cy;
        y < ye; y += app.text_font.cell ().cy, g++, og++)
     if ((*g)->gd_mod)
       {
-        paint_line (hdc, hdcmem, *og, *g, buf, y, padding);
+        paint_line (hdc, hdcmem, *og, *g, y, padding);
         (*g)->gd_mod = 0;
       }
 
@@ -2995,7 +2778,7 @@ Window::reframe ()
   if (w_point.p_offset != w_point.p_chunk->c_used)
     {
       Char c = w_point.ch ();
-      if (c != CC_LFD && c != CC_TAB && char_width (c) == 2)
+      if (c != CC_LFD && c != CC_TAB && char_display_width (c) == 2)
         maxwidth--;
     }
 
@@ -3147,10 +2930,11 @@ Window::paint_minibuffer_message (lisp string)
 
   glyph_t *g = (*gr)->gd_cc;
   glyph_t *ge = g + w_ch_max.cx;
-  *g++ = ' ';
+  *g++ = glyph_ch (' ');
 
   const Char *p = xstring_contents (string);
   const Char *pe = p + xstring_length (string);
+  const int han = FONT_JP;
 
   while (g < ge && p < pe)
     {
@@ -3159,29 +2943,29 @@ Window::paint_minibuffer_message (lisp string)
         {
           if (g + 1 == ge)
             break;
-          *g++ = GLYPH_CTRL | '^';
-          *g++ = GLYPH_CTRL | cc + '@';
+          *g++ = GLYPH_CTRL | glyph_ch ('^');
+          *g++ = GLYPH_CTRL | glyph_ch (cc + '@');
         }
       else if (cc == CC_DEL)
         {
           if (g + 1 == ge)
             break;
-          *g++ = GLYPH_CTRL | '^';
-          *g++ = GLYPH_CTRL | '?';
+          *g++ = GLYPH_CTRL | glyph_ch ('^');
+          *g++ = GLYPH_CTRL | glyph_ch ('?');
         }
-      else if (char_width (cc) == 2)
+      else if (char_display_width (cc) == 2)
         {
           if (g + 1 == ge)
             break;
-          g = glyph_dbchar (g, cc, 0, 0);
+          g = glyph_dbchar (g, cc, 0, 0, han);
         }
       else
-        g = glyph_sbchar (g, cc, 0, 0);
+        g = glyph_sbchar (g, cc, 0, 0, han);
     }
 
   app.minibuffer_prompt_column = g - (*gr)->gd_cc;
 
-  for (; g > (*gr)->gd_cc && g[-1] == ' '; g--)
+  for (; g > (*gr)->gd_cc && g[-1] == glyph_ch (' '); g--)
     ;
   *g = 0;
   (*gr)->gd_len = g - (*gr)->gd_cc;

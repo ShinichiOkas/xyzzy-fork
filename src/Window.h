@@ -1,10 +1,37 @@
 #ifndef _Window_h_
 # define _Window_h_
 
-typedef u_long glyph_t;
+// A cell of the screen: the low 32 bits are the attributes (colors, bold, ...,
+// the font slot, the lead/trail category; the layout below) and the high 32 bits
+// are the Char of the cell (the index of a bitmap for a GLYPH_BITMAP_BIT cell).
+// The attribute bits are shared with the text attributes (t_attrib in insdel.cc),
+// so they keep their positions.
+typedef uint64_t glyph_t;
+
+# define GLYPH_CHAR_SHIFT_BITS 32
+static inline glyph_t
+glyph_ch (Char c)
+{
+  return glyph_t (c) << GLYPH_CHAR_SHIFT_BITS;
+}
+
+static inline Char
+glyph_char (glyph_t g)
+{
+  return Char (g >> GLYPH_CHAR_SHIFT_BITS);
+}
+
+// An attribute word in the old layout (an int whose low 8 bits are an ASCII
+// character, as the text attribute of the line number column) as a cell.
+static inline glyph_t
+glyph_from_attrib (int a)
+{
+  return glyph_t (u_int (a) & 0xffffff00U) | glyph_ch (Char (a & 0xff));
+}
 
 /*
- GLYPH BITS
+ GLYPH BITS (the low 32 bits.  The high 32 bits are the Char; the low 8
+ bits of the low word are not used)
 
   3               2              1           0
  10 98765 4 3 2 1 0987 6 5 4 3 2109 8 76543210
@@ -27,11 +54,12 @@ typedef u_long glyph_t;
                 \   \    \ \ \__________________ italic (yet)
                  \   \    \ \___________________ underline
                   \   \    \____________________ strikeout
-                   \   \________________________ charset
+                   \   \________________________ font slot (FONT_*, FONT_LUCIDA)
                     \___________________________ category
-                                                   0: SBCS   2: DBCS lead
-                                                   1: JUNK   3: DBCS trail
-*/
+                                                   0: SBCS   2: wide lead
+                                                   1: JUNK   3: wide trail
+ A wide character takes two cells.  The lead cell has the Char; the trail cell
+ repeats it and is not drawn by itself. */
 
 # define GLYPH_NFOREGROUND_COLORS 128
 
@@ -53,20 +81,20 @@ typedef u_long glyph_t;
 
 # define GLYPH_BITMAP_BIT        0x00000100
 # define  GLYPH_BM               GLYPH_BITMAP_BIT
-# define    GLYPH_BM_BACKSL      (GLYPH_BM | FontSet::backsl)
-# define    GLYPH_BM_SEP         (GLYPH_BM | FontSet::sep)
-# define    GLYPH_BM_NEWLINE     (GLYPH_BM | FontSet::newline)
-# define    GLYPH_BM_HTAB        (GLYPH_BM | FontSet::htab)
-# define    GLYPH_BM_HALFSPC     (GLYPH_BM | FontSet::halfspc)
-# define    GLYPH_BM_FULLSPC1    (GLYPH_BM | FontSet::fullspc1)
-# define    GLYPH_BM_FULLSPC2    (GLYPH_BM | FontSet::fullspc2)
-# define    GLYPH_BM_BLANK       (GLYPH_BM | FontSet::blank)
-# define    GLYPH_BM_WBLANK1     (GLYPH_BM | FontSet::wblank1)
-# define    GLYPH_BM_WBLANK2     (GLYPH_BM | FontSet::wblank2)
-# define    GLYPH_BM_FOLD_SEP0   (GLYPH_BM | FontSet::fold_sep0)
-# define    GLYPH_BM_FOLD_MARK_SEP0 (GLYPH_BM | FontSet::fold_mark_sep0)
-# define    GLYPH_BM_FOLD_SEP1   (GLYPH_BM | FontSet::fold_sep1)
-# define    GLYPH_BM_FOLD_MARK_SEP1 (GLYPH_BM | FontSet::fold_mark_sep1)
+# define    GLYPH_BM_BACKSL      (glyph_t (GLYPH_BM) | glyph_ch (FontSet::backsl))
+# define    GLYPH_BM_SEP         (glyph_t (GLYPH_BM) | glyph_ch (FontSet::sep))
+# define    GLYPH_BM_NEWLINE     (glyph_t (GLYPH_BM) | glyph_ch (FontSet::newline))
+# define    GLYPH_BM_HTAB        (glyph_t (GLYPH_BM) | glyph_ch (FontSet::htab))
+# define    GLYPH_BM_HALFSPC     (glyph_t (GLYPH_BM) | glyph_ch (FontSet::halfspc))
+# define    GLYPH_BM_FULLSPC1    (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fullspc1))
+# define    GLYPH_BM_FULLSPC2    (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fullspc2))
+# define    GLYPH_BM_BLANK       (glyph_t (GLYPH_BM) | glyph_ch (FontSet::blank))
+# define    GLYPH_BM_WBLANK1     (glyph_t (GLYPH_BM) | glyph_ch (FontSet::wblank1))
+# define    GLYPH_BM_WBLANK2     (glyph_t (GLYPH_BM) | glyph_ch (FontSet::wblank2))
+# define    GLYPH_BM_FOLD_SEP0   (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fold_sep0))
+# define    GLYPH_BM_FOLD_MARK_SEP0 (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fold_mark_sep0))
+# define    GLYPH_BM_FOLD_SEP1   (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fold_sep1))
+# define    GLYPH_BM_FOLD_MARK_SEP1 (glyph_t (GLYPH_BM) | glyph_ch (FontSet::fold_mark_sep1))
 # define  GLYPH_TEXT_MASK        (0x00001e00 | GLYPH_TEXTPROP_FG_BIT)
 # define   GLYPH_KEYWORD_SHIFT_BITS 9
 # define    GLYPH_CTRL           0x00000200
@@ -93,49 +121,16 @@ typedef u_long glyph_t;
 # define GLYPH_UNDERLINE         0x00800000
 # define GLYPH_STRIKEOUT         0x01000000
 
-# define GLYPH_CHARSET_MASK      0x3e000000
-# define GLYPH_CHARSET_SHIFT_BIT 25
-# define GLYPH_CHARSET(X)        ((X) & GLYPH_CHARSET_MASK)
+# define GLYPH_FONT_MASK         0x3e000000
+# define GLYPH_FONT_SHIFT_BIT    25
+# define GLYPH_FONT(X)           (u_int (X) << GLYPH_FONT_SHIFT_BIT)
+# define GLYPH_FONT_OF(G)        (int (((G) & GLYPH_FONT_MASK) >> GLYPH_FONT_SHIFT_BIT))
 
-# define MAKE_GLYPH_CHARSET(X)        ((X) << GLYPH_CHARSET_SHIFT_BIT)
-# define GLYPH_CHARSET_USASCII        MAKE_GLYPH_CHARSET (0)
-# define GLYPH_CHARSET_JISX0201_KANA  MAKE_GLYPH_CHARSET (1)
-# define GLYPH_CHARSET_JISX0208       MAKE_GLYPH_CHARSET (2)
-# define GLYPH_CHARSET_JISX0212       MAKE_GLYPH_CHARSET (3)
-# define GLYPH_CHARSET_JISX0212_HALF  MAKE_GLYPH_CHARSET (4)
-# define GLYPH_CHARSET_KSC5601        MAKE_GLYPH_CHARSET (5)
-# define GLYPH_CHARSET_GB2312         MAKE_GLYPH_CHARSET (6)
-# define GLYPH_CHARSET_BIG5           MAKE_GLYPH_CHARSET (7)
-# define GLYPH_CHARSET_ISO8859_1_2    MAKE_GLYPH_CHARSET (8)
-# define GLYPH_CHARSET_ISO8859_3_4    MAKE_GLYPH_CHARSET (9)
-# define GLYPH_CHARSET_ISO8859_5      MAKE_GLYPH_CHARSET (10)
-# define GLYPH_CHARSET_ISO8859_7      MAKE_GLYPH_CHARSET (11)
-# define GLYPH_CHARSET_ISO8859_9_10   MAKE_GLYPH_CHARSET (12)
-# define GLYPH_CHARSET_ISO8859_13     MAKE_GLYPH_CHARSET (13)
-# define GLYPH_CHARSET_IPA            MAKE_GLYPH_CHARSET (14)
-# define GLYPH_CHARSET_SMLCDM         MAKE_GLYPH_CHARSET (15)
-# ifdef CCS_UJP_MIN
-#  if (CCS_UJP_HALF_MAX - CCS_UJP_HALF_MIN) != 0x2ff
-#   error "wrong GLYPH_CHARSET_UJP"
-#  endif
-#  define GLYPH_CHARSET_UJP           MAKE_GLYPH_CHARSET (16)
-#  define GLYPH_CHARSET_UJP_H1        MAKE_GLYPH_CHARSET (17)
-#  define GLYPH_CHARSET_UJP_H2        MAKE_GLYPH_CHARSET (18)
-#  define GLYPH_CHARSET_UJP_H3        MAKE_GLYPH_CHARSET (19)
-# endif
-# ifdef CCS_ULATIN_MIN
-#  if (CCS_ULATIN_MAX - CCS_ULATIN_MIN) != 0x1ff
-#   error "wrong GLYPH_CHARSET_ULATIN"
-#  endif
-#  define GLYPH_CHARSET_ULATIN1       MAKE_GLYPH_CHARSET (20)
-#  define GLYPH_CHARSET_ULATIN2       MAKE_GLYPH_CHARSET (21)
-# endif
-# define GLYPH_CHARSET_GEORGIAN       MAKE_GLYPH_CHARSET (22)
-
-# define GLYPH_CATEGORY_MASK     0xc0000000
-# define  GLYPH_JUNK             0x40000000
-# define  GLYPH_LEAD             0x80000000
-# define  GLYPH_TRAIL            0xc0000000
+// The category bits are 64 bit values so that ~ keeps the Char.
+# define GLYPH_CATEGORY_MASK     (glyph_t (0xc0000000))
+# define  GLYPH_JUNK             (glyph_t (0x40000000))
+# define  GLYPH_LEAD             (glyph_t (0x80000000))
+# define  GLYPH_TRAIL            (glyph_t (0xc0000000))
 
 # define GLYPH_MAX_KEYWORDS      6
 
@@ -558,9 +553,9 @@ struct Window
   void calc_client_size (int, int);
   void reframe ();
   void paint_glyphs (HDC, HDC, const glyph_t *, const glyph_t *, const glyph_t *,
-                     char *, const INT *, int, int, int) const;
+                     const INT *, int, int, int) const;
   void paint_line (HDC, HDC, glyph_data *, const glyph_data *,
-                   char *, int, const INT *) const;
+                   int, const INT *) const;
   void paint_window (HDC) const;
   void paint_region (HDC, int, int) const;
   void find_motion () const;

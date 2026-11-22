@@ -160,4 +160,38 @@ public:
 int get_font_height (HWND hwnd);
 bool font_exist_p (const HDC hdc, const char *face, BYTE charset);
 
+// Not a FontSet slot: the Lucida Sans Unicode face that draws U+02B0..U+036F
+// (a pseudo slot after the last real one).  It is created when it is drawn.
+#define FONT_LUCIDA FONT_MAX
+// The slot for the characters that no other slot is for (design 6.2 FALLBACK).
+// The slot of its own (and its ini key) is added by C3; until then, LATIN.
+#define FONT_FALLBACK FONT_LATIN
+
+// How a character is shown: the one place that decides the font slot, the
+// display width and the UTF-16 units of a character (design 6.2, 10.2 R3).
+// The screen (disp.cc), the printer (print.cc) and the status area use it.
+struct char_face
+{
+  u_char font;                  // FONT_* or FONT_LUCIDA
+  u_char width;                 // cells: 1 or 2
+  u_char nwc;                   // UTF-16 units in wc; 0: nothing to draw
+  ucs2_t wc[2];
+  ucs2_t subst;                 // what the printer draws when nwc is 0 (0: nothing)
+};
+
+// han_font: the slot of the Han characters of the buffer (FONT_JP,
+// FONT_HANGUL, FONT_CN_SIMPLIFIED or FONT_CN_TRADITIONAL), see
+// encoding_han_font.  It matters only when a Char is a Unicode code point
+// (XYZZY_CHAR_UNICODE).
+void char_face_of (Char, int han_font, char_face &);
+// The display width of a character other than a control character.
+int char_display_width (Char);
+// The Unicode code point of a character, or CHAR_NONE.
+Char char_unicode_of (Char);
+// The slot that a buffer with this char-encoding draws its Han characters with.
+int encoding_han_font (lisp encoding);
+// The slot for the characters that the encoding makes (the IME composition
+// string), or -1.
+int encoding_font_slot (lisp encoding, int han);
+
 #endif /* _font_h_ */

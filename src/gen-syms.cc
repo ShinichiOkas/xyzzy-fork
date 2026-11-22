@@ -1070,6 +1070,11 @@ static symbols sys[] =
   SI_DEFUN3 (uprops-version, 0, 0, 0),
   SI_DEFUN3 (uprops-table-size, 0, 0, 0),
 
+  /* font.cc */
+  SI_DEFUN3 (char-face-internal, 1, 0, 0),
+  SI_DEFUN3 (char-face-unicode, 1, 1, 0),
+  SI_DEFUN3 (encoding-han-font, 1, 0, 0),
+
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),
 };
