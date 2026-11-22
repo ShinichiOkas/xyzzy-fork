@@ -1567,7 +1567,10 @@ internal_to_utf_stream::getw () const
   // 0xffff is the value of an empty entry of the hash (gen-utf2sjis.cc): it is
   // not a character to look up.  (It used to be Char (-1), and it is still not
   // converted: i2w gives nothing for it either.)
-  if (!(s_flags & ENCODING_UTF_WINDOWS) && cc != Char (0xffff))
+  // The hash maps an internal code to the Unicode of the JIS form; a Unicode
+  // Char (switch 1; U+FFFF is an ordinary character then) does not use it.
+  if (!XYZZY_CHAR_UNICODE
+      && !(s_flags & ENCODING_UTF_WINDOWS) && cc != Char (0xffff))
     {
       int n = cc % numberof (utf_internal2shiftjis_hash);
       if (utf_internal2shiftjis_hash[n].cc == cc)
