@@ -34,9 +34,12 @@ provenance: xyzzy-fork S4 後（師匠の指示 2026-11-22。一般の規則は�
 - ログ・成果物: `gh run download <id> -n test-logs`
 - 手動で起こす: `gh workflow run test.yml --ref <ブランチ>`
 
-## 未決
+## 役（サブエージェント）の試験も CI で流す（師匠の指示 2026-11-22）
 
-- 役のブランチ（作業用ブランチ）での確かめの扱い。今は `feature/x64-only` と `develop` だけで走る。役のブランチを CI に載せるか、push 先を絞るかは未決（決まったらここと `test.yml` を直す）
+- `test.yml` は `worktree-agent-*`（エージェントの作業ツリーのブランチ）への push でも走る。文書だけの変更（`*.md`・`docs/`・`bugs/`・`.pair-agent/`）と `[skip ci]` では走らない
+- 役の手元でしてよいのは**コンパイルだけ**（`build.bat Release Build minimal`。`XYZZY_CHAR_UNICODE=1` の確かめは `set CL=/DXYZZY_CHAR_UNICODE=1` と `Rebuild`）。`install.bat` は中の byte-compile で xyzzy.exe を起動するので手元で流さない。探りの Lisp も試験（`unittest/`）として書いて CI で流す
+- 試験の流し方: コミット → `git push -u origin HEAD` → `powershell -NoProfile -ExecutionPolicy Bypass -File ci/wait-run.ps1`（終了コード 0 合格・1 不合格・2 まだ〈もう一度呼ぶ〉・3 実行なし）。ログは `ci-out/run-<番号>/`
+- ランナーは 1 台。押すのは試験の結果が要る区切りだけにする（途中の保存の push は `[skip ci]`）。同じブランチの新しい push は古い実行を取り消す
 
 ## つまずいた点（再発させない）
 

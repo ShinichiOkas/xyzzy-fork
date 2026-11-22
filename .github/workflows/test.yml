@@ -4,11 +4,21 @@
 # Security: the repository is public and the runner is a real PC, so this
 # workflow never runs on pull_request (a fork's PR would run its code here).
 # Only pushes to the branches below (collaborators only) and manual runs.
+#
+# worktree-agent-* are the branches of the agents' work trees: an agent pushes
+# its branch and waits for the result with ci/wait-run.ps1, instead of running
+# the tests on the desktop. There is one runner, so pushes that change only
+# documents do not start a run.
 name: test
 
 on:
   push:
-    branches: [feature/x64-only, develop]
+    branches: [feature/x64-only, develop, 'worktree-agent-*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'bugs/**'
+      - '.pair-agent/**'
   workflow_dispatch:
 
 concurrency:

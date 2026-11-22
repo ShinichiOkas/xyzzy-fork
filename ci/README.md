@@ -3,6 +3,19 @@
 - 定義: `.github/workflows/test.yml`。`feature/x64-only` と `develop` への push、または手動（Actions の画面の Run workflow）で走る。
 - 中身: `ci/ci-test.ps1` = `install.bat` → 一度起動してダンプ（xyzzy.wxp）を書かせる → `run-tests.bat`。ログは成果物 `test-logs`（`ci-out/`）。
 - 走る場所: この PC の自己ホストのランナー（ラベル `self-hosted, windows, x64, xyzzy`）。GitHub のクラウドのマシンは使わない。
+- 作業用のブランチ `worktree-agent-*`（エージェントの作業ツリー）への push でも走る。文書だけの変更（`*.md`・`docs/`・`bugs/`・`.pair-agent/`）では走らない。`[skip ci]` を書いたコミットも走らない。
+- 同じブランチに新しく push すると、そのブランチの古い実行は取り消される。ランナーは 1 台なので、別のブランチの実行は順番待ちになる。
+
+## 作業用のブランチで試験を流す
+
+手元で `run-tests.bat`・`install.bat`（中の byte-compile が xyzzy.exe を起動する）・`xyzzy.exe` を走らせない。xyzzy の窓が利用者の画面に出て、前面やキーボードを奪う。手元ではコンパイル（`build.bat`）だけにする。
+
+    git push -u origin HEAD
+    powershell -NoProfile -ExecutionPolicy Bypass -File ci/wait-run.ps1
+
+- `wait-run.ps1` は HEAD のコミットの実行を待ち、結果・失敗した試験・ログの末尾を出す。ログは `ci-out/run-<番号>/` に落ちる。
+- 終了コード: 0 合格、1 不合格か取り消し、2 まだ待ち行列か実行中（もう一度呼ぶ）、3 そのコミットの実行が無い。
+- 既定では 9 分で待つのをやめる（エージェントのシェルのコマンドの上限 10 分より短い）。`-Minutes` で変えられる。
 
 ## ランナーの登録（1 回だけ）
 
