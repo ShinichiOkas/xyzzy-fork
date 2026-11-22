@@ -1464,7 +1464,7 @@ Fabbreviate_display_string (lisp string, lisp maxlen, lisp pathname_p)
   int l = fixnum_value (maxlen);
   if (l <= 0)
     return make_string ("");
-  char *buf = (char *)alloca (xstring_length (string) * 2 + 1);
+  char *buf = (char *)alloca (w2s_max (xstring_length (string)));
   w2s (buf, string);
   if (!abbrev_string (buf, l, pathname_p && pathname_p != Qnil))
     return string;

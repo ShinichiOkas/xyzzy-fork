@@ -54,7 +54,7 @@
     (unwind-protect
         (progn
           (with-open-file (s path :direction :output :if-exists :supersede)
-            (write-string "x" s))
+            (format s "x"))
           (if (file-exist-p (merge-pathnames "xyzzycli.exe" (si:system-root)))
               (equal (xyzzycli-test-open path) name)
             :no-xyzzycli))
@@ -69,7 +69,7 @@
     (unwind-protect
         (progn
           (with-open-file (s path :direction :output :if-exists :supersede)
-            (write-string "x" s))
+            (format s "x"))
           (if (file-exist-p (merge-pathnames "xyzzycli.exe" (si:system-root)))
               (equal (xyzzycli-test-open path) name)
             :no-xyzzycli))

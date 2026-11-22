@@ -916,7 +916,7 @@ kbd_queue::reconvert (RECONVERTSTRING *rsbuf, int unicode_p)
             }
           // The bytes for Win32 (the ACP) go to their own buffer: a Char is not
           // a char, and does not have a fixed width.
-          safe_ptr <char> bytes (new char [size * 2 + 1]);
+          safe_ptr <char> bytes (new char [w2s_max (size)]);
           char *b0 = bytes;
           char *b1 = w2s (b0, data, r1 - p1);
           char *b2 = w2s (b1, data + (r1 - p1), r2 - r1);

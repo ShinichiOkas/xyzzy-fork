@@ -327,7 +327,7 @@
 (deftest decode-mime-header-same-as-convert ()
   ;; the same characters as convert-encoding-to-internal gives
   (let ((r (octet-test-decode-header (format nil "Subject: =?UTF-8?B?44GC44GE?=~%"))))
-    (and (search (octet-test-string #x3042 #x3044) r) t))
+    (and (string-match (octet-test-string #x3042 #x3044) r) t))
   => t)
 
 (defun octet-test-decode-region (decode text encoding)
