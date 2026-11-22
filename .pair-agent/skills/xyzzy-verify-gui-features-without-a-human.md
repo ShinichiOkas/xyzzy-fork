@@ -26,6 +26,7 @@ provenance: xyzzy-fork S4-15（OLE Automation 削除後の B/C の確かめ）
 - **限界**: 本物のマウスでの OLE の `DoDragDrop`、IME の実機などは確かめられない限界として記録し、師匠が許したとき以外はやらない。D&D は上の `GetProp` で登録の有無を見る範囲で足りるとする
 - 役同士の画面のロック（`gui.lock`）は順番を決めるだけで、奪うことの許可ではない
 - 一般の規則はペア固有 Skill `verify-gui-without-taking-the-users-input`
+- 実際に動く道具（別デスクトップ・`tools/gui-verify/`）は `xyzzy-verify-gui-on-a-separate-desktop.md`
 
 ## Why
 

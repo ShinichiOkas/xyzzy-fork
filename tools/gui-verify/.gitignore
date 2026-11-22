@@ -1,0 +1,5 @@
+# local outputs and builds of the gui-verify tools
+work/
+*.exe
+*.png
+*.txt
