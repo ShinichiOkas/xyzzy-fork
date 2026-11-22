@@ -25,7 +25,7 @@ Debug (const Char *b, size_t size)
   if (size <= 0)
     return;
 
-  char *msg = (char *)alloca (size * 2 + 1);
+  char *msg = (char *)alloca (w2s_max (size));
   w2s (msg, b, size);
   OutputDebugString (msg);
 }

@@ -1311,7 +1311,7 @@ Buffer::refresh_title_bar () const
       else
         x = lbuffer_name;
 
-      int l = (xstring_length (x) * 2 + strlen (TitleBarString) + 32 + 8);
+      int l = (w2s_max (xstring_length (x)) + strlen (TitleBarString) + 39);
       char *b0 = (char *)alloca (l);
       char *b = b0;
       if (Fadmin_user_p () == Qt)

@@ -80,7 +80,7 @@ Dialog::send_ltext (int id, int msg, WPARAM wparam, lisp init, dlg_txtwidth *dt)
     init = xchar_encoding_display_name (init);
   if (stringp (init))
     {
-      char *b = (char *)alloca (xstring_length (init) * 2 + 1);
+      char *b = (char *)alloca (w2s_max (xstring_length (init)));
       char *be = w2s (b, init);
       if (dt)
         {
@@ -381,7 +381,7 @@ Dialog::link_command (dlgctrl *c, UINT msg)
   lisp lurl = safe_find_keyword (Kurl, c->keyword ());
   if (!stringp (lurl))
     return;
-  char *url = (char *)alloca (xstring_length (lurl) * 2 + 1);
+  char *url = (char *)alloca (w2s_max (xstring_length (lurl)));
   w2s (url, lurl);
   Fbegin_wait_cursor ();
   ShellExecute (get_active_window (), "open", url, 0, 0, SW_SHOWNORMAL);
@@ -1966,7 +1966,7 @@ Fproperty_sheet (lisp pages, lisp caption, lisp lstart_page)
     b = "";
   else
     {
-      b = (char *)alloca (2 * xstring_length (caption) + 1);
+      b = (char *)alloca (w2s_max (xstring_length (caption)));
       w2s (b, caption);
     }
 

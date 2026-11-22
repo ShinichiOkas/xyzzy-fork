@@ -2507,7 +2507,7 @@ dump_object (FILE *fp, const ldll_module *d, int n,
 static void
 load_dyn_library (ldll_module *p)
 {
-  char *s = (char *)alloca (xstring_length (p->name) * 2 + 1);
+  char *s = (char *)alloca (w2s_max (xstring_length (p->name)));
   w2s (s, p->name);
   p->loaded = 0;
   HMODULE h = GetModuleHandle (s);
@@ -2554,7 +2554,7 @@ load_dyn_function (const ldll_function *d)
 {
   if (!xdll_module_handle (d->module))
     return 0;
-  char *s = (char *)alloca (xstring_length (d->name) * 2 + 1);
+  char *s = (char *)alloca (w2s_max (xstring_length (d->name)));
   w2s (s, d->name);
   return GetProcAddress (xdll_module_handle (d->module), s);
 }

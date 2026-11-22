@@ -117,7 +117,7 @@ sockinet::saddr::set_addr (lisp lhost)
     set_addr (x);
   else if (stringp (lhost))
     {
-      char *host = (char *)alloca (xstring_length (lhost) * 2 + 1);
+      char *host = (char *)alloca (w2s_max (xstring_length (lhost)));
       w2s (host, lhost);
       set_addr (host);
     }
@@ -135,7 +135,7 @@ sockinet::saddr::set_port (lisp lport)
     set_port (u_short (x));
   else if (stringp (lport))
     {
-      char *port = (char *)alloca (xstring_length (lport) * 2 + 1);
+      char *port = (char *)alloca (w2s_max (xstring_length (lport)));
       w2s (port, lport);
       set_port (port, "tcp");
     }

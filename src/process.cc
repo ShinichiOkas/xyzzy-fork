@@ -68,11 +68,11 @@ EnvStrings::setup (lisp lenv)
       lisp x = xcar (le);
       check_cons (x);
       check_string (xcar (x));
-      l += xstring_length (xcar (x)) * 2 + 2;
+      l += w2s_max (xstring_length (xcar (x))) + 1;
       if (xcdr (x) != Qnil)
         {
           check_string (xcdr (x));
-          l += xstring_length (xcdr (x)) * 2;
+          l += w2s_max (xstring_length (xcdr (x))) - 1;
         }
     }
 
@@ -200,7 +200,7 @@ Fcall_process (lisp cmd, lisp keys)
   EnvStrings env;
   env.setup (find_keyword (Kenviron, keys));
 
-  char *cmdline = (char *)alloca (xstring_length (cmd) * 2 + 1);
+  char *cmdline = (char *)alloca (w2s_max (xstring_length (cmd)));
   w2s (cmdline, cmd);
 
   int no_std_handles = find_keyword_bool (Kno_std_handles, keys);
@@ -840,7 +840,7 @@ NormalProcess::create (lisp command, lisp execdir, const char *env, int show)
   if (!event.valid ())
     file_error (GetLastError ());
 
-  char *cmdline = (char *)alloca (128 + xstring_length (command) * 2 + 1);
+  char *cmdline = (char *)alloca (128 + w2s_max (xstring_length (command)));
   sprintf (cmdline, "xyzzyenv -s%u %u ", show, u_int (UINT_PTR (HANDLE (event))));
   w2s (cmdline + strlen (cmdline), command);
 
@@ -1389,7 +1389,7 @@ Fshell_execute (lisp lpath, lisp ldir, lisp lparam, lisp keys)
   if (ldir == Qt)
     {
       check_string (lpath);
-      path = (char *)alloca (xstring_length (lpath) * 2 + 1);
+      path = (char *)alloca (w2s_max (xstring_length (lpath)));
       w2s (path, lpath);
       dir = 0;
     }
@@ -1410,7 +1410,7 @@ Fshell_execute (lisp lpath, lisp ldir, lisp lparam, lisp keys)
   if (lparam && lparam != Qnil)
     {
       check_string (lparam);
-      param = (char *)alloca (xstring_length (lparam) * 2 + 1);
+      param = (char *)alloca (w2s_max (xstring_length (lparam)));
       w2s (param, lparam);
     }
   else
@@ -1440,7 +1440,7 @@ Fshell_execute (lisp lpath, lisp ldir, lisp lparam, lisp keys)
   if (lverb != Qnil)
     {
       lverb = Fstring (lverb);
-      verb = (char *)alloca (xstring_length (lverb) * 2 + 1);
+      verb = (char *)alloca (w2s_max (xstring_length (lverb)));
       w2s (verb, lverb);
     }
 

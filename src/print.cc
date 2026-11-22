@@ -1669,12 +1669,12 @@ print_engine::doprint1 (HWND hwnd)
   if (stringp (name = pe_bp->lfile_name)
       || stringp (name = pe_bp->lalternate_file_name))
     {
-      docname = (char *)alloca (xstring_length (name) * 2 + 32);
+      docname = (char *)alloca (w2s_max (xstring_length (name)) + 31);
       w2s (docname, name);
     }
   else
     {
-      int l = xstring_length (pe_bp->lbuffer_name) * 2 + 32;
+      int l = w2s_max (xstring_length (pe_bp->lbuffer_name)) + 31;
       docname = (char *)alloca (l);
       pe_bp->buffer_name (docname, docname + l);
     }

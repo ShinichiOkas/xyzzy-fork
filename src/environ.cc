@@ -927,7 +927,7 @@ lisp
 Fsi_getenv (lisp var)
 {
   check_string (var);
-  char *v = (char *)alloca (xstring_length (var) * 2 + 1);
+  char *v = (char *)alloca (w2s_max (xstring_length (var)));
   w2s (v, var);
   char *e = getenv (v);
   return e ? make_string (e) : Qnil;
@@ -937,11 +937,11 @@ lisp
 Fsi_putenv (lisp var, lisp val)
 {
   check_string (var);
-  int l = xstring_length (var) * 2 + 1 + 1;
+  int l = w2s_max (xstring_length (var)) + 1;
   if (val && val != Qnil)
     {
       check_string (val);
-      l += xstring_length (val) * 2;
+      l += w2s_max (xstring_length (val)) - 1;
     }
 
   char *v = (char *)alloca (l);

@@ -2095,7 +2095,7 @@ list_server_resources::list_server_resources (lisp lserver, int pair)
      : list_net_resources (pair)
 {
   check_string (lserver);
-  m_server = new char [xstring_length (lserver) * 2 + 3];
+  m_server = new char [w2s_max (xstring_length (lserver)) + 2];
   m_server[0] = '\\';
   m_server[1] = '\\';
   w2s (m_server + 2, lserver);

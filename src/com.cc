@@ -6,7 +6,7 @@
 static void
 set_desc (IShellLink *sl, lisp ldesc)
 {
-  char *b = (char *)alloca (xstring_length (ldesc) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (ldesc)));
   w2s (b, ldesc);
   ole_error (sl->SetDescription (b));
 }
@@ -14,7 +14,7 @@ set_desc (IShellLink *sl, lisp ldesc)
 static void
 set_args (IShellLink *sl, lisp largs)
 {
-  char *b = (char *)alloca (xstring_length (largs) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (largs)));
   w2s (b, largs);
   ole_error (sl->SetArguments (b));
 }
@@ -22,7 +22,7 @@ set_args (IShellLink *sl, lisp largs)
 static void
 set_appid (IShellLink *sl, lisp lappid)
 {
-  char *b = (char *)alloca (xstring_length (lappid) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (lappid)));
   w2s (b, lappid);
 
   int l = (strlen (b) + 1);

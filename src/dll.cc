@@ -49,7 +49,7 @@ Fsi_load_dll_module (lisp lname)
   if (dll != Qnil)
     return dll;
 
-  char *name = (char *)alloca (xstring_length (lname) * 2 + 1);
+  char *name = (char *)alloca (w2s_max (xstring_length (lname)));
   w2s (name, lname);
 
   dll = make_dll_module ();
@@ -204,7 +204,7 @@ Fsi_make_c_function (lisp lmodule, lisp lname, lisp largs, lisp lrettype, lisp k
   check_dll_module (lmodule);
   check_string (lname);
 
-  char *name = (char *)alloca (xstring_length (lname) * 2 + 1);
+  char *name = (char *)alloca (w2s_max (xstring_length (lname)));
   w2s (name, lname);
   FARPROC proc = GetProcAddress (xdll_module_handle (lmodule), name);
   if (!proc)

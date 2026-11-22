@@ -3884,7 +3884,7 @@ Fmessage_box (lisp lmsg, lisp ltitle, lisp styles, lisp args)
   copy_crlf (wmsg,
              xstring_contents (lmsg),
              xstring_contents (lmsg) + xstring_length (lmsg));
-  char *msg = (char *)alloca (l * 2 + 3);
+  char *msg = (char *)alloca (w2s_max (l) + 2);
   w2s (msg, wmsg, l);
 
   const char *title;
@@ -3893,7 +3893,7 @@ Fmessage_box (lisp lmsg, lisp ltitle, lisp styles, lisp args)
   else
     {
       check_string (ltitle);
-      title = (char *)alloca (xstring_length (ltitle) * 2 + 1);
+      title = (char *)alloca (w2s_max (xstring_length (ltitle)));
       w2s ((char *)title, ltitle);
     }
 
@@ -3912,7 +3912,7 @@ Fmessage_box (lisp lmsg, lisp ltitle, lisp styles, lisp args)
       if (x && x != Qnil)
         {
           check_string (x);
-          char *s = (char *)alloca (xstring_length (x) * 2 + 1);
+          char *s = (char *)alloca (w2s_max (xstring_length (x)));
           w2s (s, x);
           captions[i] = s;
         }
@@ -3947,7 +3947,7 @@ putmsg (wStream &stream, int msgboxp, int style, int beep)
 
   if (msgboxp)
     {
-      char *s = (char *)alloca (l * 2 + 1);
+      char *s = (char *)alloca (w2s_max (l));
       w2s (s, b, l);
       app.status_window.clear ();
       return MsgBox (get_active_window (), s, TitleBarString, style, beep);

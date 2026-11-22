@@ -218,7 +218,7 @@ make_idl (HWND hwnd, lisp ldir, void *param,
   safe_com <IShellFolder> desktop;
   ole_error (SHGetDesktopFolder (&desktop));
 
-  char *dir = (char *)alloca (xstring_length (ldir) * 2 + 1);
+  char *dir = (char *)alloca (w2s_max (xstring_length (ldir)));
   w2s (dir, ldir);
   map_sl_to_backsl (dir);
 
@@ -469,8 +469,8 @@ filer_drop_target::scroll_view (const POINTL &pt) const
 inline int
 filer_drop_target::target_path_length () const
 {
-  return (xstring_length (fdt_view->get_directory ()) * 2
-          + wfile::FIND_NAME_MAX + 10);
+  return (w2s_max (xstring_length (fdt_view->get_directory ()))
+          + wfile::FIND_NAME_MAX + 9);
 }
 
 void
