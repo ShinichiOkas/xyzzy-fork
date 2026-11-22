@@ -1408,9 +1408,9 @@ K:mkdir  L:ドライブ  M:移動  N:ファイル名  O:圧縮  P:DIR??"
 	    (call-process
 	     (format nil "~{~a~^ ~}"
 		     (mapcar #'(lambda (x)
-				 (map-slash-to-backslash
-				  (remove-trail-slash
-				   (get-short-path-name x))))
+				 (format nil "\"~a\""
+					 (map-slash-to-backslash
+					  (remove-trail-slash x))))
 			     (cons dest files)))
 	     :no-std-handles t :show :show
 	     :exec-directory dir)))))))

@@ -550,7 +550,6 @@ static symbols lsp[] =
   DEFUN3 (set-file-write-time, 2, 0, 0),
   DEFUN3 (set-per-device-directory, 1, 0, 0),
   DEFVAR2 (*auto-update-per-device-directory*),
-  DEFUN3 (get-short-path-name, 1, 0, 0),
   DEFUN3 (find-load-path, 1, 0, 0),
 
   /* glob.cc */
@@ -2365,7 +2364,6 @@ static symbols ed[] =
   /* pathname.cc */
   DEFUN3 (make-temp-file-name, 0, 4, 0),
   DEFUN3 (file-newer-than-file-p, 2, 0, 0),
-  DEFUN3 (file-system-supports-long-file-name-p, 1, 0, 0),
   DEFUN3 (append-trail-slash, 1, 0, 0),
   DEFUN3 (remove-trail-slash, 1, 0, 0),
   DEFUN3 (cwd, 0, 0, 0),
@@ -2384,7 +2382,6 @@ static symbols ed[] =
   DEFUN3 (eject-media, 1, 0, 0),
   DEFUN3 (list-servers, 0, 1, 0),
   DEFUN3 (list-server-resources, 1, 1, 0),
-  DEFVAR2 (*rename-alternate-file-name*),
   DEFUN3 (get-file-info, 1, 0, 0),
 
   /* process.cc */

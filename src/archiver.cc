@@ -280,7 +280,7 @@ int
 ArchiverP::extract_noresp (HWND hwnd, const char *cmd,
                            int cmdl, const char *path) const
 {
-  stdio_file fp (fopen (path, "rb"));
+  stdio_file fp (wfile::fopen (path, "rb"));
   if (!fp)
     return ARC_ERROR_FILE_OPEN;
   size_t size = _filelength (_fileno (fp));
@@ -744,7 +744,7 @@ SevenZip::puts_create (FILE *fp, char *name, const char *path) const
       putc ('\\', fp);
     }
   fputs (name, fp);
-  DWORD a = GetFileAttributes (path);
+  DWORD a = WINFS::GetFileAttributes (path);
   if (a != ~0 && a & FILE_ATTRIBUTE_DIRECTORY)
     {
       if (!has_trail_slash (path))
@@ -784,7 +784,7 @@ Archiver::get_creator (const char *path) const
 int
 Archiver::check_file_size (const char *path)
 {
-  WIN32_FIND_DATA fd;
+  wfile::find_data fd;
   return (strict_get_file_data (path, fd)
           && (fd.nFileSizeHigh || fd.nFileSizeLow));
 }
@@ -1086,9 +1086,9 @@ extract_or_remove (lisp lpath, lisp ldir, lisp lfiles)
   else
     {
       char temp_path[PATH_MAX + 1];
-      GetTempPath (sizeof temp_path, temp_path);
+      wfile::get_temp_path (temp_path, sizeof temp_path);
       WINFS::GetTempFileName (temp_path, "xyz", 0, temp_name);
-      stdio_file fp (fopen (temp_name, "w"));
+      stdio_file fp (wfile::fopen (temp_name, "w"));
       if (!fp)
         {
           WINFS::DeleteFile (temp_name);
@@ -1161,7 +1161,7 @@ Fcreate_archive (lisp larcname, lisp lfiles, lisp ldir)
   size_t dirl = strlen (dir);
 
   char temp_name[PATH_MAX + 1], temp_path[PATH_MAX + 1];
-  GetTempPath (sizeof temp_path, temp_path);
+  wfile::get_temp_path (temp_path, sizeof temp_path);
   WINFS::GetTempFileName (temp_path, "xyz", 0, temp_name);
 
   WINFS::SetCurrentDirectory (dir);
@@ -1169,7 +1169,7 @@ Fcreate_archive (lisp larcname, lisp lfiles, lisp ldir)
   try
     {
       {
-        stdio_file fp (fopen (temp_name, "w"));
+        stdio_file fp (wfile::fopen (temp_name, "w"));
         if (!fp)
           file_error (Ecannot_make_temp_file_name);
         for (; consp (lfiles); lfiles = xcdr (lfiles))

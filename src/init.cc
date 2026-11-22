@@ -73,7 +73,7 @@ static void
 init_module_dir ()
 {
   char path[PATH_MAX];
-  GetModuleFileName (0, path, sizeof path);
+  wfile::get_module_file_name (0, path, sizeof path);
   char *p = jrindex (path, '\\');
   if (p)
     p[1] = 0;
@@ -90,10 +90,10 @@ static void
 init_windows_dir ()
 {
   char path[PATH_MAX];
-  GetWindowsDirectory (path, sizeof path);
+  wfile::get_windows_directory (path, sizeof path);
   xsymbol_value (Qwindows_dir) = make_path (path);
 
-  GetSystemDirectory (path, sizeof path);
+  wfile::get_system_directory (path, sizeof path);
   xsymbol_value (Qsystem_dir) = make_path (path);
 }
 
@@ -190,13 +190,13 @@ init_user_config_path (const char *config_path)
                                + w2sl (xsymbol_value (Vuser_name))
                                + 32);
   char *p = stpcpy (w2s (path, xsymbol_value (Qmodule_dir)), "usr");
-  WINFS::CreateDirectory (path, 0);
+  WINFS::CreateDirectory (path);
   *p++ = '/';
   p = w2s (p, xsymbol_value (Vuser_name));
-  WINFS::CreateDirectory (path, 0);
+  WINFS::CreateDirectory (path);
   *p++ = '/';
   strcpy (p, sysdep.windows_short_name);
-  WINFS::CreateDirectory (path, 0);
+  WINFS::CreateDirectory (path);
   DWORD a = WINFS::GetFileAttributes (path);
   if (a != DWORD (-1) && a & FILE_ATTRIBUTE_DIRECTORY)
     xsymbol_value (Quser_config_path) = make_path (path);
@@ -215,7 +215,7 @@ init_user_inifile_path (const char *ini_file)
       int l = WINFS::GetFullPathName (ini_file, sizeof path, path, &tem);
       if (l && l < sizeof path)
         {
-          HANDLE h = CreateFile (path, GENERIC_READ, 0, 0, OPEN_ALWAYS,
+          HANDLE h = WINFS::CreateFile (path, GENERIC_READ, 0, 0, OPEN_ALWAYS,
                                  FILE_ATTRIBUTE_ARCHIVE, 0);
           if (h != INVALID_HANDLE_VALUE)
             {
@@ -240,7 +240,7 @@ init_dump_path ()
 {
   if (!*app.dump_image)
     {
-      int l = GetModuleFileName (0, app.dump_image, PATH_MAX);
+      int l = wfile::get_module_file_name (0, app.dump_image, PATH_MAX);
       char *e = app.dump_image + l;
       if (l > 4 && !_stricmp (e - 4, ".exe"))
         e -= 3;

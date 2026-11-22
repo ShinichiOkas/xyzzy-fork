@@ -1107,7 +1107,7 @@ void
 ODN::selch (HWND hwnd, int id)
 {
   char path[PATH_MAX];
-  GetCurrentDirectory (sizeof path, path);
+  wfile::get_current_directory (path, sizeof path);
   if (!strcmp (path, odn_result))
     {
       if (id == lst2)
@@ -1410,10 +1410,10 @@ list_volume_name::thread_main ()
           {
             char name[5];
             sprintf (name, "%c:\\", c);
-            int type = GetDriveType (name);
+            int type = wfile::get_drive_type (name);
             char volname[1024];
             if (type != DRIVE_REMOVABLE
-                && GetVolumeInformation (name, volname + 1, sizeof volname - 1,
+                && wfile::get_volume_information (name, volname + 1, sizeof volname - 1,
                                          0, 0, 0, 0, 0)
                 && volname[1])
               {
@@ -1495,7 +1495,7 @@ DriveDialog::insert_drives (HWND hwnd)
 
           char name[5];
           sprintf (name, "%c:\\", c);
-          int type = GetDriveType (name);
+          int type = wfile::get_drive_type (name);
 
           LV_ITEM lvi;
           lvi.mask = LVIF_TEXT | LVIF_PARAM | LVIF_IMAGE;

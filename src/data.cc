@@ -2671,7 +2671,7 @@ Fdump_xyzzy (lisp filename)
     }
   qsort (addr_orderp, nreps, sizeof *addr_orderp, compare_addr);
 
-  FILE *fp = fopen (path, "wb");
+  FILE *fp = wfile::fopen (path, "wb");
   if (!fp)
     FEsimple_crtl_error (errno, filename);
 
@@ -2751,7 +2751,7 @@ static int dump_flag;
 int
 rdump_xyzzy ()
 {
-  FILE *fp = _fsopen (app.dump_image, "rb", _SH_DENYWR);
+  FILE *fp = wfile::fopen (app.dump_image, "rb", _SH_DENYWR);
   if (!fp)
     return 0;
 

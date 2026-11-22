@@ -224,7 +224,7 @@ make_idl (HWND hwnd, lisp ldir, void *param,
 
   int sz = max (int (strlen (dir) + 1), MAX_PATH) + MAX_PATH;
   wchar_t *w = (wchar_t *)alloca (sz * sizeof (wchar_t));
-  MultiByteToWideChar (CP_ACP, 0, dir, -1, w, sz);
+  wfile::narrow_to_wide (w, sz, dir);
 
   ULONG eaten;
   safe_idl dir_idl (ialloc);
@@ -247,13 +247,8 @@ make_idl (HWND hwnd, lisp ldir, void *param,
       lvi.stateMask = LVIS_FOCUSED;
       if (ListView_GetItem (hwnd, &lvi))
         {
-#if 0
-          MultiByteToWideChar (CP_ACP, 0, ((filer_data *)lvi.lParam)->name,
-                               -1, w, sz);
-#else
           const filer_data *f = (const filer_data *)lvi.lParam;
-          MultiByteToWideChar (CP_ACP, 0, *f->name ? f->name : "..", -1, w, sz);
-#endif
+          wfile::narrow_to_wide (w, sz, *f->name ? f->name : "..");
           ole_error (sf->ParseDisplayName (hwnd, 0, w, &eaten,
                                            &idls[nstored], 0));
           if (lvi.state & LVIS_FOCUSED)
@@ -475,7 +470,7 @@ inline int
 filer_drop_target::target_path_length () const
 {
   return (xstring_length (fdt_view->get_directory ()) * 2
-          + MAX_PATH + 10);
+          + wfile::FIND_NAME_MAX + 10);
 }
 
 void
@@ -568,7 +563,7 @@ filer_drop_target::check_self (const wchar_t *w, char *base, char *target)
 {
   int l = wcslen (w) * 2 + 1;
   char *p = (char *)alloca (l);
-  WideCharToMultiByte (CP_OEMCP, 0, w, -1, p, l, 0, 0);
+  wfile::wide_to_narrow (p, l, w);
   return check_self (p, base, target);
 }
 
@@ -645,7 +640,7 @@ filer_drop_target::make_drop_file (const wchar_t *w, const char *base_path,
 {
   int l = wcslen (w) * 2 + 1;
   char *p = (char *)alloca (l);
-  WideCharToMultiByte (CP_OEMCP, 0, w, -1, p, l, 0, 0);
+  wfile::wide_to_narrow (p, l, w);
   return make_drop_file (p, base_path, target, link);
 }
 
@@ -686,7 +681,7 @@ filer_drop_target::process_drop (IDataObject *data_obj, const POINTL &pt,
       const wchar_t *w = (wchar_t *)((char *)df + df->pFiles);
       int l = wcslen (w) * 2 + 1;
       base_path = (char *)alloca (l);
-      WideCharToMultiByte (CP_OEMCP, 0, w, -1, base_path, l, 0, 0);
+      wfile::wide_to_narrow (base_path, l, w);
     }
 
   if (!base_path)

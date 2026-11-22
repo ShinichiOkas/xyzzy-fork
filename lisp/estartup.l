@@ -163,8 +163,7 @@
     (unless no-init-file
       (trap-errors
 	(let ((*loading-user-initial-file* t))
-	  (load (namestring (if (file-system-supports-long-file-name-p "~/")
-				"~/.xyzzy" "~/_xyzzy"))
+	  (load (namestring "~/.xyzzy")
 		:if-does-not-exist nil :verbose nil :print nil)))
       (unless *inhibit-history-load*
 	(ignore-errors (load-history-file))))

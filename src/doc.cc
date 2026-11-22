@@ -37,9 +37,9 @@ snarf_doc (FILE *fp, lisp vec, lisp symlist)
 lisp
 Fsi_snarf_documentation (lisp lpath, lisp symlist)
 {
-  char path[MAX_PATH + 1];
+  char path[PATH_MAX + 1];
   pathname2cstr (lpath, path);
-  FILE *fp = fopen (path, "wb");
+  FILE *fp = wfile::fopen (path, "wb");
   if (!fp)
     FEsimple_crtl_error (errno, lpath);
 
@@ -82,7 +82,7 @@ Fsi_get_documentation_string (lisp symbol, lisp indicator, lisp apropos, lisp lp
       if (!safe_fixnum_value (doc, &pos) || pos <= 0)
         return Qnil;
 
-      char path[MAX_PATH + 1];
+      char path[PATH_MAX + 1];
       pathname2cstr (lpath, path);
 
       try

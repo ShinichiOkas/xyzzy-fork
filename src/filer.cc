@@ -144,15 +144,28 @@ FilerView::filename (const filer_data *d) const
 int
 FilerView::load_contents (const char *mask)
 {
-  if (!chdir (fv_ldir))
-    file_error (GetLastError (), fv_ldir);
+  // カレントディレクトリを変えずに、ディレクトリ名に * を付けて列挙する
+  // （長いパスは SetCurrentDirectory では扱えない）。
+  int dirl = xstring_length (fv_ldir);
+  char *dirpath = (char *)alloca (dirl * 2 + 4);
+  char *dirpath_e = w2s (dirpath, fv_ldir);
+  if (dirl && dirpath_e[-1] != '/' && dirpath_e[-1] != '\\')
+    *dirpath_e++ = '/';
 
-  WIN32_FIND_DATA fd;
-  HANDLE h = WINFS::FindFirstFile ("*", &fd);
+  wfile::find_data fd;
+  strcpy (dirpath_e, "*");
+  HANDLE h = WINFS::FindFirstFile (dirpath, &fd);
   int error = GetLastError ();
-  fv_parent->restore_dir ();
   if (h == INVALID_HANDLE_VALUE && error != ERROR_FILE_NOT_FOUND)
-    return 0;
+    {
+      *dirpath_e = 0;
+      DWORD a = WINFS::GetFileAttributes (dirpath);
+      if (a == DWORD (-1))
+        file_error (GetLastError (), fv_ldir);
+      if (!(a & FILE_ATTRIBUTE_DIRECTORY))
+        file_error (ERROR_DIRECTORY, fv_ldir);
+      return 0;
+    }
 
   lisp ignores = symbol_value (Vignored_extensions, selected_buffer ());
 
@@ -222,7 +235,8 @@ FilerView::load_contents (const char *mask)
             ;
           if (p != pe)
             {
-              FindClose (WINFS::FindFirstFile (".", &fd));
+              strcpy (dirpath_e, ".");
+              FindClose (WINFS::FindFirstFile (dirpath, &fd));
               new (this) filer_data (fd.ftLastWriteTime);
             }
         }
@@ -477,7 +491,7 @@ check_share_folder (const char *path)
 
   int l = strlen (path) + 1;
   wchar_t *w = (wchar_t *)alloca (sizeof *w * l);
-  MultiByteToWideChar (CP_ACP, 0, path, -1, w, l);
+  wfile::narrow_to_wide (w, l, path);
 
   ULONG eaten, attr = SFGAO_SHARE;
   safe_idl idl (ialloc);
@@ -754,7 +768,7 @@ FilerView::reload (lisp lmask)
   wait_cursor wc;
   fv_subscribed = 0;
   fv_marks_changed = 1;
-  char last[MAX_PATH];
+  char last[wfile::FIND_NAME_MAX];
   *last = 0;
   if (fv_llastdir == fv_ldir
       || (stringp (fv_llastdir) && string_equal (fv_llastdir, fv_ldir)))
@@ -862,7 +876,7 @@ FilerView::set_directory (lisp dir)
     file_error (GetLastError (), dir);
 
   char cur[PATH_MAX];
-  GetCurrentDirectory (sizeof cur, cur);
+  wfile::get_current_directory (cur, sizeof cur);
   fv_parent->restore_dir ();
   lisp lcur = make_string (cur);
   map_backsl_to_sl (xstring_contents (lcur),
@@ -900,11 +914,13 @@ FilerView::disk_space (double nbytes, char *buf, int c)
 void
 FilerView::display_disk_info (HWND hwnd, int n) const
 {
-  chdir (fv_ldir);
+  char *dir = (char *)alloca (xstring_length (fv_ldir) * 2 + 1);
+  w2s (dir, fv_ldir);
+  char root[PATH_MAX * 2];
   DWORD s_per_c, b_per_s, free_c, total_c;
-  if (!WINFS::GetDiskFreeSpace (0, &s_per_c, &b_per_s, &free_c, &total_c))
+  if (!WINFS::GetDiskFreeSpace (root_path_name (root, dir),
+                                &s_per_c, &b_per_s, &free_c, &total_c))
     s_per_c = b_per_s = free_c = total_c = 0;
-  fv_parent->restore_dir ();
 
   char total[128], free[128];
   disk_space (double (total_c) * s_per_c * b_per_s, total, -1);
@@ -1348,7 +1364,7 @@ FilerView::thread_main ()
           continue;
 
         len = strlen (fv_icon_path);
-        path = (char *)alloca (len + MAX_PATH + 1);
+        path = (char *)alloca (len + wfile::FIND_NAME_MAX + 1);
         strcpy (path, fv_icon_path);
         sequence = fv_sequence;
         chunk = fv_chunk;
@@ -3146,7 +3162,7 @@ Filer::do_keyup ()
       else
         {
           lisp dir = v->get_directory ();
-          char *path = (char *)alloca (xstring_length (dir) * 2 + MAX_PATH + 1);
+          char *path = (char *)alloca (xstring_length (dir) * 2 + wfile::FIND_NAME_MAX + 1);
           strcpy (w2s (path, dir), d->name);
           try
             {

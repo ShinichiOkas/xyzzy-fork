@@ -27,7 +27,7 @@ set_appid (IShellLink *sl, lisp lappid)
 
   int l = (strlen (b) + 1);
   wchar_t *w = (wchar_t *)alloca (l * sizeof (wchar_t));
-  MultiByteToWideChar (CP_ACP, 0, b, -1, w, l);
+  wfile::narrow_to_wide (w, l, b);
 
   safe_com <IPropertyStore> store;
   ole_error (sl->QueryInterface (IID_PPV_ARGS(&store)));
@@ -87,7 +87,7 @@ Fcreate_shortcut (lisp lobject, lisp llink, lisp keys)
       map_sl_to_backsl (path);
       int l = (strlen (path) + 1);
       wchar_t *w = (wchar_t *)alloca (l * sizeof (wchar_t));
-      MultiByteToWideChar (CP_ACP, 0, path, -1, w, l);
+      wfile::narrow_to_wide (w, l, path);
 
       ULONG ul;
       safe_idl idl (ialloc);
@@ -117,7 +117,7 @@ Fcreate_shortcut (lisp lobject, lisp llink, lisp keys)
   pathname2cstr (llink, path);
   int l = (strlen (path) + 1);
   wchar_t *w = (wchar_t *)alloca (l * sizeof (wchar_t));
-  MultiByteToWideChar (CP_ACP, 0, path, -1, w, l);
+  wfile::narrow_to_wide (w, l, path);
   ole_error (pf->Save (w, 1));
 
   return Qt;
@@ -167,9 +167,9 @@ Fget_special_folder_location (lisp place)
 
     case STRRET_WSTR:
       {
-        int l = 2 + WideCharToMultiByte (CP_OEMCP, 0, name.pOleStr, -1, 0, 0, 0, 0);
+        int l = int (wcslen (name.pOleStr)) * 2 + 2;
         char *b = (char *)alloca (l);
-        WideCharToMultiByte (CP_OEMCP, 0, name.pOleStr, -1, b, l, 0, 0);
+        wfile::wide_to_narrow (b, l, name.pOleStr);
         ialloc->Free (name.pOleStr);
         return make_string (b);
       }
@@ -190,7 +190,7 @@ Fresolve_shortcut (lisp lshortcut)
   map_sl_to_backsl (shortcut);
   int l = (strlen (shortcut) + 1);
   wchar_t *w = (wchar_t *)alloca (l * sizeof (wchar_t));
-  MultiByteToWideChar (CP_ACP, 0, shortcut, -1, w, l);
+  wfile::narrow_to_wide (w, l, shortcut);
 
   safe_com <IShellLink> sl;
   ole_error (CoCreateInstance (CLSID_ShellLink, 0, CLSCTX_INPROC_SERVER,

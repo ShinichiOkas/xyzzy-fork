@@ -571,7 +571,6 @@ get-menu-position
 get-next-buffer
 get-properties
 get-selection-type
-get-short-path-name
 get-special-folder-location
 get-system-directory
 get-text-font
@@ -2572,7 +2571,6 @@ file-lost-error-lost-pathname
 file-lost-error-pathname
 file-not-found-datum
 file-not-found-pathname
-file-system-supports-long-file-name-p
 filer-backward-line
 filer-backward-page
 filer-byte-compile
