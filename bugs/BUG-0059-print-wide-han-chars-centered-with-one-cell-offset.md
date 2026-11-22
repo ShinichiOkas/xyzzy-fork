@@ -1,6 +1,7 @@
 # BUG-0059 印刷で、GB・KSC・Big5 の全角文字だけ、全角（2 マス）のずらしでなく半角（1 マス）のずらしで置かれる
 
-- 状態: 未修正（2026-11-22、S4 段 3 R3 で見つけた。R3 は切り替え 0 の側で元の動きを保った）
+- 状態: 修正済み（2026-11-22、e828cc3。見つけたのは S4 段 3 R3）
+- 修正: `paint_char` の全角（幅 2）は、どの枠でも `pe_offset2x` を使う（切り替え 0 の側の GB・KSC・Big5 の例外を消した）。
 - 対象: src/print.cc（0.2.2.235 の取り込みの時点から）
 
 ## 症状
@@ -8,4 +9,7 @@
 - CP932 の全角（`paint_kanji`）と JIS X 0212（`paint_jisx0212`）は全角で `pe_offset2x` を使う。GB 2312・KS C 5601・Big5 の全角（`paint_full_width`）だけが、全角でも `pe_offset[f].x` を使う。フォントの平均の幅と 1 マスの幅が違う設定では、これらの文字が右へ寄らず、中央からずれる。
 
 ## 参照箇所
-- 旧 src/print.cc の `paint_kanji`・`paint_jisx0212`・`paint_full_width`。今は `print_engine::paint_char`（切り替え 0 の側だけ、GB・KSC・Big5 の枠は半角のずらしを使う。切り替え 1 の側は全角に `pe_offset2x`）
+- 旧 src/print.cc の `paint_kanji`・`paint_jisx0212`・`paint_full_width`。今は `print_engine::paint_char`（修正前は、切り替え 0 の側だけ GB・KSC・Big5 の枠が半角のずらしを使っていた。今は両側とも全角に `pe_offset2x`）
+
+## 確かめ
+- ビルドは切り替え 0・1 とも通る。CI は従来の全件。印刷のずらしはプレビュー（プリンタ）でしか見えず、Lisp から印刷のずらしを見る `si:` の関数も無い（足すには gen-syms.cc・builtin.l が要る）ため、画面の確かめの依頼に足した。
