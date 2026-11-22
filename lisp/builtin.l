@@ -658,6 +658,8 @@
 (si::defun-builtin uprops-casefold (code-point))
 (si::defun-builtin uprops-version ())
 (si::defun-builtin uprops-table-size ())
+(si::defun-builtin regexp-class-test (ranges code &optional negate))
+(si::defun-builtin regexp-fold256 (code))
 (si::defun-builtin get-key-state (vkey))
 (si::defun-builtin search-path (file &optional path ext))
 (si::defun-builtin *file-operation (operation from to &keys :allow-undo :files-only :no-connected-elements :no-ui :no-confirmation :no-confirm-mkdir :no-copy-security-attributes :no-error-ui :no-recursion :rename-on-collision :silent :want-nuke-warning))

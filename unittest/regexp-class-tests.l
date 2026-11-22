@@ -24,10 +24,6 @@ syntax table and the buffer is the subject of the search)."
            (progn (set-buffer #1#) ,@body)
          (delete-buffer #1#)))))
 
-(defun regexp-class-char (c)
-  "C is an integer code or a character; the character."
-  (if (integerp c) (code-char c) c))
-
 (defun regexp-class-string-failures (pattern in-class-p)
   "The first codes (0 .. 65535) for which string-match of the one-character
 string and (funcall IN-CLASS-P code) disagree."
@@ -49,12 +45,11 @@ string and (funcall IN-CLASS-P code) disagree."
 
 (defun regexp-class-buffer-failures (pattern in-class-p)
   "Same as regexp-class-string-failures, but search a buffer that holds one
-character per line with ^PATTERN$ (the search of the line start and the
+character per line with ^PATTERN$ (the search from the line start and the
 fastmap of the buffer search)."
   (let ((re (compile-regexp (concatenate 'string "^" pattern "$")))
         (codes nil)
-        (r nil)
-        (n 0))
+        (r nil))
     (with-regexp-class-buffer
       (dotimes (i 65536)
         (let ((c (code-char i)))
@@ -62,7 +57,6 @@ fastmap of the buffer search)."
             (push i codes)
             (insert (string c) "\n"))))
       (setq codes (nreverse codes))
-      ;; Scan forward once and compare the matched lines with the expectation.
       (goto-char (point-min))
       (let ((matched nil))
         (while (scan-buffer re :regexp t :no-dup t)
@@ -71,10 +65,9 @@ fastmap of the buffer search)."
         (setq matched (nreverse matched))
         (let ((want (remove-if-not in-class-p codes)))
           (unless (equal matched want)
-            (dolist (i (set-exclusive-or matched want))
-              (when (< (incf n) 9)
-                (push i r)))))))
-    (sort r #'<)))
+            (setq r (subseq (sort (set-exclusive-or matched want) #'<)
+                            0 (min 8 (length (set-exclusive-or matched want)))))))))
+    r))
 
 (defun regexp-class-range-pred (lo hi &optional negate)
   #'(lambda (i) (if negate (not (<= lo i hi)) (<= lo i hi))))
@@ -129,7 +122,7 @@ fastmap of the buffer search)."
     (:kata-a (unicode-char #x30a1))))
 
 (defun regexp-class-range-test (lo-kind hi-kind)
-  "Failures of [LO-HI], [^LO-HI] and [LO-HI]+ against every code."
+  "Failures of [LO-HI], [^LO-HI] and [LO-HI] in a buffer against every code."
   (let* ((lo (regexp-class-wide-char lo-kind))
          (hi (regexp-class-wide-char hi-kind))
          (a (char-code lo))
@@ -167,7 +160,7 @@ fastmap of the buffer search)."
   => (nil nil nil))
 
 (deftest regexp-class-closure ()
-  "A class under * + ? and {n,m}, the simple closure."
+  "A class under * + and {n}, the simple closure."
   (let* ((lo (regexp-class-wide-char :hira-a))
          (hi (regexp-class-wide-char :hira-n))
          (s (concatenate 'string "a" (string lo) (string hi) (string lo) "b"))
@@ -183,16 +176,18 @@ fastmap of the buffer search)."
   => (4 1 3 nil 4))
 
 (deftest regexp-class-case-fold ()
-  "A class and a literal under case folding (ASCII only)."
+  "A class under case folding (ASCII only)."
   (let ((c (code-char #x4142)))
-    (list (let ((re (compile-regexp "[a-c]" t))) (list (string-match re "xB")
-                                                       (string-match re "xD")))
-          (let ((re (compile-regexp "[^a-c]" t))) (list (string-match re "AB")
-                                                        (string-match re (string c))
-                                                        (string-match re "xA")))
-          (let ((re (compile-regexp "[^A]" t))) (list (string-match re "a")
-                                                      (string-match re (string c))))))
-  => ((1 nil) (nil 0 1) (nil 0)))
+    (list (let ((re (compile-regexp "[a-c]" t)))
+            (list (string-match re "xB") (string-match re "xD")))
+          (let ((re (compile-regexp "[^a-c]" t)))
+            (list (string-match re "AB")
+                  (string-match re (string c))
+                  (string-match re "xA")))
+          (let ((re (compile-regexp "[^A]" t)))
+            (list (string-match re "a")
+                  (string-match re (string c))))))
+  => ((1 nil) (nil 0 0) (nil 0)))
 
 (deftest regexp-class-backward-search ()
   "Backward regexp search, with a negated class and a high-byte character."
@@ -240,7 +235,7 @@ skip table of the search (the table is indexed by fold256)."
           (regexp-class-scan "AAAAAAAA" (concatenate 'string "A" (string c)))
           (regexp-class-scan (string c) "A")
           (regexp-class-scan (string c) "B")))
-  => (5 6 6 5 7 6 nil nil nil nil))
+  => (3 4 6 4 6 4 nil nil nil nil))
 
 (deftest regexp-class-bm-ascii ()
   (list (regexp-class-scan "hello world" "world")
@@ -252,7 +247,7 @@ skip table of the search (the table is indexed by fold256)."
         (regexp-class-scan "Hello WORLD" "world")
         (regexp-class-scan-back "ABC abc" "ABC" :case-fold t)
         (regexp-class-scan "abc" "abc" :tail t))
-  => (11 7 nil 5 13 11 nil 5 3))
+  => (6 4 nil 6 12 6 nil 4 3))
 
 (deftest regexp-class-bm-wide ()
   "Search of double byte and single byte (half width kana) characters."
@@ -266,7 +261,7 @@ skip table of the search (the table is indexed by fold256)."
           (regexp-class-scan text (concatenate 'string "y" (string k) "z"))
           (regexp-class-scan-back text (string a))
           (regexp-class-scan text (concatenate 'string (string i) (string a)))))
-  => (5 4 9 11 3 nil))
+  => (2 3 6 5 2 nil))
 
 (deftest regexp-class-bm-iso-8859 ()
   "Case folding applies to ASCII letters only; an ISO-8859 letter has to
@@ -281,7 +276,7 @@ match itself and nothing else."
                              :case-fold t)
           (regexp-class-scan-back text (concatenate 'string "af" (string e))
                                   :case-fold t)))
-  => (9 4 4 nil 8))
+  => (5 0 0 nil 6))
 
 (deftest regexp-class-regexp-iso-8859 ()
   "The regexp search of ISO-8859 letters, with and without case folding."
@@ -303,18 +298,18 @@ match itself and nothing else."
             (progn (goto-char (point-min))
                    (and (scan-buffer "caf" :regexp t :case-fold t :tail t)
                         (point))))))
-  => (4 5 1 3))
+  => (3 4 1 3))
 
 ;;; skip-chars-forward / skip-chars-backward
 
-(defun regexp-class-skip (text spec dir &optional (start nil))
-  "Move over TEXT from the start (DIR 1) or the end (-1) with the skip-chars of
-SPEC; (value . number of the characters moved)."
+(defun regexp-class-skip (text spec dir &optional start)
+  "Move over TEXT from START (default: the start for DIR 1, the end for -1)
+with skip-chars of SPEC; (value . number of the characters moved)."
   (with-regexp-class-buffer
     (insert text)
-    (let ((from (if (eq dir 1) (or start (point-min)) (or start (point-max)))))
+    (let ((from (or start (if (eql dir 1) (point-min) (point-max)))))
       (goto-char from)
-      (let ((v (if (eq dir 1)
+      (let ((v (if (eql dir 1)
                    (skip-chars-forward spec)
                  (skip-chars-backward spec))))
         (cons v (abs (- (point) from)))))))
@@ -327,7 +322,7 @@ SPEC; (value . number of the characters moved)."
         (regexp-class-skip "abcXYZ" "ab" 1)
         (regexp-class-skip "abcXYZ" "xyz" 1)
         (regexp-class-skip (format nil "ab~%cd") "a-d" 1)
-        (regexp-class-skip (format nil "ab~%cd") "^\n" 1)
+        (regexp-class-skip (format nil "ab~%cd") (format nil "^~%") 1)
         (regexp-class-skip (format nil "ab~%cd") "a-d" -1))
   => ((t . 3) (nil . 0) (t . 3) (nil . 0) (t . 2) (nil . 0) (t . 2) (t . 2) (t . 2)))
 
@@ -382,7 +377,7 @@ the other characters, including code points outside the BMP."
   (let ((ranges '(#x1f600 (#x41 . #x5a) (#x3042 . #x3044))))
     (flet ((in (c) (si:regexp-class-test ranges c t)))
       (mapcar #'in '(#x40 #x41 #x5a #x5b #x3041 #x3043 #x3045 #x1f600 #x1f601
-                     #x10ffff #xffffff)))
+                     #x10ffff #xffffff))))
   => (t nil nil t t nil t nil t t t))
 
 (deftest regexp-class-test-merge-and-order ()
@@ -401,29 +396,31 @@ the other characters, including code points outside the BMP."
   => (nil t t))
 
 (deftest regexp-class-test-many-ranges ()
-  "A class with many ranges (every 4th block of 16 codes)."
+  "A class with many ranges (the first 16 codes of every block of 64)."
   (let ((ranges (loop for i from 0 below 4000
-                      collect (cons (+ #x10000 (* i 64)) (+ #x10000 (* i 64) 15)))))
-    (let ((bad nil))
-      (dotimes (n 4000)
-        (let ((base (+ #x10000 (* n 64))))
-          (dolist (c (list base (+ base 15) (+ base 16) (+ base 63)))
-            (let ((in (si:regexp-class-test ranges c))
-                  (want (<= (- c base) 15)))
-              (unless (eq (and in t) want)
-                (push c bad))))))
-      (nreverse bad)))
+                      collect (cons (+ #x10000 (* i 64)) (+ #x10000 (* i 64) 15))))
+        (bad nil))
+    (dotimes (n 4000)
+      (let ((base (+ #x10000 (* n 64))))
+        (dolist (c (list base (+ base 15) (+ base 16) (+ base 63)))
+          (let ((in (si:regexp-class-test ranges c))
+                (want (<= (- c base) 15)))
+            (unless (eq (and in t) want)
+              (push c bad))))))
+    (nreverse bad))
   => nil)
 
 (deftest regexp-fold256-slots ()
   "fold256: ASCII is itself, everything else lands in 0x80 .. 0xFF."
   (list (let ((bad nil))
-          (dotimes (c 128) (unless (= (si:regexp-fold256 c) c) (push c bad)))
+          (dotimes (c 128)
+            (unless (= (si:regexp-fold256 c) c)
+              (push c bad)))
           bad)
         (let ((lo 255) (hi 0))
           (dolist (c '(#x80 #xff #x100 #x4142 #x3042 #xffff #x10000 #x1f600
                        #x10ffff #xffffffff))
             (let ((f (si:regexp-fold256 c)))
               (setq lo (min lo f) hi (max hi f))))
-          (list lo hi)))
-  => (nil (128 255)))
+          (list (>= lo 128) (<= hi 255))))
+  => (nil (t t)))

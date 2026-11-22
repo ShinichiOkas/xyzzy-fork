@@ -43,95 +43,167 @@ enum
   NOT_SYMBOLCHAR
 };
 
-#define NBITS (int (sizeof (Char) * 8))
+// charclass (regex.h): a set of characters as the ASCII bits and the sorted
+// ranges of the others.  The compiled form is
+//   size, ascii[4], nranges, lo0, hi0, lo1, hi1, ...
+// (a range does not depend on the value of a character: it is the same for
+// the old internal code and for Unicode, whatever XYZZY_CHAR_UNICODE is).
 
-class charclass
+charclass::charclass ()
+     : cc_ranges (0), cc_nranges (0), cc_allocated (0)
 {
-  Char hi[256 / NBITS];
-  Char lo[256][256 / NBITS];
-  static void set (Char *b, int n)
-    {b[n / NBITS] |= Char (1) << (n % NBITS);}
-  static int isset (const Char *b, int n)
-    {return b[n / NBITS] & (Char (1) << (n % NBITS));}
-public:
-  struct cc
+  bzero (cc_ascii, sizeof cc_ascii);
+}
+
+charclass::~charclass ()
+{
+  xfree (cc_ranges);
+}
+
+void
+charclass::set_range (Char lo, Char hi)
+{
+  if (lo > hi)
+    return;
+  for (Char c = lo; c < 0x80 && c <= hi; c++)
+    set_ascii (c);
+  if (hi < 0x80)
+    return;
+  if (lo < 0x80)
+    lo = 0x80;
+  if (cc_nranges)
     {
-      int nent;
-      struct
+      // A run of the characters in order (a string of the skip-chars) grows
+      // the last range.
+      Char *last = cc_ranges + (cc_nranges - 1) * 2;
+      if (lo >= last[0] && lo - last[0] <= last[1] - last[0] + 1u
+          && last[1] != Char (-1))
         {
-          u_char hi;
-          u_char all;
-          u_char lower;
-          u_char upper;
-        } f[256];
-    };
-  charclass () {bzero (hi, sizeof hi);}
-  void set (Char c)
-    {
-      int h = c >> 8;
-      int l = c & 255;
-      if (!isset (hi, h))
-        {
-          set (hi, h);
-          bzero (lo[h], sizeof lo[h]);
+          if (hi > last[1])
+            last[1] = hi;
+          return;
         }
-      set (lo[h], l);
     }
-  int count_size (cc &) const;
-  Char *copy (Char *, cc &, int) const;
-};
+  if (cc_nranges == cc_allocated)
+    {
+      cc_allocated = cc_allocated ? cc_allocated * 2 : 16;
+      cc_ranges = (Char *)xrealloc (cc_ranges,
+                                    sizeof (Char) * 2 * cc_allocated);
+    }
+  cc_ranges[cc_nranges * 2] = lo;
+  cc_ranges[cc_nranges * 2 + 1] = hi;
+  cc_nranges++;
+}
 
 int
-charclass::count_size (cc &f) const
+charclass::compare_range (const void *a, const void *b)
 {
-  int size = 1;
-  f.nent = 0;
-  for (int h = 0; h < 256; h++)
-    if (isset (hi, h))
-      {
-        int l;
-        for (l = 0; l < 256 / NBITS && !lo[h][l]; l++)
-          ;
-        int u;
-        for (u = 256 / NBITS - 1; u > l && !lo[h][u]; u--)
-          ;
-        u++;
-        int i;
-        for (i = l; i < u; i++)
-          if (lo[h][i] != Char (~Char (0)))
-            break;
-        size += 2;
-        if (i < u)
-          {
-            size += u - l;
-            f.f[f.nent].all = 0;
-          }
-        else
-          f.f[f.nent].all = 1;
-        f.f[f.nent].lower = l;
-        f.f[f.nent].upper = u;
-        f.f[f.nent].hi = h;
-        f.nent++;
-      }
-  return size;
+  Char x = *(const Char *)a;
+  Char y = *(const Char *)b;
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
+// Sort the ranges and merge the ones that overlap or touch.
+void
+charclass::normalize ()
+{
+  if (cc_nranges < 2)
+    return;
+  qsort (cc_ranges, cc_nranges, sizeof (Char) * 2, compare_range);
+  int n = 0;
+  for (int i = 1; i < cc_nranges; i++)
+    {
+      Char *cur = cc_ranges + n * 2;
+      const Char *next = cc_ranges + i * 2;
+      if (next[0] <= cur[1] || next[0] - cur[1] == 1)
+        {
+          if (next[1] > cur[1])
+            cur[1] = next[1];
+        }
+      else
+        {
+          n++;
+          cc_ranges[n * 2] = next[0];
+          cc_ranges[n * 2 + 1] = next[1];
+        }
+    }
+  cc_nranges = n + 1;
+}
+
+int
+charclass::size ()
+{
+  normalize ();
+  return 1 + ASCII_WORDS + 1 + cc_nranges * 2;
 }
 
 Char *
-charclass::copy (Char *b, cc &f, int size) const
+charclass::copy (Char *b)
 {
-  *b++ = size;
-  for (int i = 0; i < f.nent; i++)
-    {
-      *b++ = (f.f[i].hi << 8) + f.f[i].all;
-      *b++ = (f.f[i].upper << 8) + f.f[i].lower;
-      if (!f.f[i].all)
-        for (int j = f.f[i].lower; j < f.f[i].upper; j++)
-          *b++ = lo[f.f[i].hi][j];
-    }
+  int n = size ();
+  *b++ = n;
+  for (int i = 0; i < ASCII_WORDS; i++)
+    *b++ = cc_ascii[i];
+  *b++ = cc_nranges;
+  for (int i = 0; i < cc_nranges * 2; i++)
+    *b++ = cc_ranges[i];
   return b;
 }
 
-#define REPEAT_INFINITY (CHAR_LIMIT - 1)
+int
+charclass::match_range (const Char *p, Char c)
+{
+  const Char *r = p + 6;
+  int lo = 0, hi = int (p[5]) - 1;
+  while (lo <= hi)
+    {
+      int mid = (lo + hi) / 2;
+      if (c < r[mid * 2])
+        hi = mid - 1;
+      else if (c > r[mid * 2 + 1])
+        lo = mid + 1;
+      else
+        return 1;
+    }
+  return 0;
+}
+
+void
+charclass::fastmap (const Char *p, char *fastmap)
+{
+  for (int c = 0; c < 0x80; c++)
+    if (match (p, c))
+      fastmap[c] = 1;
+  const Char *r = p + 6;
+  for (int i = int (p[5]) - 1; i >= 0; i--)
+    {
+      Char lo = r[i * 2], hi = r[i * 2 + 1];
+      if (hi - lo >= 0x400)
+        {
+          for (int s = 0x80; s < 0x100; s++)
+            fastmap[s] = 1;
+          break;
+        }
+      for (Char c = lo;; c++)
+        {
+          fastmap[fold256 (c)] = 1;
+          if (c == hi)
+            break;
+        }
+    }
+}
+
+void
+charclass::not_fastmap (const Char *p, char *fastmap)
+{
+  for (int c = 0; c < 0x80; c++)
+    if (!match (p, c))
+      fastmap[c] = 1;
+  for (int s = 0x80; s < 0x100; s++)
+    fastmap[s] = 1;
+}
+
+#define REPEAT_INFINITY (RE_WORD_LIMIT - 1)
 
 class regexp_compile
 {
@@ -283,18 +355,11 @@ regexp_compile::dump (const Char *p0, int size)
           {
             printf (c == CHAR_CLASS ? "char-class: " : "char-class-not: ");
             const Char *p2 = p + *p;
-            for (p++; p < p2;)
-              {
-                int u = p[1] >> 8, l = p[1] & 0xff;
-                printf ("%02x(%d-%d)", *p >> 8, l, u);
-                if (*p & 0xff)
-                  {
-                    p += 2;
-                    printf ("ALL");
-                  }
-                else
-                  p += 2 + u - l;
-              }
+            printf ("ascii %08x %08x %08x %08x", p[1], p[2], p[3], p[4]);
+            int n = int (p[5]);
+            for (int i = 0; i < n; i++)
+              printf (" %x-%x", p[6 + i * 2], p[7 + i * 2]);
+            p = p2;
           }
           break;
 
@@ -509,7 +574,7 @@ regexp_compile::branch (Char *b)
   Char *p = r_branch_start;
   memmove (p + 2, p, sizeof (Char) * (b - p));
   b += 2;
-  if (b - p >= CHAR_LIMIT)
+  if (b - p >= RE_WORD_LIMIT)
     error (Eregexp_too_long);
   p[0] = BRANCH;
   p[1] = b - p;
@@ -557,7 +622,7 @@ regexp_compile::closure (Char *b, int min, int max, int shortest)
     p[0] = shortest ? SHORTEST_CLOSURE_SIMPLE : CLOSURE_SIMPLE;
   else
     p[0] = shortest ? SHORTEST_CLOSURE : CLOSURE;
-  if (b - p >= CHAR_LIMIT)
+  if (b - p >= RE_WORD_LIMIT)
     error (Eregexp_too_long);
   p[1] = min;
   p[2] = max;
@@ -590,27 +655,23 @@ regexp_compile::char_class (const Char *p, const Char *pe, Char *&b)
       lChar c = *p++;
       if (c == ']' && p != p0)
         break;
+      lChar c2 = c;
       if (p < pe - 1 && *p == '-' && p[1] != ']')
         {
-          lChar c2 = p[1];
+          c2 = p[1];
           p += 2;
-          for (; c <= c2; c++)
-            if (ascii_char_p (c))
-              ccl.set (Char (r_translate[c]));
-            else
-              ccl.set (Char (c));
         }
-      else
-        if (ascii_char_p (c))
-          ccl.set (Char (r_translate[c]));
-        else
-          ccl.set (Char (c));
+      // The ASCII characters are translated one by one; the others go in as
+      // a range, however large it is.
+      for (lChar x = c; x < 0x80 && x <= c2; x++)
+        ccl.set_ascii (Char (r_translate[x]));
+      if (c2 >= 0x80)
+        ccl.set_range (Char (max (c, lChar (0x80))), Char (c2));
     }
 
-  charclass::cc f;
-  int size = ccl.count_size (f);
+  int size = ccl.size ();
   b = extend_buffer (b, size);
-  Char *b2 = ccl.copy (b, f, size);
+  Char *b2 = ccl.copy (b);
   assert (b2 == b + size);
   b = b2;
   return p;
@@ -920,7 +981,7 @@ regexp_compile::compile (const Char *pattern, int size)
         default:
         normal_char:
           if (!r_normal_char || r_normal_char + *r_normal_char + 1 != b
-              || *r_normal_char >= CHAR_LIMIT - 1
+              || *r_normal_char >= RE_WORD_LIMIT - 1
               || (p < pe && (*p == '*' || *p == '+' || *p == '?'))
               || (p < pe - 1 && *p == '\\' && p[1] == '{'))
             {
@@ -1070,66 +1131,28 @@ regexp_compile::match_bol_p (const Char *p, const Char *pe)
 void
 regexp_compile::char_class_fastmap (const Char *p, char *fastmap) const
 {
-  const Char *pe = p + *p;
-  for (p++; p < pe;)
-    {
-      int h = *p >> 8;
-      if (*p & 0xff)
-        {
-          if (h)
-            fastmap[h] = p[1] == ((256 / NBITS) << 16) + 0 ? 1 : -1;
-          else
-            {
-              for (int u = (p[1] >> 8) * NBITS, l = (p[1] & 0xff) * NBITS; l < u; l++)
-                fastmap[l] = 1;
-            }
-          p += 2;
-        }
-      else
-        {
-          int u = p[1] >> 8, l = p[1] & 0xff;
-          p += 2;
-          if (h)
-            fastmap[h] = -1;
-          else
-            {
-              for (int i = u - l - 1; i >= 0; i--)
-                {
-                  int ii = (i + l) * NBITS;
-                  for (int j = 0; j < NBITS; j++)
-                    if (p[i] & (Char (1) << j))
-                      fastmap[ii + j] = 1;
-                }
-            }
-          p += u - l;
-        }
-    }
+  charclass::fastmap (p, fastmap);
 }
 
-// Set the fastmap of a syntax test PRED (syntax code -> bool).  A character of
-// 256 or more is SCword or SCkanji (syntax_of) and its slot is the high byte,
-// 1..255, so when PRED holds for either every such slot is set.
+// Set the fastmap of a syntax test PRED (syntax code -> bool).  The slot of an
+// ASCII character is its own.  The syntax of the other characters is given
+// per character by syntax_of and a slot stands for many of them, so every
+// such slot is set (the fastmap only has to be a superset).
 template <class F>
 static void
 syntax_fastmap (const syntax_table *tab, char *fastmap, F pred)
 {
-  for (int i = 0; i < 256; i++)
+  for (int i = 0; i < 0x80; i++)
     if (pred (xchar_syntax (tab, i)))
       fastmap[i] = 1;
-  if (pred (SCkanji) || pred (SCword))
-    for (int i = 1; i < 256; i++)
-      fastmap[i] = 1;
+  for (int i = 0x80; i < 0x100; i++)
+    fastmap[i] = 1;
 }
 
 void
 regexp_compile::char_class_not_fastmap (const Char *p, char *fastmap) const
 {
-  char tem[256];
-  bzero (tem, sizeof tem);
-  char_class_fastmap (p, tem);
-  for (int i = 0; i < 256; i++)
-    if (tem[i] <= 0)
-      fastmap[i] = 1;
+  charclass::not_fastmap (p, fastmap);
 }
 
 int
@@ -1166,11 +1189,7 @@ regexp_compile::compile_fastmap (char *fastmap, const Char *p, const Char *pe) c
 
         case NORMAL_CHARS:
           {
-            Char c = p[1];
-            if (c < 256)
-              fastmap[c] = 1;
-            else
-              fastmap[c >> 8] = 1;
+            fastmap[fold256 (p[1])] = 1;
             return 1;
           }
 
@@ -1451,33 +1470,7 @@ int
 Regexp::match_char_class (const Char *p, Char c) const
 {
   c = ascii_char_p (c) ? re_translate[c] : c;
-  int hi = c >> 8, lo = c & 0xff;
-  const Char *pe = p + *p;
-  for (p++; p < pe;)
-    {
-      if (*p & 0xff)
-        {
-          if ((*p >> 8) == hi)
-            {
-              int x = lo / NBITS;
-              return x >= int (p[1] & 0xff) && x < int (p[1] >> 8);
-            }
-          p += 2;
-        }
-      else
-        {
-          int u = p[1] >> 8, l = p[1] & 0xff;
-          if ((*p >> 8) == hi)
-            {
-              int x = lo / NBITS;
-              if (x < l || x >= u)
-                return 0;
-              return p[2 + x - l] & (Char (1) << (lo % NBITS));
-            }
-          p += 2 + u - l;
-        }
-    }
-  return 0;
+  return charclass::match (p, c);
 }
 
 inline int
@@ -2424,12 +2417,7 @@ Regexp::search (const re_search &re, re_point &point)
             {
               if (point.eobp ())
                 return 0;
-              Char c = point.nextch ();
-              if (c < 0x100)
-                c = re_translate[c];
-              else
-                c >>= 8;
-              if (!re_fastmap[c])
+              if (!re_fastmap[fastmap_slot (point.nextch ())])
                 goto fail;
             }
           if (match (point))
@@ -2444,12 +2432,7 @@ Regexp::search (const re_search &re, re_point &point)
     {
       for (; !point.eobp (); point.forward ())
         {
-          Char c = point.nextch ();
-          if (c < 0x100)
-            c = re_translate[c];
-          else
-            c >>= 8;
-          if (re_fastmap[c] && match (point))
+          if (re_fastmap[fastmap_slot (point.nextch ())] && match (point))
             return 1;
         }
       return 0;
@@ -2547,12 +2530,7 @@ Regexp::search_backward (const Buffer *bp, const Point &start,
             {
               if (point.eobp ())
                 goto fail;
-              Char c = point.nextch ();
-              if (c < 0x100)
-                c = re_translate[c];
-              else
-                c >>= 8;
-              if (!re_fastmap[c])
+              if (!re_fastmap[fastmap_slot (point.nextch ())])
                 goto fail;
             }
           if (match (point))
@@ -2573,12 +2551,7 @@ Regexp::search_backward (const Buffer *bp, const Point &start,
         }
       while (1)
         {
-          Char c = point.nextch ();
-          if (c < 0x100)
-            c = re_translate[c];
-          else
-            c >>= 8;
-          if (re_fastmap[c] && match (point))
+          if (re_fastmap[fastmap_slot (point.nextch ())] && match (point))
             return 1;
           if (point.bobp (*this))
             return 0;

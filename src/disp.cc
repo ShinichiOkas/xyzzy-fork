@@ -1528,7 +1528,7 @@ public:
   void clear () {rk_match = 0;}
   int ctx_mask () const {return rk_ctx_mask;}
   int possible_match_p (Char c) const
-    {return !rk_can_fastmap || rk_fastmap[c >= 0x100 ? c >> 8 : c];}
+    {return !rk_can_fastmap || rk_fastmap[fold256 (c)];}
 };
 
 // (regexp color [context [begin [end]]])

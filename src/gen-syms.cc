@@ -1070,6 +1070,10 @@ static symbols sys[] =
   SI_DEFUN3 (uprops-version, 0, 0, 0),
   SI_DEFUN3 (uprops-table-size, 0, 0, 0),
 
+  /* search.cc (tests of the character class of regexp) */
+  SI_DEFUN3 (regexp-class-test, 2, 1, 0),
+  SI_DEFUN3 (regexp-fold256, 1, 0, 0),
+
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),
 };
