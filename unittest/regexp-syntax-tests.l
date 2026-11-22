@@ -105,14 +105,25 @@
             (= (point) (point-max)))
         (delete-buffer b)))))
 
+(defmacro with-regexp-syntax-buffer (&body body)
+  "Run BODY in a fresh buffer.  string-match uses the current buffer's syntax
+table, so a test that calls it must not depend on the buffer an earlier test
+left current."
+  `(save-excursion
+     (let ((#1=#:b (create-new-buffer "*regexp-syntax*")))
+       (unwind-protect
+           (progn (set-buffer #1#) ,@body)
+         (delete-buffer #1#)))))
+
 (defun regexp-syntax-spec-matches (c)
   "The list of the spec characters that match C, by regexp (\\sX)."
   (let ((s (string c)))
-    (remove nil
-            (map 'list
-                 #'(lambda (spec)
-                     (and (string-match (format nil "\\s~C" spec) s) spec))
-                 *regexp-syntax-spec-chars*))))
+    (with-regexp-syntax-buffer
+      (remove nil
+              (map 'list
+                   #'(lambda (spec)
+                       (and (string-match (format nil "\\s~C" spec) s) spec))
+                   *regexp-syntax-spec-chars*)))))
 
 (defun regexp-syntax-skip-matches (c skipper)
   "The list of the spec characters that skip C with SKIPPER."
@@ -166,6 +177,7 @@
 
 (deftest regexp-syntax-word-class ()
   "\\w matches only the word characters, \\W matches all the others."
+  (with-regexp-syntax-buffer
   (let ((r nil))
     (dolist (e *regexp-syntax-expected*)
       (let* ((c (regexp-syntax-chars-1 (car e)))
@@ -174,11 +186,12 @@
         (unless (and (eq (and (string-match "\\w" s) t) word)
                      (eq (and (string-match "\\W" s) t) (not word)))
           (push (list (car e) (char-code c)) r))))
-    (nreverse r))
+    (nreverse r)))
   => nil)
 
 (deftest regexp-syntax-word-agrees-with-forward-word ()
   "\\w, word-char-p and forward-word give the same answer for every character."
+  (with-regexp-syntax-buffer
   (let ((r nil))
     (dolist (e *regexp-syntax-expected*)
       (let* ((c (regexp-syntax-chars-1 (car e)))
@@ -187,25 +200,27 @@
              (fw (regexp-syntax-forward-word-moves c)))
         (unless (and (eq re wp) (eq re fw))
           (push (list (car e) (char-code c) :regexp re :word-char-p wp :forward-word fw) r))))
-    (nreverse r))
+    (nreverse r)))
   => nil)
 
 (deftest regexp-syntax-word-in-text ()
   "\\w+ takes a Latin letter of 256 or more and stops at a kanji."
+  (with-regexp-syntax-buffer
   (let* ((e-acute (regexp-syntax-chars-1 :iso8859-1-e-acute))
          (kanji (regexp-syntax-chars-1 :jisx0212-kanji))
          (s (concatenate 'string "ab" (string e-acute) "cd" (string kanji) "ef")))
     (string-match "\\w+" s 2)
-    (list (match-beginning 0) (match-end 0)))
+    (list (match-beginning 0) (match-end 0))))
   => (2 5))
 
 (deftest regexp-syntax-not-word-run ()
   "\\W+ takes the whole run of non-word characters."
+  (with-regexp-syntax-buffer
   (let* ((e-acute (regexp-syntax-chars-1 :iso8859-1-e-acute))
          (kanji (regexp-syntax-chars-1 :jisx0212-kanji))
          (s (concatenate 'string "ab" (string e-acute) (string kanji) "-cd")))
     (string-match "\\W+" s)
-    (list (match-beginning 0) (match-end 0)))
+    (list (match-beginning 0) (match-end 0))))
   => (3 5))
 
 (deftest regexp-syntax-search-in-buffer ()
