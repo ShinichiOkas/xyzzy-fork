@@ -195,10 +195,23 @@ keycode_to_char (keycode_t k)
 // the reader and the echo stream never get a value that no table can take.
 // Every place that makes a text Char (a string, a buffer, a token) from an
 // lChar that may come from the keyboard stream goes through this function.
+//
+// 1 (Unicode): a key is rejected.  text_char_p tells whether the value is text
+// (a place that can drop a key tests it), and text_char gives U+FFFD for a key
+// so that a key never becomes a character of a string or a token.
+inline bool
+text_char_p (lChar c)
+{
+  return c < KEY_BASE;
+}
+
 inline Char
 text_char (lChar c)
 {
-  return Char (c >= KEY_BASE ? c & 0xffff : c);
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return text_char_p (c) ? Char (c) : Char (0xfffd);
+  else
+    return Char (c >= KEY_BASE ? c & 0xffff : c);
 }
 
 // The key part (KEY_BASE..KEY_LIMIT), whatever its low bits are.

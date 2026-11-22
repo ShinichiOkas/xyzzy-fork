@@ -1244,6 +1244,7 @@ Fopen (lisp filename, lisp keys)
   lisp if_does_not_exist = find_keyword (Kif_does_not_exist, keys, 0);
   lisp encoding = find_keyword (Kencoding, keys, Kcanonical);
   lisp share = find_keyword (Kshare, keys, 0);
+  lisp char_encoding = find_keyword (Kchar_encoding, keys, 0);
 
   if (direction == Kinput)
     {
@@ -1273,7 +1274,7 @@ Fopen (lisp filename, lisp keys)
     FEprogram_error (Einvalid_direction_option, direction);
 
   return create_file_stream (filename, direction, if_exists,
-                             if_does_not_exist, encoding, share);
+                             if_does_not_exist, encoding, share, char_encoding);
 }
 
 lisp
@@ -1322,6 +1323,8 @@ Ffile_position (lisp stream, lisp lpos)
 
       if (_fseeki64 (fp, offset, origin) == -1)
         return Qnil;
+      if (((lstream *)stream)->conv)
+        ((lstream *)stream)->conv->after_seek (origin == SEEK_SET && !offset);
       if (origin == SEEK_SET && !offset)
         {
           xstream_linenum (stream) = 0;
@@ -1566,9 +1569,12 @@ Fconnect (lisp lhost, lisp lport, lisp keys)
     {
       Fbegin_wait_cursor ();
       int encoding = stream_encoding (find_keyword (Kencoding, keys, Kcanonical));
+      codec_spec cspec;
+      conv_spec (find_keyword (Kchar_encoding, keys, 0), cspec);
       sockinet::saddr addr (lhost, lport);
       stream = make_socket_stream ();
       protect_gc gcpro (stream);
+      ((lstream *)stream)->conv = make_stream_conv (cspec, true, true);
       if (find_keyword_bool (Kssl, keys))
         {
           lisp lverify_mode = find_keyword (Kssl_verify_mode, keys);
@@ -1663,11 +1669,14 @@ Faccept_connection (lisp stream, lisp keys)
 {
   valid_socket_stream_p (stream);
   int encoding = stream_encoding (find_keyword (Kencoding, keys, Kcanonical));
+  codec_spec cspec;
+  conv_spec (find_keyword (Kchar_encoding, keys, 0), cspec);
   lisp new_stream = Qnil;
   try
     {
       new_stream = make_socket_stream ();
       protect_gc gcpro (new_stream);
+      ((lstream *)new_stream)->conv = make_stream_conv (cspec, true, true);
       SOCKET so = xsocket_stream_sock (stream)->accept ();
       try
         {
@@ -1696,6 +1705,11 @@ close_socket_stream (lisp stream, int abort)
   xstream_open_p (stream) = 0;
   try
     {
+      if (!abort)
+        {
+          sock_sink sink = {so};
+          conv_finish (((lstream *)stream)->conv, sink);
+        }
       so->close (abort);
     }
   catch (sock_error &e)
@@ -1924,6 +1938,10 @@ Fclose (lisp stream, lisp keys)
     case st_file_output:
       assert (!xfile_stream_input (stream));
       assert (xfile_stream_output (stream));
+      {
+        file_sink sink = {xfile_stream_output (stream)};
+        conv_finish (((lstream *)stream)->conv, sink);
+      }
       fclose (xfile_stream_output (stream));
       xfile_stream_output (stream) = 0;
       close_file_stream (stream, find_keyword_bool (Kabort, keys));
@@ -1932,6 +1950,10 @@ Fclose (lisp stream, lisp keys)
     case st_file_io:
       assert (xfile_stream_input (stream));
       assert (xfile_stream_output (stream));
+      {
+        file_sink sink = {xfile_stream_output (stream)};
+        conv_finish (((lstream *)stream)->conv, sink);
+      }
       fclose (xfile_stream_input (stream));
       if (xfile_stream_input (stream) != xfile_stream_output (stream))
         fclose (xfile_stream_output (stream));
@@ -2168,31 +2190,17 @@ readc_stream (lisp stream)
         case st_file_io:
         case st_file_input:
           {
-            int c = getc (xfile_stream_input (stream));
-            if (c == EOF)
-              return lChar_EOF;
-            if (xfile_stream_encoding (stream) != lstream::ENCODE_BINARY)
+            file_src src = {xfile_stream_input (stream)};
+            lChar c;
+            if (xfile_stream_encoding (stream) == lstream::ENCODE_BINARY)
               {
-                if (SJISP (c))
-                  {
-                    int c2 = getc (xfile_stream_input (stream));
-                    if (c2 == EOF)
-                      return c;
-                    if (SJIS2P (c2))
-                      return (c << 8) | c2;
-                    ungetc (c2, xfile_stream_input (stream));
-                    return c;
-                  }
-                else if (xfile_stream_encoding (stream) == lstream::ENCODE_CANON
-                         && c == '\r')
-                  {
-                    int c2 = getc (xfile_stream_input (stream));
-                    if (c2 == '\n')
-                      c = c2;
-                    else
-                      ungetc (c2, xfile_stream_input (stream));
-                  }
+                int b = src.get ();
+                c = b == EOF ? lChar_EOF : lChar (b);
               }
+            else
+              c = conv_readc (conv_of (stream), xfile_stream_encoding (stream), src);
+            if (c == lChar_EOF)
+              return lChar_EOF;
             if (c == '\n')
               xstream_linenum (stream)++;
             return c;
@@ -2234,7 +2242,16 @@ readc_stream (lisp stream)
           QUIT;
           cc = readc_stream (xcomposite_stream_input (stream));
           if (cc != lChar_EOF)
-            writec_stream (xcomposite_stream_output (stream), text_char (cc));
+            {
+              if constexpr (XYZZY_CHAR_UNICODE)
+                {
+                  // A key is not text: it is not echoed.
+                  if (text_char_p (cc))
+                    writec_stream (xcomposite_stream_output (stream), Char (cc));
+                }
+              else
+                writec_stream (xcomposite_stream_output (stream), text_char (cc));
+            }
           if (cc == '\n')
             xstream_linenum (stream)++;
           return cc;
@@ -2267,31 +2284,17 @@ readc_stream (lisp stream)
         case st_socket:
           try
             {
-              int c = xsocket_stream_sock (stream)->sgetc ();
-              if (c == sock::eof)
-                return lChar_EOF;
-              if (xsocket_stream_encoding (stream) != lstream::ENCODE_BINARY)
+              sock_src src = {xsocket_stream_sock (stream)};
+              lChar c;
+              if (xsocket_stream_encoding (stream) == lstream::ENCODE_BINARY)
                 {
-                  if (SJISP (c))
-                    {
-                      int c2 = xsocket_stream_sock (stream)->sgetc ();
-                      if (c2 == sock::eof)
-                        return c;
-                      if (SJIS2P (c2))
-                        return (c << 8) | c2;
-                      xsocket_stream_sock (stream)->sungetc (c2);
-                      return c;
-                    }
-                  else if (xsocket_stream_encoding (stream) == lstream::ENCODE_CANON
-                           && c == '\r')
-                    {
-                      int c2 = xsocket_stream_sock (stream)->sgetc ();
-                      if (c2 == '\n')
-                        c = c2;
-                      else
-                        xsocket_stream_sock (stream)->sungetc (c2);
-                    }
+                  int b = src.get ();
+                  c = b == EOF ? lChar_EOF : lChar (b);
                 }
+              else
+                c = conv_readc (conv_of (stream), xsocket_stream_encoding (stream), src);
+              if (c == lChar_EOF)
+                return lChar_EOF;
               if (c == '\n')
                 xstream_linenum (stream)++;
               return c;
@@ -2362,6 +2365,8 @@ listen_stream (lisp stream)
         case st_file_input:
           {
             // UCRT hides FILE internals (no _cnt); regular files never block.
+            if (conv_pending_p (((lstream *)stream)->conv))
+              return 1;
             HANDLE h = HANDLE (_get_osfhandle (_fileno (xfile_stream_input (stream))));
             if (GetFileType (h) != FILE_TYPE_DISK
                 && WaitForSingleObject (h, 0) == WAIT_TIMEOUT)
@@ -2417,6 +2422,8 @@ listen_stream (lisp stream)
         case st_socket:
           try
             {
+              if (conv_pending_p (((lstream *)stream)->conv))
+                return 1;
               xsocket_stream_sock (stream)->sflush ();
               return xsocket_stream_sock (stream)->no_hang_p ();
             }
@@ -2532,25 +2539,27 @@ stream_linenum (lisp stream)
 }
 
 static void
-putc_file_stream (lisp stream, Char cc)
+put_file_chars (lisp stream, const Char *b, size_t n)
 {
-  if (DBCP (cc))
-    putc (cc >> 8, xfile_stream_output (stream));
-  else if (xfile_stream_encoding (stream) == lstream::ENCODE_CANON
-           && cc == '\n')
-    putc ('\r', xfile_stream_output (stream));
-  putc (cc, xfile_stream_output (stream));
+  file_sink sink = {xfile_stream_output (stream)};
+  int eol = xfile_stream_encoding (stream);
+  if (eol == lstream::ENCODE_BINARY)
+    for (size_t i = 0; i < n; i++)
+      put_binary (b[i], sink);
+  else
+    conv_write (conv_of (stream), eol, b, n, sink);
 }
 
 static void
-putc_sock_stream (lisp stream, Char cc)
+put_sock_chars (lisp stream, const Char *b, size_t n)
 {
-  if (DBCP (cc))
-    xsocket_stream_sock (stream)->sputc (cc >> 8);
-  else if (xsocket_stream_encoding (stream) == lstream::ENCODE_CANON
-           && cc == '\n')
-    xsocket_stream_sock (stream)->sputc ('\r');
-  xsocket_stream_sock (stream)->sputc (cc);
+  sock_sink sink = {xsocket_stream_sock (stream)};
+  int eol = xsocket_stream_encoding (stream);
+  if (eol == lstream::ENCODE_BINARY)
+    for (size_t i = 0; i < n; i++)
+      put_binary (b[i], sink);
+  else
+    conv_write (conv_of (stream), eol, b, n, sink);
 }
 
 void
@@ -2574,7 +2583,7 @@ writec_stream (lisp stream, Char cc)
 
         case st_file_output:
         case st_file_io:
-          putc_file_stream (stream, cc);
+          put_file_chars (stream, &cc, 1);
           xstream_column (stream) = update_column (xstream_column (stream), cc);
           return;
 
@@ -2622,7 +2631,7 @@ writec_stream (lisp stream, Char cc)
         case st_socket:
           try
             {
-              putc_sock_stream (stream, cc);
+              put_sock_chars (stream, &cc, 1);
               xstream_column (stream) = update_column (xstream_column (stream), cc);
             }
           catch (sock_error &e)
@@ -2670,8 +2679,7 @@ write_stream (lisp stream, const Char *b, size_t size)
         case st_file_output:
         case st_file_io:
           {
-            for (size_t i = 0; i < size; i++)
-              putc_file_stream (stream, b[i]);
+            put_file_chars (stream, b, size);
             xstream_column (stream) = update_column (xstream_column (stream), b, size);
             return;
           }
@@ -2732,8 +2740,7 @@ write_stream (lisp stream, const Char *b, size_t size)
         case st_socket:
           try
             {
-              for (size_t i = 0; i < size; i++)
-                putc_sock_stream (stream, b[i]);
+              put_sock_chars (stream, b, size);
               xstream_column (stream) = update_column (xstream_column (stream), b, size);
             }
           catch (sock_error &e)

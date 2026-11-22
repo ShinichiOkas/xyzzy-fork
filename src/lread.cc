@@ -2117,6 +2117,8 @@ load_file (lisp filename, lisp realname, lisp if_does_not_exist,
                                    if_does_not_exist, Kcanonical, 0);
       if (stream == Qnil)
         return Qnil;
+      // BOM, -*- Encoding: -*-, valid UTF-8, cp932 (design 4.5).
+      stream_detect_load_encoding (stream);
     }
 
   Char buf[PATH_MAX * 2], *b = buf;
