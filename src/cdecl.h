@@ -52,11 +52,15 @@ typedef uintptr_t pointer_t;
 // are compiled every time.  Where #if cannot be avoided, check that the tree
 // also builds with `set CL=/DXYZZY_CHAR_UNICODE=1`.
 #ifndef XYZZY_CHAR_UNICODE
-# define XYZZY_CHAR_UNICODE 0
+# define XYZZY_CHAR_UNICODE 1
 #endif
 
 typedef u_int32_t Char;
-# define CHAR_LIMIT 0x10000
+# if XYZZY_CHAR_UNICODE
+#  define CHAR_LIMIT 0x110000
+# else
+#  define CHAR_LIMIT 0x10000
+# endif
 typedef u_long lChar;
 const lChar lChar_EOF = lChar (-1);
 

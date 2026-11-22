@@ -68,3 +68,4 @@
 | [BUG-0060](BUG-0060-test-with-hung-child-xyzzy-hangs-run-tests.md) | 試験が起こした子の xyzzy が終わらないと、run-tests が 60 分止まる（親が kill-xyzzy の確認の対話で待つ。時間切れは signal-process で子を終わらせない） | 修正（2026-11-22） |
 | [BUG-0061](BUG-0061-xyzzycli-test-file-does-not-open.md) | xyzzycli の試験で、動いている xyzzy にファイルを渡してもバッファが開かない（受け渡しは届いている） | 未修正 |
 | [BUG-0062](BUG-0062-run-tests-hangs-on-missing-test-file.md) | run-tests.bat に無い試験ファイルを渡すと、終わらずに止まる | 未修正 |
+| [BUG-0063](BUG-0063-kill-process-does-not-end-the-child-os-process.md) | 試験の時間切れで kill-process を呼んでも、子の xyzzy の OS プロセスが残る（BUG-0060 の直しは xyzzy の内側の記録を片付けるところまで） | 未修正（2026-11-22） |
