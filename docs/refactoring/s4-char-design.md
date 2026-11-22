@@ -683,7 +683,7 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 
 | 片 | 中身 | 触るファイル | 規模 | 依存 | 完了の基準と試験 |
 |---|---|---|---|---|---|
-| W 幅 | `typedef u_int32_t Char`。CHAR_LIMIT は 0x10000 のまま。`Char (-1)` → CHAR_NONE（69 箇所）。16bit の値を持つ表（ucs2tab.h など）は u_int16_t の型にして、読むところで広げる。`sizeof (Char)` の 60 箇所を見直す（ダンプ、DOC の magic、レジストリ、StrBuf、kbd）。regex の NBITS（`sizeof (Char) * 8`）の計算が 32 でも正しいか確かめる。DUMP_FORMAT を上げる | cdecl.h、charset.h、ucs2.cc、ucs2tab.h、encoding.cc、insdel.cc、char.cc、data.cc、doc.cc、environ.cc、regex.cc、ほか機械的に | L | S4-k、S4-c | 全件（637 件＋S4-k・S4-c の増分）が通る。起動して cp932・UTF-8・EUC のファイルを開いて保存し、バイト列が同じ（S4-0 の試験）。メモリの使用量を記録する |
+| W 幅 | `typedef u_int32_t Char`。CHAR_LIMIT は 0x10000 のまま。`Char (-1)` → CHAR_NONE（69 箇所）。16bit の値を持つ表（ucs2tab.h など）は u_int16_t の型にして、読むところで広げる。`sizeof (Char)` の 60 箇所を見直す（ダンプ、DOC の magic、レジストリ、StrBuf、kbd）。Char を wchar_t や char の領域として使う所を直す（sockssl.cc の pwszServerName、kbd.cc の reconvert、lprint.cc の Fmessage_box・putmsg。10.4）。regex の NBITS（`sizeof (Char) * 8`）の計算が 32 でも正しいか確かめる。DUMP_FORMAT を上げる | cdecl.h、charset.h、ucs2.cc、ucs2tab.h、encoding.cc、insdel.cc、char.cc、data.cc、doc.cc、environ.cc、regex.cc、sockssl.cc、kbd.cc、lprint.cc、ほか機械的に | L | S4-k、S4-c | 全件（637 件＋S4-k・S4-c の増分）が通る。起動して cp932・UTF-8・EUC のファイルを開いて保存し、バイト列が同じ（S4-0 の試験）。メモリの使用量を記録する |
 
 段 3（32bit、値は今のまま。並列。各片は「1 つの関数＋切り替え」の形にする）:
 
@@ -737,6 +737,17 @@ S4-d ─┬─ S4-k ─┐
 ### 10.4 Win32 に残る A 版（s2w・w2s）
 
 - 今は CharacterSet NotSet で、Win32 の呼び出しは全部 A 版。s2w・w2s・make_string (const char *) は「cp932 のバイト ⇔ Char」。
+- 呼び出しの分類（s2w・s2wl・a2w・w2s・w2sl・w2s_quote・make_string (const char *)・make_string_simple・pathname2cstr・make_path (const char *)・1 文字の i2w・MultiByteToWideChar・WideCharToMultiByte。432 箇所）:
+
+| 分類 | 数 | 中身 | 扱う片 |
+|---|---|---|---|
+| W（Win32 の文字列） | 142 | レジストリ・環境（environ.cc 30）、IME・キー（kbd.cc 23）、ダイアログ、ファイラの表示、フォントの名前、メニュー、メッセージ | V で activeCodePage=UTF-8 により UTF-8 で通る。W 版へは S5・S7・S8 |
+| F（ファイル名） | 165 | pathname2cstr 64、pathname.cc 45、com.cc 13、filer.cc 12、DnD.cc 11、archiver.cc 10、fileio.cc 9、process.cc 9、glob.cc 8 など | S4-c（W 版のファイルの層）。archiver.cc は S9 で消える |
+| O（バイト） | 17 | chunk.cc 9（FFI の文字列）、encdec.cc 4（digest と hmac の鍵）、stream.cc 2（帯域外のデータ）、string.cc 1（octet-length）、kanji.cc 1（判定のためのバイト） | 4.7（R7）。FFI の文字列（chunk.cc）は W と同じく ACP の規則 |
+| L（リテラルと表） | 38 | 記号の名前（data.cc の make_string_simple）、ces.cc の「自動判定」など、lread.cc の "LOADING"、msgdef.h の文（StrBuf::add 経由） | V の /utf-8 で UTF-8 のリテラルになる。activeCodePage=UTF-8 なら同じ変換でよい |
+| X（その他） | 70 | 1 文字の i2w 55（画面・印刷・変換表・分類）、gen-ucs2tab.cc 7（生成器）、そのほか 8（GetProcAddress の名前〈狭い文字のまま〉、辞書のファイル〈edict.cc。cp932 のデータ〉、BinHex の中のファイル名など） | i2w は R3・R9・V で消える。辞書は V で cp932 の変換器で読む |
+
+- 中身ではなく「Char が 16bit であること」に依っている所（W で直す）: kbd.cc の再変換（kbd_queue::reconvert）と lprint.cc の Fmessage_box・putmsg は、Char の領域を char * として w2s で書き込む。sockssl.cc は a2w で埋めた Char の配列を LPWSTR（pwszServerName）として渡している（Char が wchar_t と同じ 16bit だから動いている）。write-registry-literally と DOC は 9.1。
 - `/utf-8` にすると、C++ の文字列リテラル（msgdef.h の 319 行など、非 ASCII を含むリテラルは 18 ファイル 419 行）は UTF-8 になる。一方、A 版の API の文字列は ACP（cp932）のまま。同じ s2w・w2s が両方に使われているので、どちらかが化ける。
 - 推奨: V で manifest に `<activeCodePage>UTF-8</activeCodePage>` を入れる（Windows 10 1903 以降。Windows 11 が基準なので使える）。プロセスの ACP が UTF-8 になり、リテラルと A 版の文字列が同じ UTF-8 になる。s2w・w2s は UTF-8 の変換器 1 つでよい。A 版の残りも、cp932 に無い文字（ファイル名、ウィンドウの題など）を扱えるようになる。
 - これは橋渡し。W 版への移行（決定 2）は S5（プロセス）、S7（画面）、S8（IME）で続ける。
@@ -781,6 +792,11 @@ S4-d ─┬─ S4-k ─┐
 | F2 | 構文表で、内部の値が 0x0100–0x7FFF の文字（ISO-8859、KSC、GB、JIS X 0212、UJP、ULATIN）は、正規表現の `\w` などと skip-syntax-spec で `table[cc >> 8]` を引くので、0x01〜0x7F の項目（制御文字や ASCII）の構文になる。ISO-8859-1 の é は junk になる | regex.h Regexp::char_syntax、search.cc skip_syntax_spec |
 | F3 | フォントを作るときの「詰めが要るか」の判定 `ex[i][0].cx * 2 != ex[i][0].cx` は、幅が 0 でなければ常に真になる（`ex[i][1]` の書き違いと見られる） | font.cc FontSet::create |
 | F4 | 先行バイト＋改行（例 0x81 0x0A）を 1 つの Char に組むので、その改行が行として数えられない（表示と行番号がずれる） | encoding.cc sjis_to_internal_stream、stream.cc readc_stream |
+| F5 | si:environ が環境変数の名前を `make_string (*e, eq - *e)` で作る。この関数の 2 番目の引数は Char の数なのに、バイトの数を渡している。名前に 2 バイト文字があると、`=` の後ろまで名前に入る | environ.cc Fsi_environ |
+| F6 | socket-stream-send-oob-data が `alloca (w2sl (string))` の領域に w2s で書く。w2s は終わりの NUL も書くので 1 バイトはみ出す | stream.cc Fsocket_stream_send_oob_data |
+| F7 | StrBuf::make_string と make_substring で、長さが 0 のとき `make_string_simple ("", 0)` の結果を return していない（作った文字列を捨て、長さ 0 の領域を xmalloc して続ける） | StrBuf.cc |
+| F8 | ドロップしたファイルのパスとショートカットの名前を WideCharToMultiByte (CP_OEMCP) で変えている（ほかは CP_ACP。結果は A 版のファイルの API に渡る）。日本語の Windows では OEM と ANSI が同じ 932 なので表に出ない | DnD.cc（571・648・689 行）、com.cc（170・172 行） |
+| F9 | IME の再変換で w2s (lisp) が返した領域を解放していない | kbd.cc kbd_queue::reconvert（content・before） |
 
 ## 13. 判断（師匠に渡すもの）
 
