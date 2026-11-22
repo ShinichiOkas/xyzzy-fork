@@ -30,6 +30,13 @@
                   ,@body)
          (delete-buffer #1#)))))
 
+(defun st-range-chars (from to)
+  "The characters of the code points FROM..TO (Unicode)."
+  (let ((r nil))
+    (do ((c to (1- c))) ((< c from))
+      (push (unicode-char c) r))
+    r))
+
 (defun st-match-p (re c)
   (and (string-match re (string c)) t))
 
@@ -232,8 +239,9 @@ set to punctuation as a break."
           (st-forward-word tab "a" e "b") ; a Latin letter is a word
           (progn (set-syntax-punctuation tab e) (st-forward-word tab "a" e "b"))
           (progn (set-syntax-whitespace tab e) (st-forward-word tab "a" e "b"))
-          (st-backward-word tab "a" e "b")))
-  => (2 3 0 3 1 1 2))
+          ;; a set-to-whitespace Latin letter breaks the word like "-" does
+          (= (st-backward-word tab "a" e "b") (st-backward-word tab "a" "-" "b"))))
+  => (2 3 0 3 1 1 t))
 
 (deftest syntax-nonascii-word-char-p-agrees ()
   "word-char-p, \\w and forward-word agree for a character that is set."
@@ -299,9 +307,8 @@ whatever the order they were set in."
           (setq i (1+ i)))
         ;; the katakana were not set: they keep the default (kanji)
         (dolist (ch (st-range-chars #x30a1 #x30f6))
-              do (let ((ch (unicode-char c)))
-                   (when (or (syntax-word-p ch tab) (syntax-punctuation-p ch tab))
-                     (push (char-code ch) r))))))
+          (when (or (syntax-word-p ch tab) (syntax-punctuation-p ch tab))
+            (push (char-code ch) r)))))
     (nreverse r))
   => nil)
 
@@ -349,7 +356,7 @@ kana, C1 controls are junk, CJK, Hangul, full width forms and symbols are kanji.
     (set-syntax-match tab (unicode-char #x300c) (unicode-char #x300d))
     (set-syntax-start-multi-comment tab (coerce (list (unicode-char #x3044) (unicode-char #x3046)) 'string))
     (dolist (ch (st-range-chars #x30a1 #x30f6))
-          do (set-syntax-word src (unicode-char c)))
+      (set-syntax-word src ch))
     (copy-syntax-table src (make-syntax-table))
     (setq *syntax-dump-test-table* tab)
     (unwind-protect
