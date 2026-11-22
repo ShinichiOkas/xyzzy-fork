@@ -6,7 +6,9 @@
 ;;; to index the syntax table with (code >> 8) for a character of 256 or more.
 ;;; A character whose internal value is 0x0100-0x7FFF (ISO-8859, JIS X 0212,
 ;;; ...) was therefore taken for a control character or for an ASCII letter.
-;;; Every character of 256 or more is SCkanji, as in the syntax scanner.
+;;; A character of 256 or more is SCword when forward-word and word-char-p take
+;; it for a word character (BUG-0050: Latin, Greek, Cyrillic letters), SCkanji
+;; otherwise.
 ;;;
 ;;; Characters are made from numbers so that this file stays ASCII.
 ;;; Each deftest returns the list of the failed cases; nil is a pass.
@@ -21,6 +23,8 @@
     (:iso8859-1-a-grave (iso-code-char #xc0 :iso8859-1))
     (:iso8859-1-nbsp (iso-code-char #xa0 :iso8859-1))
     (:iso8859-2-a-ogonek (iso-code-char #xb1 :iso8859-2))
+    (:iso8859-7-alpha (iso-code-char #xe1 :iso8859-7))
+    (:iso8859-5-a (iso-code-char #xd0 :iso8859-5))
     (:jisx0212-kanji (iso-code-char #x3021 :jisx0212))
     (:jisx0212-kanji-2 (iso-code-char #x4f7e :jisx0212))
     (:jisx0208-kanji (iso-code-char #x306c :jisx0208))
@@ -39,10 +43,12 @@
 ;; Expected syntax class of each character, as one of the spec characters of
 ;; skip-syntax-spec: w word, k kana, j kanji, . punctuation, space white.
 (defparameter *regexp-syntax-expected*
-  '((:iso8859-1-e-acute . #\j)
-    (:iso8859-1-a-grave . #\j)
+  '((:iso8859-1-e-acute . #\w)
+    (:iso8859-1-a-grave . #\w)
     (:iso8859-1-nbsp . #\j)
-    (:iso8859-2-a-ogonek . #\j)
+    (:iso8859-2-a-ogonek . #\w)
+    (:iso8859-7-alpha . #\w)
+    (:iso8859-5-a . #\w)
     (:jisx0212-kanji . #\j)
     (:jisx0212-kanji-2 . #\j)
     (:jisx0208-kanji . #\j)
@@ -83,6 +89,20 @@
             (goto-char (point-max))
             (skip-syntax-spec-backward spec)
             (- (point-max) (point)))
+        (delete-buffer b)))))
+
+;; True when forward-word from the start of "a" C "b" passes C and reaches the
+;; end, that is, C joins the word.
+(defun regexp-syntax-forward-word-moves (c)
+  (save-excursion
+    (let ((b (create-new-buffer "*regexp-syntax*")))
+      (unwind-protect
+          (progn
+            (set-buffer b)
+            (insert "a" (string c) "b")
+            (goto-char (point-min))
+            (forward-word 1)
+            (= (point) (point-max)))
         (delete-buffer b)))))
 
 (defun regexp-syntax-spec-matches (c)
@@ -157,14 +177,27 @@
     (nreverse r))
   => nil)
 
+(deftest regexp-syntax-word-agrees-with-forward-word ()
+  "\\w, word-char-p and forward-word give the same answer for every character."
+  (let ((r nil))
+    (dolist (e *regexp-syntax-expected*)
+      (let* ((c (regexp-syntax-chars-1 (car e)))
+             (re (and (string-match "\\w" (string c)) t))
+             (wp (and (word-char-p c) t))
+             (fw (regexp-syntax-forward-word-moves c)))
+        (unless (and (eq re wp) (eq re fw))
+          (push (list (car e) (char-code c) :regexp re :word-char-p wp :forward-word fw) r))))
+    (nreverse r))
+  => nil)
+
 (deftest regexp-syntax-word-in-text ()
-  "\\w+ in a mixed string stops at a character of 256 or more."
+  "\\w+ takes a Latin letter of 256 or more and stops at a kanji."
   (let* ((e-acute (regexp-syntax-chars-1 :iso8859-1-e-acute))
          (kanji (regexp-syntax-chars-1 :jisx0212-kanji))
          (s (concatenate 'string "ab" (string e-acute) "cd" (string kanji) "ef")))
     (string-match "\\w+" s 2)
     (list (match-beginning 0) (match-end 0)))
-  => (3 5))
+  => (2 5))
 
 (deftest regexp-syntax-not-word-run ()
   "\\W+ takes the whole run of non-word characters."
@@ -173,7 +206,7 @@
          (s (concatenate 'string "ab" (string e-acute) (string kanji) "-cd")))
     (string-match "\\W+" s)
     (list (match-beginning 0) (match-end 0)))
-  => (2 5))
+  => (3 5))
 
 (deftest regexp-syntax-search-in-buffer ()
   "re-search-forward and re-search-backward find a character of 256 or more by class."
@@ -186,15 +219,14 @@
           (insert "ab" (string e-acute) "-" (string kanji) "cd")
           (goto-char (point-min))
           (let* ((j1 (and (re-search-forward "\\sj" t) (point)))
-                 (j2 (and (goto-char (match-end 0))
-                          (re-search-forward "\\sj" t)
-                          (point)))
-                 (j3 (and (goto-char (match-end 0))
-                          (re-search-forward "\\sj" t)))
+                 (j2 (progn (goto-char (1+ j1))
+                            (and (re-search-forward "\\sj" t) (point))))
+                 (j3 (progn (goto-char (point-min))
+                            (and (re-search-forward "\\w\\W\\sj" t) (point))))
                  (w1 (progn (goto-char (point-max))
                             (and (re-search-backward "\\W" t) (point))))
                  (w2 (progn (goto-char (point-max))
                             (and (re-search-backward "\\w" t) (point)))))
             (list j1 j2 j3 w1 w2)))
       (delete-buffer b)))
-  => (2 4 nil 4 6))
+  => (4 nil 2 4 6))

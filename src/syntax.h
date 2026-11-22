@@ -85,13 +85,17 @@ enum syntax_code
 
 # define xchar_syntax(t, c) ((t)->type[(c)])
 
-// The syntax of any character. The table covers 0..255 only; every character
-// of 256 or more is SCkanji. Use this instead of indexing the table with
-// (c >> 8) or (u_char)c.
+// The syntax of any character, for regexp (\w \sX) and skip-syntax-spec. The
+// table covers 0..255 only. A character of 256 or more is SCword when
+// forward-word and word-char-p take it for a word character (Latin, Greek,
+// Cyrillic letters; wide_syntax), SCkanji otherwise. Do not index the table
+// with (c >> 8) or (u_char)c.
+u_char wide_syntax (Char c);
+
 inline u_char
 syntax_of (const syntax_table *tab, Char c)
 {
-  return c < 256 ? xchar_syntax (tab, c) : u_char (SCkanji);
+  return c < 256 ? xchar_syntax (tab, c) : wide_syntax (c);
 }
 # define xchar_match(t, c) ((t)->match[(c)])
 # define xchar_comment(t, c) ((t)->comment[(c)])

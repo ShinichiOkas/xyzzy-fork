@@ -1107,8 +1107,8 @@ regexp_compile::char_class_fastmap (const Char *p, char *fastmap) const
 }
 
 // Set the fastmap of a syntax test PRED (syntax code -> bool).  A character of
-// 256 or more is SCkanji (syntax_of) and its slot is the high byte, 1..255, so
-// when PRED holds for SCkanji every such slot is set.
+// 256 or more is SCword or SCkanji (syntax_of) and its slot is the high byte,
+// 1..255, so when PRED holds for either every such slot is set.
 template <class F>
 static void
 syntax_fastmap (const syntax_table *tab, char *fastmap, F pred)
@@ -1116,7 +1116,7 @@ syntax_fastmap (const syntax_table *tab, char *fastmap, F pred)
   for (int i = 0; i < 256; i++)
     if (pred (xchar_syntax (tab, i)))
       fastmap[i] = 1;
-  if (pred (SCkanji))
+  if (pred (SCkanji) || pred (SCword))
     for (int i = 1; i < 256; i++)
       fastmap[i] = 1;
 }
