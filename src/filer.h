@@ -25,7 +25,7 @@ struct filer_data
       ICON_DOTDOT = 3
     };
   volatile int icon_index;
-  char name[MAX_PATH];
+  char name[wfile::FIND_NAME_MAX];
 
   void *operator new (size_t, FilerView *);
 #if _MSC_VER >= 1100

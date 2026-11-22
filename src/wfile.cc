@@ -267,6 +267,8 @@ path::share_root (wchar_t *out, int size, int noshare_ok) const
   const wchar_t *p = m_buf;
   if (!wcsncmp (p, L"\\\\?\\UNC\\", 8))
     p += 8;
+  else if (nt_name_p (p))
+    return 0;                   // \\?\C:\... や \\.\device は共有ではない
   else if (sep_p (p[0]) && sep_p (p[1]))
     p += 2;
   else

@@ -470,7 +470,7 @@ inline int
 filer_drop_target::target_path_length () const
 {
   return (xstring_length (fdt_view->get_directory ()) * 2
-          + MAX_PATH + 10);
+          + wfile::FIND_NAME_MAX + 10);
 }
 
 void

@@ -17,6 +17,9 @@
 
 namespace wfile
 {
+  // 1 つのファイル名（cp932 の narrow）の最大のバイト数。255 UTF-16 単位は最大 510 バイト。
+  const int FIND_NAME_MAX = MAX_PATH * 2 + 2;
+
   // 変換後の UTF-16 の最大の長さ（wchar_t の数）。内部のパスは PATH_MAX を超えない。
   const int WPATH_BUF = PATH_MAX * 2 + 16;
 
@@ -70,7 +73,7 @@ namespace wfile
     DWORD nFileSizeHigh;
     DWORD nFileSizeLow;
     // 255 UTF-16 単位は cp932 で最大 510 バイト
-    char cFileName[MAX_PATH * 2 + 2];
+    char cFileName[FIND_NAME_MAX];
     int64_t size () const
       {return int64_t (uint64_t (nFileSizeHigh) << 32 | nFileSizeLow);}
   };

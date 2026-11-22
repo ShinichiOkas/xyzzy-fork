@@ -768,7 +768,7 @@ FilerView::reload (lisp lmask)
   wait_cursor wc;
   fv_subscribed = 0;
   fv_marks_changed = 1;
-  char last[MAX_PATH];
+  char last[wfile::FIND_NAME_MAX];
   *last = 0;
   if (fv_llastdir == fv_ldir
       || (stringp (fv_llastdir) && string_equal (fv_llastdir, fv_ldir)))
@@ -1364,7 +1364,7 @@ FilerView::thread_main ()
           continue;
 
         len = strlen (fv_icon_path);
-        path = (char *)alloca (len + MAX_PATH + 1);
+        path = (char *)alloca (len + wfile::FIND_NAME_MAX + 1);
         strcpy (path, fv_icon_path);
         sequence = fv_sequence;
         chunk = fv_chunk;
@@ -3160,7 +3160,7 @@ Filer::do_keyup ()
       else
         {
           lisp dir = v->get_directory ();
-          char *path = (char *)alloca (xstring_length (dir) * 2 + MAX_PATH + 1);
+          char *path = (char *)alloca (xstring_length (dir) * 2 + wfile::FIND_NAME_MAX + 1);
           strcpy (w2s (path, dir), d->name);
           try
             {

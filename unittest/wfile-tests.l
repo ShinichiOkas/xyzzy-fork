@@ -42,6 +42,19 @@
            (wfile-remove-long-dirs ,dirs))))))
 (setf (get 'with-wfile-long-dir 'ed:lisp-indent-hook) 1)
 
+(deftest wfile-long-path-access-denied-is-an-error-not-a-dialog ()
+  ;; \\?\C:\... を共有（\\server\share）と取り違えて、ネットワークの資格情報の
+  ;; ダイアログを出さないこと。読み取り専用のファイルの削除は access-denied になる。
+  (with-wfile-long-dir (dir)
+    (let ((file (concat dir "readonly.txt")))
+      (with-open-file (s file :direction :output)
+        (princ "ro" s))
+      (set-file-attributes file ed::*file-attribute-readonly*)
+      (let ((r (handler-case (progn (delete-file file) :deleted)
+                 (error () :error))))
+        (set-file-attributes file ed::*file-attribute-archive*)
+        r)))
+  => :error)
 (defconstant *wfile-big-size* (+ (* 5 1024 1024 1024) 1))
 
 ;; 疎ファイルを作る（ディスクを食わない）。作れなければ nil
