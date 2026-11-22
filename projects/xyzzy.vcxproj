@@ -153,6 +153,9 @@
     <ClCompile Include="..\src\byte-stream.cc" />
     <ClCompile Include="..\src\bytecode.cc" />
     <ClCompile Include="..\src\ces.cc" />
+    <ClCompile Include="..\src\codec.cc" />
+    <ClCompile Include="..\src\codec-fns.cc" />
+    <ClCompile Include="..\src\codec-iso2022.cc" />
     <ClCompile Include="..\src\char.cc" />
     <ClCompile Include="..\src\chname.cc" />
     <ClCompile Include="..\src\ChooseFont.cc" />
@@ -265,6 +268,9 @@
     <ClCompile Include="..\src\gen\chtab.cc">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="..\src\gen\codec-tab.cc">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\src\gen\dumpver.cc">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -289,6 +295,9 @@
     <ClInclude Include="..\src\cdecl.h" />
     <ClInclude Include="..\src\ctypes.h" />
     <ClInclude Include="..\src\ces.h" />
+    <ClInclude Include="..\src\codec.h" />
+    <ClInclude Include="..\src\codec-priv.h" />
+    <ClInclude Include="..\src\codec-tab.h" />
     <ClInclude Include="..\src\char.h" />
     <ClInclude Include="..\src\charset.h" />
     <ClInclude Include="..\src\ChooseFont.h" />

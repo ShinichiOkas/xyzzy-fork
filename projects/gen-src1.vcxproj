@@ -97,6 +97,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="..\src\gen-codec.cc">
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
+    </ClCompile>
     <ClCompile Include="..\src\gen-ctab.cc">
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
@@ -178,6 +182,13 @@
     <Exec Command="&quot;$(TargetPath)&quot; gen-char-width &gt; &quot;$(GenCharWidthOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
   </Target>
   <PropertyGroup>
+    <GenCodecInputs>..\src\gen-codec.cc;..\src\unicode\*.TXT;..\src\unicode\*.txt</GenCodecInputs>
+    <GenCodecOutput>$(GenerateDir)codec-tab.cc</GenCodecOutput>
+  </PropertyGroup>
+  <Target Name="GenCodec" Inputs="$(GenCodecInputs)" Outputs="$(GenCodecOutput)" DependsOnTargets="PrepareGenerate">
+    <Exec Command="&quot;$(TargetPath)&quot; gen-codec &gt; &quot;$(GenCodecOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
+  </Target>
+  <PropertyGroup>
     <GenCtabInputs>..\src\gen-ctab.cc;..\src\cdecl.h;..\src\chtype.h</GenCtabInputs>
     <GenCtabOutput>$(GenerateDir)chtab.cc</GenCtabOutput>
   </PropertyGroup>
@@ -232,6 +243,7 @@
   <Target Name="AfterBuild">
     <CallTarget Targets="Dpp" />
     <CallTarget Targets="GenCharWidth" />
+    <CallTarget Targets="GenCodec" />
     <CallTarget Targets="GenCtab" />
     <CallTarget Targets="GenIbmExt" />
     <CallTarget Targets="GenIso2022State" />
@@ -243,6 +255,7 @@
   <Target Name="BeforeClean">
     <Delete Files="$(DppOutput)" />
     <Delete Files="$(GenCharWidthOutput)" />
+    <Delete Files="$(GenCodecOutput)" />
     <Delete Files="$(GenCtabOutput)" />
     <Delete Files="$(GenIbmExtOutput)" />
     <Delete Files="$(GenIso2022StateOutputs)" />
