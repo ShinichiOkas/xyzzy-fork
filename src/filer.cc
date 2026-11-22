@@ -491,7 +491,7 @@ check_share_folder (const char *path)
 
   int l = strlen (path) + 1;
   wchar_t *w = (wchar_t *)alloca (sizeof *w * l);
-  MultiByteToWideChar (CP_ACP, 0, path, -1, w, l);
+  wfile::narrow_to_wide (w, l, path);
 
   ULONG eaten, attr = SFGAO_SHARE;
   safe_idl idl (ialloc);
