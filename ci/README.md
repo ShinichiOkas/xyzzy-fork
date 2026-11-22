@@ -11,7 +11,7 @@
     powershell -ExecutionPolicy Bypass -File ci\install-runner.ps1
 
 - ランナーは Windows のサービスとして入る。サービスは利用者の画面と別の、見えない画面で動くので、CI の試験が窓を出したりマウスや前面の窓を奪ったりしない。
-- 置き場所: `-InstallDir`、なければ環境変数 `AGENT_RUNNER_DIR`、なければ `%USERPROFILE%\actions-runner\<リポジトリ名>`。
+- 置き場所: `-InstallDir`、なければ環境変数 `AGENT_RUNNER_DIR`、なければ `%ProgramData%\actions-runner\<リポジトリ名>`。利用者のフォルダ（`C:\Users\…`）の下には置かない（サービスのアカウント NETWORK SERVICE が上の階層を読めず、起動できない）。
 - 登録の鍵は `gh`（ログイン済み）で GitHub から取る。`-Token` で渡してもよい。
 
 ## 安全

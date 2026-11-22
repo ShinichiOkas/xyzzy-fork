@@ -6,7 +6,8 @@
 #   powershell -ExecutionPolicy Bypass -File ci\install-runner.ps1
 # Options:
 #   -InstallDir <dir>  where the runner goes (default: $env:AGENT_RUNNER_DIR,
-#                      else %USERPROFILE%\actions-runner\<repository name>)
+#                      else %ProgramData%\actions-runner\<repository name>;
+#                      not under the user's profile, which the service cannot read)
 #   -Token <token>     registration token (default: asked from GitHub with `gh`)
 param(
   [string]$InstallDir = '',
@@ -25,7 +26,24 @@ $repo = $Matches.repo
 $name = ($repo -split '/')[1]
 
 if (-not $InstallDir) {
-  $InstallDir = if ($env:AGENT_RUNNER_DIR) { $env:AGENT_RUNNER_DIR } else { Join-Path $env:USERPROFILE "actions-runner\$name" }
+  # Not under the user's profile: the service account (NETWORK SERVICE) must be
+  # able to read every directory up the hierarchy, and C:\Users\<name> is closed.
+  $InstallDir = if ($env:AGENT_RUNNER_DIR) { $env:AGENT_RUNNER_DIR } else { Join-Path $env:ProgramData "actions-runner\$name" }
+}
+
+# An earlier version of this script put the runner under the user's profile,
+# where the service cannot start. Remove that registration and service first.
+$oldDir = Join-Path $env:USERPROFILE "actions-runner\$name"
+if (($oldDir -ne $InstallDir) -and (Test-Path (Join-Path $oldDir '.runner'))) {
+  Write-Host "[0/4] remove the earlier runner in $oldDir (its service cannot start there)"
+  $rt = (gh api -X POST "repos/$repo/actions/runners/remove-token" --jq .token).Trim()
+  if (-not $rt) { throw 'could not get a removal token (gh auth?)' }
+  Push-Location $oldDir
+  & .\config.cmd remove --token $rt
+  $rc = $LASTEXITCODE
+  Pop-Location
+  if ($rc -ne 0) { throw "config.cmd remove failed in $oldDir ($rc)" }
+  Write-Host "  The folder $oldDir is no longer used; you can delete it."
 }
 Write-Host "[1/4] runner for $repo in $InstallDir"
 New-Item -ItemType Directory -Force $InstallDir | Out-Null
