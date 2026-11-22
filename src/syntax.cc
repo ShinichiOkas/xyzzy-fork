@@ -739,9 +739,7 @@ static int flag_pure;
 static inline syntax_code
 syntax (const syntax_table *tab, Char c)
 {
-  if (SBCP (c))
-    return syntax_code (xchar_syntax (tab, c));
-  return SCkanji;
+  return syntax_code (syntax_of (tab, c));
 }
 
 static inline syntax_code

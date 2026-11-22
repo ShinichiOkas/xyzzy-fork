@@ -84,6 +84,15 @@ enum syntax_code
 # define SFparse_sexp_ignore_comment 128
 
 # define xchar_syntax(t, c) ((t)->type[(c)])
+
+// The syntax of any character. The table covers 0..255 only; every character
+// of 256 or more is SCkanji. Use this instead of indexing the table with
+// (c >> 8) or (u_char)c.
+inline u_char
+syntax_of (const syntax_table *tab, Char c)
+{
+  return c < 256 ? xchar_syntax (tab, c) : u_char (SCkanji);
+}
 # define xchar_match(t, c) ((t)->match[(c)])
 # define xchar_comment(t, c) ((t)->comment[(c)])
 
