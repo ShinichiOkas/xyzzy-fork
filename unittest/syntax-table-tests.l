@@ -112,7 +112,7 @@
           (progn (set-syntax-symbol-prefix tab a) (syntax-symbol-prefix-p a tab))
           (progn (set-syntax-start-comment tab a) (syntax-start-comment-p a tab))
           (progn (set-syntax-end-comment tab a) (syntax-end-comment-p a tab))
-          (progn (set-syntax-end-c++-comment tab a) (syntax-end-cplusplus-comment-p a tab))
+          (progn (set-syntax-end-c++-comment tab a) (syntax-end-c++-comment-p a tab))
           (progn (set-syntax-junk tab a) (syntax-junk-p a tab))
           (progn (set-syntax-match tab a k)
                  (list (syntax-open-p a tab) (syntax-close-p k tab)
