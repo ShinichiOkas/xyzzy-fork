@@ -1,0 +1,5 @@
+(set-default '*r5-legacy-strings* '("a\"b\\c" "‚ Š¿" "±" "\X0169\X1c82\X46a2" "\X0336\X03e1" "\Xd83d\Xde00" "\Xd6a0\Xd700" "a
+	b"))
+(set-default '*r5-legacy-chars* '(#\a #\‚  #\x0169 #\x1c82 #\± #\x81 #\C-x #\M-x #\F1 #\C-M-F1))
+(set-default '*r5-legacy-macros* '(("vec" . #(#\a #\M-x #\F1 #\‚ )) ("old" . "a\X8078\Xff0f‚ ")))
+(set-default '*r5-legacy-raw* '("…@\x81"))

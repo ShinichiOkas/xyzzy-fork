@@ -1,0 +1,6 @@
+(in-package "user")
+(define-abbrev-table '*r5-legacy-abbrev-table* '(
+  ("ko" "\X1c82\X0169" nil 0)
+  ("ja" "‚ Š¿" nil 0)
+))
+

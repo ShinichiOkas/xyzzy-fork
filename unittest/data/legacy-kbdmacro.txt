@@ -1,0 +1,4 @@
+;;; This file contains keyboard macro definition.
+(setq editor::*saved-kbd-macro-alist*
+  '(("vec" . #(#\a #\M-x #\F1 #\‚ ))
+    ("old" . "a\X8078\Xff0f‚ ")))
