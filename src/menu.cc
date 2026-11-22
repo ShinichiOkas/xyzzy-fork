@@ -534,17 +534,9 @@ init_menu_popup (lisp lmenu, int enablep)
 static char *
 keyname (char *p, keycode_t k)
 {
-  if (keycode_meta_ascii_p (k))
-    {
-      p = stpcpy (p, "Alt+");
-      k = keycode_meta_ascii_to_char (k);
-    }
-  else if (keycode_meta_function_p (k))
-    {
-      p = stpcpy (p, "Alt+");
-      k = keycode_meta_function_to_function (k);
-    }
-
+  // The keys in a key sequence that lookup_command_keyseq finds are never meta
+  // keys (a meta key is ESC followed by the key), so there is nothing to do for
+  // them here.
   if (keycode_function_p (k))
     {
       u_int c = keycode_low (k);

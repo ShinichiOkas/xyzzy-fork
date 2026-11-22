@@ -7,6 +7,8 @@
 ;;; after the characters become Unicode (V).  The only values in here are the
 ;;; ones that the design fixes (char-code of a key).
 
+(require "isearch")
+
 (defvar *keycode-test-function-key-names*
   '("PageUp" "PageDown" "End" "Home" "Left" "Up" "Right" "Down" "Pause"
     "MouseMove" "Scroll" "Apps" "Insert" "Delete" "Help"
@@ -740,3 +742,74 @@
 (deftest keycode-function-bar-label-rejects-others ()
   (set-function-bar-label #\a "x")
   !! error)
+
+;;;; Lisp code that reads keys from the keyboard
+
+(deftest keycode-digit-argument-reads-a-key ()
+  ;; process-prefix-args calls digit-char-p, set-meta-bit and unread-char with
+  ;; the next key.  M-2 then Right moves two characters.
+  (with-temp-buffer
+    (insert "abcdefgh")
+    (goto-char (point-min))
+    (editor::*kbd-queue-put #\Right)
+    (let ((*last-command-char* #\M-2))
+      (digit-argument nil))
+    (editor::*kbd-queue-dispatch)
+    (point))
+  => 2)
+
+(deftest keycode-universal-argument-reads-keys ()
+  ;; C-u 3 Right
+  (with-temp-buffer
+    (insert "abcdefgh")
+    (goto-char (point-min))
+    (editor::*kbd-queue-put #\3)
+    (editor::*kbd-queue-put #\Right)
+    (let ((*last-command-char* #\C-u))
+      (universal-argument nil))
+    (editor::*kbd-queue-dispatch)
+    (point))
+  => 3)
+
+(deftest keycode-isearch-exits-on-a-function-key ()
+  ;; the key ends the search and is run as a command: a, Right
+  (with-temp-buffer
+    (insert "xaxbxa")
+    (goto-char (point-min))
+    (editor::*kbd-queue-put #\a)
+    (editor::*kbd-queue-put #\Right)
+    (editor::*kbd-queue-put #\RET)
+    (editor::isearch-forward)
+    (editor::*kbd-queue-dispatch)
+    (point))
+  => 3)
+
+(deftest keycode-quote-char-of-a-key-is-an-error ()
+  ;; C-q F1: a key cannot be inserted (it used to insert a character of the
+  ;; internal code #xff0f)
+  (with-temp-buffer
+    (editor::*kbd-queue-put #\F1)
+    (quote-char))
+  !! type-error)
+
+(deftest keycode-quote-char-of-text ()
+  (with-temp-buffer
+    (editor::*kbd-queue-put #\z)
+    (quote-char)
+    (buffer-substring (point-min) (point-max)))
+  => "z")
+
+(deftest keycode-kbd-macro-prints-and-reads-back ()
+  ;; the history file and insert-kbd-macro write the macro with ~S / write
+  ;; :readably
+  (let* ((macro (vector #\a #\F9 #\M-x #\S-C-M-F1 #\C-!))
+         (text (with-output-to-string (s)
+                 (write (list "name" macro) :stream s :escape t :circle t
+                        :pretty t :readably t)))
+         (back (read-from-string text)))
+    (values (equalp back (list "name" macro))
+            (every #'eql (cadr back) macro)
+            (not (null (string-match "#.M-x" text)))))
+  => t
+  => t
+  => t)

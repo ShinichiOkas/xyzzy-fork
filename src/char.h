@@ -68,7 +68,7 @@ xchar_code (lisp x)
 {
   u_int32_t v = xchar_value (x);
   if (v >= KEY_BASE)
-    FEtype_error (x, Qtext_character);
+    FEtype_error (x, Vtext_character);
   return Char (v);
 }
 

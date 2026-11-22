@@ -1547,7 +1547,7 @@ static symbols unint[] =
   MAKE_SYMBOL2Q (or-real-integer-1-star),
 
   MAKE_SYMBOL2Q (temporary-string),
-  MAKE_SYMBOL2Q (text-character),
+  MAKE_SYMBOL2 (text-character),
   MAKE_SYMBOL2 (minibuffer-message),
   MAKE_SYMBOL2 (minibuffer-prompt),
   MAKE_SYMBOL2 (default-menu),
