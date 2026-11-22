@@ -15,10 +15,6 @@
 ;;; The result of a check is :ok, or the list of the failed cases
 ;;; ((:diff CASE-NUMBER OFFSET EXPECTED-BYTE ACTUAL-BYTE) ...).
 ;;;
-;;; Tests named ...-known-bug fail today (bugs/BUG-0039, BUG-0040).  They are
-;;; off by default so that the whole run is not red; to run them, evaluate
-;;;   (push :cp932-roundtrip-known-bugs *features*)
-;;; before this file is loaded.
 
 (in-package :user)
 
@@ -215,12 +211,9 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
   (cp932-rt-check-bytes (cp932-rt-mixed-line-end-cases) :auto)
   => :ok)
 
-;; The encoding is given: a file that begins with CRLF gets CRLF at every
-;; line end when it is saved (BUG-0040).  Off by default so that the whole
-;; run is not red.  To run it:
-;;   (push :cp932-roundtrip-known-bugs *features*) before loading this file.
-#+cp932-roundtrip-known-bugs
-(deftest cp932-roundtrip-mixed-line-ends-explicit-known-bug ()
+;; The encoding is given: the line ends are kept as when it is detected
+;; (BUG-0040).
+(deftest cp932-roundtrip-mixed-line-ends-explicit ()
   (cp932-rt-check-bytes (cp932-rt-mixed-line-end-cases) :explicit)
   => :ok)
 
@@ -462,9 +455,9 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
      (append a '(#x80 #x80 #x80) a)
      (append a '(#xff #xff #xff) a))))
 
-;; Cases whose bytes change when the encoding is detected (not given):
-;; the detection chooses big5 or euc-jp and the bytes are converted to "?"
-;; or to another byte sequence.  See bugs/BUG-0039-*.md.
+;; Cases whose bytes changed when the encoding is detected (not given):
+;; the detection chose big5 or euc-jp and the bytes were converted to "?"
+;; or to another byte sequence (BUG-0039).
 (defun cp932-rt-invalid-cases-auto-lossy ()
   (let ((a (cp932-rt-ascii "abc")))
     (list
@@ -490,10 +483,128 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
      :auto))
   => :ok)
 
-;; The encoding is detected: the cases which lose bytes today (BUG-0039).
-;; Off by default so that the whole run is not red.  To run it:
-;;   (push :cp932-roundtrip-known-bugs *features*) before loading this file.
-#+cp932-roundtrip-known-bugs
-(deftest cp932-roundtrip-invalid-bytes-auto-known-bug ()
+;; The encoding is detected: the cases which lost bytes (BUG-0039).
+(deftest cp932-roundtrip-invalid-bytes-auto-lossy ()
   (cp932-rt-check-bytes (cp932-rt-invalid-cases-auto-lossy) :auto)
   => :ok)
+
+;; A lead byte followed by a line end: the line end is a line end, and the
+;; bytes are kept (BUG-0044).
+(defun cp932-rt-lead-line-end-cases ()
+  '((#x61 #x81 #x0a #x62 #x0a)                     ; lead LF
+    (#x61 #xe0 #x0a #x62 #x0a)
+    (#x61 #xfc #x0a #x62 #x0a)
+    (#x61 #x81 #x0d #x0a #x62 #x0d #x0a)           ; lead CRLF
+    (#x61 #x81 #x0a #x82 #xa0 #x0a)))              ; lead LF, a character
+
+(defun cp932-rt-line-count (bytes mode)
+  "Open BYTES as a file and return the line number at the end of the buffer."
+  (let ((tmp (make-temp-file-name))
+        (buf nil))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp bytes)
+          (setq buf (ed::find-file-internal tmp t
+                                          (if (eq mode :explicit)
+                                              *encoding-sjis*
+                                            nil)
+                                          nil t))
+          (save-excursion
+            (set-buffer buf)
+            (goto-char (point-max))
+            (current-line-number)))
+      (when buf
+        (delete-buffer buf))
+      (when (file-exist-p tmp)
+        (delete-file tmp)))))
+
+(deftest cp932-roundtrip-lead-line-end ()
+  (list (cp932-rt-check-bytes (cp932-rt-lead-line-end-cases) :explicit)
+        (cp932-rt-check-bytes (cp932-rt-lead-line-end-cases) :auto))
+  => (:ok :ok))
+
+;; Every case has two line ends.
+(deftest cp932-lead-line-end-is-line-end ()
+  (list (mapcar (lambda (c) (cp932-rt-line-count c :explicit))
+                (cp932-rt-lead-line-end-cases))
+        (mapcar (lambda (c) (cp932-rt-line-count c :auto))
+                (cp932-rt-lead-line-end-cases)))
+  => ((3 3 3 3 3) (3 3 3 3 3)))
+
+;; A file stream reads the same way.
+(deftest cp932-lead-line-end-file-stream ()
+  (let ((tmp (make-temp-file-name)))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp '(#x61 #x81 #x0a #x62 #x0a))
+          (with-open-file (s tmp :direction :input)
+            (let* ((l1 (read-line s nil nil))
+                   (l2 (read-line s nil nil)))
+              (list (map 'list #'char-code l1)
+                    (map 'list #'char-code l2)))))
+      (when (file-exist-p tmp)
+        (delete-file tmp))))
+  => ((#x61 #x81) (#x62)))
+
+;;;; 9. a stray byte in a text that is nearly utf-8 or sjis
+;;;;
+;;;; The detection must not turn a text that has one broken byte into
+;;;; another encoding (BUG-0039 was fixed so that every candidate reads every
+;;;; byte; the candidate that read the most wins when all of them die).
+
+(defun cp932-rt-repeat (unit n)
+  (let (r)
+    (dotimes (i n)
+      (setq r (append r (copy-list unit))))
+    r))
+
+(defun cp932-rt-insert (list pos byte)
+  (append (subseq list 0 pos) (list byte) (subseq list pos)))
+
+(defun cp932-rt-detected-name (bytes)
+  (let ((tmp (make-temp-file-name))
+        (buf nil))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp bytes)
+          (setq buf (ed::find-file-internal tmp t nil nil t))
+          (save-excursion
+            (set-buffer buf)
+            (char-encoding-name (buffer-fileio-encoding))))
+      (when buf
+        (delete-buffer buf))
+      (when (file-exist-p tmp)
+        (delete-file tmp)))))
+
+;; Japanese text in utf-8 (a few KB): FF at the back, in the middle, near the
+;; start and at the end, and A0 at the back.
+(deftest cp932-detect-nearly-utf8-stray-byte ()
+  (let* ((u8 (cp932-rt-repeat '(#xe3 #x81 #x82 #xe3 #x81 #x84 #xe3 #x81 #x86
+                                #xe3 #x81 #x88 #xe3 #x81 #x8a #x0a)
+                              300))
+         (n (length u8)))
+    (mapcar #'cp932-rt-detected-name
+            (list u8
+                  (cp932-rt-insert u8 (- n 100) #xff)
+                  (cp932-rt-insert u8 (floor n 2) #xff)
+                  (cp932-rt-insert u8 20 #xff)
+                  (append u8 '(#xff))
+                  (cp932-rt-insert u8 (- n 100) #xa0))))
+  => ("utf8n" "utf8n" "utf8n" "utf8n" "utf8n" "utf8n"))
+
+;; Japanese text in sjis (a few KB) with one broken byte: sjis, and the bytes
+;; are kept.
+(defun cp932-rt-nearly-sjis-cases ()
+  (let* ((sj (cp932-rt-repeat '(#x82 #xa0 #x82 #xa2 #x82 #xa4 #x82 #xa6 #x82 #xa8 #x0a)
+                              400))
+         (n (length sj)))
+    (list (cp932-rt-insert sj (- n 100) #xa0)
+          (cp932-rt-insert sj 20 #xa0)
+          (cp932-rt-insert sj (- n 100) #x80)
+          (append (subseq sj 0 (- n 100)) '(#x81 #x20) (subseq sj (- n 100)))
+          (cp932-rt-insert sj (- n 100) #xff))))
+
+(deftest cp932-detect-nearly-sjis-stray-byte ()
+  (list (mapcar #'cp932-rt-detected-name (cp932-rt-nearly-sjis-cases))
+        (cp932-rt-check-bytes (cp932-rt-nearly-sjis-cases) :auto))
+  => (("sjis" "sjis" "sjis" "sjis" "sjis") :ok))

@@ -63,7 +63,15 @@ sjis_to_internal_stream::refill_internal ()
         {
           int c2 = s_in.get ();
           if (c2 != eof)
-            c1 = (c1 << 8) + c2;
+            {
+              // A lead byte that is not followed by a trail byte is
+              // a byte by itself; the next byte is read as it is
+              // (BUG-0044: a line end after a lead byte is a line end).
+              if (SJIS2P (c2))
+                c1 = (c1 << 8) + c2;
+              else
+                s_in.putback (c2);
+            }
         }
       put (c1);
     }
@@ -82,7 +90,7 @@ fast_sjis_to_internal_stream::refill_internal ()
   for (; d < de && s < se; d++)
     {
       int c1 = *s++;
-      if (SJISP (c1) && s < se)
+      if (SJISP (c1) && s < se && SJIS2P (*s))
         c1 = (c1 << 8) + *s++;
       *d = c1;
     }
