@@ -145,6 +145,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="..\src\gen-uprops.cc">
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
+    </ClCompile>
     <ClCompile Include="..\src\gen-utf2sjis.cc">
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
@@ -223,6 +227,13 @@
     <Exec Command="&quot;$(TargetPath)&quot; gen-syms -version &gt; &quot;$(GenerateDir)dumpver.cc&quot;" />
   </Target>
   <PropertyGroup>
+    <GenUpropsInputs>..\src\gen-uprops.cc;..\src\unicode\ucd\UnicodeData.txt;..\src\unicode\ucd\EastAsianWidth.txt;..\src\unicode\ucd\Scripts.txt;..\src\unicode\ucd\Blocks.txt;..\src\unicode\ucd\CaseFolding.txt</GenUpropsInputs>
+    <GenUpropsOutput>$(GenerateDir)uprops-data.h</GenUpropsOutput>
+  </PropertyGroup>
+  <Target Name="GenUprops" Inputs="$(GenUpropsInputs)" Outputs="$(GenUpropsOutput)" DependsOnTargets="PrepareGenerate">
+    <Exec Command="&quot;$(TargetPath)&quot; gen-uprops &gt; &quot;$(GenUpropsOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
+  </Target>
+  <PropertyGroup>
     <GenUtf2SjisInputs>..\src\gen-utf2sjis.cc;..\src\cdecl.h</GenUtf2SjisInputs>
     <GenUtf2SjisOutput>$(GenerateDir)utf2sjis.h</GenUtf2SjisOutput>
   </PropertyGroup>
@@ -238,6 +249,7 @@
     <CallTarget Targets="GenJisX0212Hash" />
     <CallTarget Targets="GenKtab" />
     <CallTarget Targets="GenSyms" />
+    <CallTarget Targets="GenUprops" />
     <CallTarget Targets="GenUtf2Sjis" />
   </Target>
   <Target Name="BeforeClean">
@@ -249,6 +261,7 @@
     <Delete Files="$(GenJisX0212HashOutput)" />
     <Delete Files="$(GenKtabOutput)" />
     <Delete Files="$(GenSymsOutputs)" />
+    <Delete Files="$(GenUpropsOutput)" />
     <Delete Files="$(GenUtf2SjisOutput)" />
   </Target>
 </Project>

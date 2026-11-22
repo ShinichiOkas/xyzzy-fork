@@ -541,6 +541,7 @@ init_symbol_value ()
      : make_fixnum (1000));
 
   xsymbol_value (Vsi_accept_kill_xyzzy) = Qt;
+  xsymbol_value (Veast_asian_ambiguous_width) = make_fixnum (2);
   xsymbol_value (Vlast_match_string) = Qnil;
 }
 
