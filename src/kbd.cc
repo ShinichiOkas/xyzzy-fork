@@ -4,6 +4,7 @@
 #include "safe_ptr.h"
 #include "encoding.h"
 #include "environ.h"
+#include "codec.h"
 
 kbd_queue::kbd_queue ()
      : head (0), tail (0), pending (lChar_EOF), last_ime_status (-1),
@@ -94,8 +95,119 @@ kbd_queue::putw (int w)
 }
 
 int
+kbd_utf16_decoder::feed (ucs2_t u, Char *out, bool unicode, const Char *tab, bool half_width)
+{
+  if (!unicode)
+    {
+      Char cc;
+      if ((!tab || (cc = tab[u]) == CHAR_NONE)
+          && (cc = half_width ? w2i_half_width (u) : w2i (u)) == CHAR_NONE)
+        {
+          out[0] = utf16_ucs2_to_undef_pair_high (u);
+          out[1] = utf16_ucs2_to_undef_pair_low (u);
+          return 2;
+        }
+      out[0] = cc;
+      return 1;
+    }
+
+  int n = 0;
+  if (ud_high)
+    {
+      if (utf16_surrogate_low_p (u))
+        {
+          out[0] = utf16_pair_to_ucs4 (ud_high, u);
+          ud_high = 0;
+          return 1;
+        }
+      out[n++] = ud_high;
+      ud_high = 0;
+    }
+  if (utf16_surrogate_high_p (u))
+    {
+      ud_high = u;
+      return n;
+    }
+  out[n++] = u;
+  return n;
+}
+
+int
+kbd_utf16_decoder::flush (Char *out, bool unicode)
+{
+  if (!unicode || !ud_high)
+    return 0;
+  out[0] = ud_high;
+  ud_high = 0;
+  return 1;
+}
+
+int
+kbd_queue::put_char (Char c)
+{
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return putraw (c);
+  else
+    return putc (c);
+}
+
+// A UTF-16 code unit from the keyboard or the IME.  An ASCII character takes
+// the translation of the keys (kbd-translate-table, Alt = Meta) as a
+// character from WM_CHAR does.
+int
+kbd_queue::put_utf16 (ucs2_t u)
+{
+  Char out[kbd_utf16_decoder::OUT_MAX];
+  int n = utf16_in.feed (u, out, XYZZY_CHAR_UNICODE != 0, 0, true);
+  for (int i = 0; i < n; i++)
+    {
+      Char c = out[i];
+      if (XYZZY_CHAR_UNICODE ? c < 128 : n == 1)
+        c = decode_chars (c);
+      if (!put_char (c))
+        return 0;
+    }
+  return 1;
+}
+
+int
 kbd_queue::puts (const char *string, int l)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      // The bytes of an ANSI window (WM_CHAR, WM_IME_CHAR, a non-Unicode IME)
+      // are in the code page of the system.  Characters are made from the
+      // UTF-16 that they mean.
+      if (l <= 0)
+        return 1;
+      std::vector <wchar_t> w (l);
+      int wl = MultiByteToWideChar (CP_ACP, MB_ERR_INVALID_CHARS, string, l,
+                                    w.data (), l);
+      kbd_utf16_decoder dec;
+      Char out[kbd_utf16_decoder::OUT_MAX];
+      if (wl <= 0)
+        {
+          // not a character of the code page: keep the bytes as they are
+          for (int i = 0; i < l; i++)
+            if (!putraw ((u_char (string[i]) < 128 ? 0 : CODEC_RAW_BYTE_BASE)
+                         + u_char (string[i])))
+              return 0;
+          return 1;
+        }
+      for (int i = 0; i < wl; i++)
+        {
+          int n = dec.feed (w[i], out, true);
+          for (int j = 0; j < n; j++)
+            if (!putraw (out[j]))
+              return 0;
+        }
+      int n = dec.flush (out, true);
+      for (int j = 0; j < n; j++)
+        if (!putraw (out[j]))
+          return 0;
+      return 1;
+    }
+
   xinput_strstream in (string, l);
   encoding_input_stream_helper is (xsymbol_value (Vkbd_encoding), in);
   int c;
@@ -1597,4 +1709,45 @@ lisp
 Fsi_kbd_macro_p (lisp x)
 {
   return boole (kbd_macro_p (x));
+}
+
+// For tests: UTF-16 code units to Chars, by the rules of the given side
+// (nil = the side that this build uses).  Returns a list of the values.
+//   (editor::*utf16-to-chars units [unicode [half-width]])
+lisp
+Fsi_utf16_to_chars (lisp lunits, lisp lunicode, lisp lhalf)
+{
+  bool unicode = lunicode && lunicode != Qnil
+    ? fixnum_value (lunicode) != 0
+    : XYZZY_CHAR_UNICODE != 0;
+  bool half = lhalf && lhalf != Qnil;
+  std::vector <Char> v;
+  kbd_utf16_decoder dec;
+  Char out[kbd_utf16_decoder::OUT_MAX];
+  for (lisp p = lunits; consp (p); p = xcdr (p))
+    {
+      QUIT;
+      long u = fixnum_value (xcar (p));
+      if (u < 0 || u > 0xffff)
+        FErange_error (xcar (p));
+      int n = dec.feed (ucs2_t (u), out, unicode, 0, half);
+      v.insert (v.end (), out, out + n);
+    }
+  int n = dec.flush (out, unicode);
+  v.insert (v.end (), out, out + n);
+
+  lisp r = Qnil;
+  for (size_t i = v.size (); i > 0; i--)
+    r = xcons (make_fixnum (v[i - 1]), r);
+  return r;
+}
+
+// For tests: put a UTF-16 code unit into the key queue as the keyboard does.
+lisp
+Fsi_kbd_queue_put_utf16 (lisp lunit)
+{
+  long u = fixnum_value (lunit);
+  if (u < 0 || u > 0xffff)
+    FErange_error (lunit);
+  return boole (app.kbdq.put_utf16 (ucs2_t (u)));
 }

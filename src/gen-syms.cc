@@ -2445,6 +2445,8 @@ static symbols ed[] =
   SI_DEFUN3 (*kbd-queue-put, 1, 1, 0),
   SI_DEFUN3 (*kbd-queue-dispatch, 0, 0, 0),
   SI_DEFUN3 (*kbd-macro-p, 1, 0, 0),
+  SI_DEFUN3 (*utf16-to-chars, 1, 2, 0),
+  SI_DEFUN3 (*kbd-queue-put-utf16, 1, 0, 0),
   DEFUN3 (get-ime-mode, 0, 0, 0),
   DEFUN3 (get-ime-composition-string, 0, 0, 0),
   DEFUN3 (pop-ime-composition-string, 0, 0, 0),

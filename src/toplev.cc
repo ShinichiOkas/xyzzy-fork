@@ -446,17 +446,19 @@ ime_composition (HWND hwnd, LPARAM lparam)
                     }
 
                   l /= sizeof (ucs2_t);
+                  kbd_utf16_decoder dec;
+                  Char out[kbd_utf16_decoder::OUT_MAX];
                   for (ucs2_t *sp = s, *se = s + l; sp < se; sp++)
                     {
-                      Char cc;
-                      if ((!tab || (cc = tab[*sp]) == CHAR_NONE)
-                          && (cc = w2i (*sp)) == CHAR_NONE)
-                        {
-                          app.kbdq.putc (utf16_ucs2_to_undef_pair_high (*sp));
-                          cc = utf16_ucs2_to_undef_pair_low (*sp);
-                        }
-                      app.kbdq.putc (cc);
+                      int n = dec.feed (*sp, out, XYZZY_CHAR_UNICODE != 0, tab);
+                      for (int i = 0; i < n; i++)
+                        app.kbdq.put_char (out[i]);
                     }
+                  {
+                    int n = dec.flush (out, XYZZY_CHAR_UNICODE != 0);
+                    for (int i = 0; i < n; i++)
+                      app.kbdq.put_char (out[i]);
+                  }
                   lparam &= ~GCS_RESULTSTR;
 
                   int rl = app.kbdq.gime.ImmGetCompositionStringW (hIMC, GCS_RESULTREADSTR, 0, 0);
@@ -809,22 +811,19 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     case WM_CHAR:
       if (xsymbol_value (Vno_input_language_change_notification) != Qnil)
         app.kbdq.init_kbd_encoding ();
-      app.kbdq.putc (decode_chars (wparam));
+      // A Unicode window gives a UTF-16 code unit (a surrogate pair comes in
+      // two messages); an ANSI window gives a byte of the system code page
+      // (a double byte character comes in two messages).
+      if (IsWindowUnicode (hwnd))
+        app.kbdq.put_utf16 (ucs2_t (wparam));
+      else
+        app.kbdq.putc (decode_chars (wparam));
       return 0;
 
     case WM_PRIVATE_WCHAR:
-      {
-        ucs2_t wc = ucs2_t (wparam);
-        Char cc = w2i_half_width (wc);
-        if (cc != CHAR_NONE)
-          app.kbdq.putc (decode_chars (cc));
-        else
-          {
-            app.kbdq.putc (utf16_ucs2_to_undef_pair_high (wc));
-            app.kbdq.putc (utf16_ucs2_to_undef_pair_low (wc));
-          }
-        return 0;
-      }
+      // a UTF-16 code unit from ToUnicode (kbd.cc translate_unicode)
+      app.kbdq.put_utf16 (ucs2_t (wparam));
+      return 0;
 
     case WM_IME_ENDCOMPOSITION:
       app.ime_composition = 0;
@@ -855,7 +854,10 @@ toplevel_wndproc (HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     case WM_IME_CHAR:
       if (xsymbol_value (Vno_input_language_change_notification) != Qnil)
         app.kbdq.init_kbd_encoding ();
-      app.kbdq.putw (wparam);
+      if (IsWindowUnicode (hwnd))
+        app.kbdq.put_utf16 (ucs2_t (wparam));
+      else
+        app.kbdq.putw (wparam);
       return 0;
 
     case WM_IME_COMPOSITION:
