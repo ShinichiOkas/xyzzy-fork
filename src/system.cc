@@ -53,17 +53,17 @@ Fsi_search_path (lisp lfile, lisp lpath, lisp lext)
   char *ext = 0;
 
   check_string (lfile);
-  file = (char *)alloca (xstring_length (lfile) * 2 + 1);
+  file = (char *)alloca (w2s_max (xstring_length (lfile)));
   w2s (file, lfile);
 
   if (lpath && lpath != Qnil)
     {
-      path = (char *)alloca (xstring_length (lpath) * 2 + 1);
+      path = (char *)alloca (w2s_max (xstring_length (lpath)));
       w2s (path, lpath);
     }
   if (lext && lext != Qnil)
     {
-      ext = (char *)alloca (xstring_length (lext) * 2 + 1);
+      ext = (char *)alloca (w2s_max (xstring_length (lext)));
       w2s (ext, lext);
     }
 

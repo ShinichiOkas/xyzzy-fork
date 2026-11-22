@@ -743,7 +743,7 @@ completion::complete_filename ()
 
   if (!complete_UNC (directory))
     {
-      char *path = (char *)alloca (2 * xstring_length (directory) + 10);
+      char *path = (char *)alloca (w2s_max (xstring_length (directory)) + 9);
       w2s (path, directory);
       map_sl_to_backsl (path);
       strcat (path, "*");

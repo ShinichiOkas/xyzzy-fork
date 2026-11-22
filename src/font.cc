@@ -146,7 +146,7 @@ FontObject::update (LOGFONT &lf, const lisp keys, const bool recommend_size_p)
   if (lface != Qnil)
     {
       check_string (lface);
-      char *face = (char *)alloca (xstring_length (lface) * 2 + 1);
+      char *face = (char *)alloca (w2s_max (xstring_length (lface)));
       w2s (face, lface);
       if (strcmp (lf.lfFaceName, face) != 0)
         {

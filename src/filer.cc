@@ -114,7 +114,7 @@ FilerView::set_colors () const
 int
 FilerView::chdir (lisp dir)
 {
-  char *b = (char *)alloca (xstring_length (dir) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (dir)));
   w2s (b, dir);
   return WINFS::SetCurrentDirectory (b);
 }
@@ -122,7 +122,7 @@ FilerView::chdir (lisp dir)
 int
 FilerView::chdevdir (lisp dir)
 {
-  char *b = (char *)alloca (xstring_length (dir) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (dir)));
   w2s (b, dir);
   return set_device_dir (b, 0);
 }
@@ -147,7 +147,7 @@ FilerView::load_contents (const char *mask)
   // カレントディレクトリを変えずに、ディレクトリ名に * を付けて列挙する
   // （長いパスは SetCurrentDirectory では扱えない）。
   int dirl = xstring_length (fv_ldir);
-  char *dirpath = (char *)alloca (dirl * 2 + 4);
+  char *dirpath = (char *)alloca (w2s_max (dirl) + 3);
   char *dirpath_e = w2s (dirpath, fv_ldir);
   if (dirl && dirpath_e[-1] != '/' && dirpath_e[-1] != '\\')
     *dirpath_e++ = '/';
@@ -715,10 +715,10 @@ FilerView::sort (int param)
 void
 FilerView::set_title (const char *mask) const
 {
-  int l = xstring_length (fv_ldir) * 2 + 1;
+  int l = w2s_max (xstring_length (fv_ldir));
   lisp title = fv_parent->title ();
   if (stringp (title))
-    l += xstring_length (title) * 2 + 3;
+    l += w2s_max (xstring_length (title)) + 2;
   if (mask)
     l += strlen (mask) + 1;
   char *b0 = (char *)alloca (l);
@@ -737,7 +737,7 @@ FilerView::set_title () const
     set_title (0);
   else
     {
-      char *mask = (char *)alloca (xstring_length (fv_lmask) * 2 + 1);
+      char *mask = (char *)alloca (w2s_max (xstring_length (fv_lmask)));
       w2s (mask, fv_lmask);
       set_title (mask);
     }
@@ -748,7 +748,7 @@ FilerView::set_path () const
 {
   if (fv_parent->dual_window_p ())
     {
-      char *b = (char *)alloca (xstring_length (fv_ldir) * 2 + 1);
+      char *b = (char *)alloca (w2s_max (xstring_length (fv_ldir)));
       w2s (b, fv_ldir);
       SetWindowText (fv_hwnd_path, b);
     }
@@ -788,7 +788,7 @@ FilerView::reload (lisp lmask)
   char *mask;
   if (stringp (fv_lmask))
     {
-      mask = (char *)alloca (xstring_length (fv_lmask) * 2 + 1);
+      mask = (char *)alloca (w2s_max (xstring_length (fv_lmask)));
       w2s (mask, fv_lmask);
     }
   else
@@ -914,7 +914,7 @@ FilerView::disk_space (double nbytes, char *buf, int c)
 void
 FilerView::display_disk_info (HWND hwnd, int n) const
 {
-  char *dir = (char *)alloca (xstring_length (fv_ldir) * 2 + 1);
+  char *dir = (char *)alloca (w2s_max (xstring_length (fv_ldir)));
   w2s (dir, fv_ldir);
   char root[PATH_MAX * 2];
   DWORD s_per_c, b_per_s, free_c, total_c;
@@ -1095,7 +1095,7 @@ int
 FilerView::search (lisp string, lisp lstart, lisp lreverse, lisp lwild)
 {
   check_string (string);
-  char *pat = (char *)alloca (xstring_length (string) * 2 + 2);
+  char *pat = (char *)alloca (w2s_max (xstring_length (string)) + 1);
   char *pe = w2s (pat, string);
 
   int inc = !lreverse || lreverse == Qnil ? 1 : -1;
@@ -1446,7 +1446,7 @@ FilerView::restart_thread ()
 {
   if (!fv_hthread)
     return;
-  char *path = (char *)malloc (xstring_length (fv_ldir) * 2 + 1);
+  char *path = (char *)malloc (w2s_max (xstring_length (fv_ldir)));
   if (!path)
     return;
   w2s (path, fv_ldir);
@@ -1552,7 +1552,7 @@ Filer::IdleProc ()
 static void
 add_combo (HWND combo, lisp string)
 {
-  char *b = (char *)alloca (xstring_length (string) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (string)));
   w2s (b, string);
   SendMessage (combo, CB_ADDSTRING, 0, LPARAM (b));
 }
@@ -2355,7 +2355,7 @@ void
 Filer::set_text (lisp string)
 {
   check_string (string);
-  char *b = (char *)alloca (xstring_length (string) * 2 + 1);
+  char *b = (char *)alloca (w2s_max (xstring_length (string)));
   w2s (b, string);
   SetDlgItemText (id_hwnd, IDC_NAME, b);
 }
@@ -3162,7 +3162,7 @@ Filer::do_keyup ()
       else
         {
           lisp dir = v->get_directory ();
-          char *path = (char *)alloca (xstring_length (dir) * 2 + wfile::FIND_NAME_MAX + 1);
+          char *path = (char *)alloca (w2s_max (xstring_length (dir)) + wfile::FIND_NAME_MAX);
           strcpy (w2s (path, dir), d->name);
           try
             {

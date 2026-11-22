@@ -750,7 +750,7 @@ sockssl::check_server_name (lisp lserver_name) const
 {
   check_string (lserver_name);
 
-  char *b = (char *)xmalloc (xstring_length (lserver_name) * 2 + 1);
+  char *b = (char *)xmalloc (w2s_max (xstring_length (lserver_name)));
   w2s (b, lserver_name);
 
   return b;

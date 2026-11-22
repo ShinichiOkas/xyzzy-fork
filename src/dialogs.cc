@@ -126,7 +126,7 @@ buffer_list_save_column (HWND list)
 static int
 store_buffer_name (HWND list, const Buffer *bp, LV_ITEM *lvi)
 {
-  int l = xstring_length (bp->lbuffer_name) * 2 + 32;
+  int l = w2s_max (xstring_length (bp->lbuffer_name)) + 31;
   char *b = (char *)alloca (l + 1);
   bp->buffer_name (b, b + l);
   lvi->pszText = b;
@@ -147,7 +147,7 @@ store_string (HWND list, lisp string, LV_ITEM *lvi)
 {
   if (stringp (string))
     {
-      char *b = (char *)alloca (xstring_length (string) * 2 + 1);
+      char *b = (char *)alloca (w2s_max (xstring_length (string)));
       w2s (b, string);
       lvi->pszText = b;
     }
@@ -957,7 +957,7 @@ Ffile_name_dialog (lisp keys)
   if (stringp (ltitle))
     {
       ofn.ofn_ok_button = 1;
-      title = (char *)alloca (xstring_length (ltitle) * 2 + 1);
+      title = (char *)alloca (w2s_max (xstring_length (ltitle)));
       w2s (title, ltitle);
     }
   ofn.lpstrTitle = title;
@@ -965,7 +965,7 @@ Ffile_name_dialog (lisp keys)
   char *ext = 0;
   if (stringp (lext))
     {
-      ext = (char *)alloca (xstring_length (lext) * 2 + 1);
+      ext = (char *)alloca (w2s_max (xstring_length (lext)));
       w2s (ext, lext);
     }
   ofn.lpstrDefExt = ext;
@@ -1241,7 +1241,7 @@ Fdirectory_name_dialog (lisp keys)
   char *title = 0;
   if (stringp (ltitle))
     {
-      title = (char *)alloca (xstring_length (ltitle) * 2 + 1);
+      title = (char *)alloca (w2s_max (xstring_length (ltitle)));
       w2s (title, ltitle);
     }
   odn.lpstrTitle = title;

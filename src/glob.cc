@@ -494,9 +494,9 @@ Fpathname_match_p (lisp pathname, lisp wildname)
 {
   check_string (pathname);
   check_string (wildname);
-  char *path = (char *)alloca (xstring_length (pathname) * 2 + 1);
+  char *path = (char *)alloca (w2s_max (xstring_length (pathname)));
   w2s (path, pathname);
-  char *wild = (char *)alloca (xstring_length (wildname) * 2 + 1);
+  char *wild = (char *)alloca (w2s_max (xstring_length (wildname)));
   w2s (wild, wildname);
   return boole (*wild == GLOB_NOT
                 ? !pathname_match_p (wild + 1, path)
