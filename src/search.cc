@@ -983,10 +983,7 @@ skip_syntax_spec (lisp syntax_spec, int dir)
   if (!bp->eobp (point))
     while (1)
       {
-        Char c = point.ch ();
-        if (c >= 256)
-          c >>= 8;
-        if (!buf[xchar_syntax (tab, c)])
+        if (!buf[syntax_of (tab, point.ch ())])
           break;
         if (!bp->forward_char (point, dir) || bp->eobp (point))
           return Qt;

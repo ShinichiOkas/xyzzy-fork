@@ -83,9 +83,7 @@ protected:
   static int repeat_max (Char);
   u_char char_syntax (Char cc) const
     {
-      if (cc >= 256)
-        cc >>= 8;
-      return xchar_syntax (re_syntax_table, cc);
+      return syntax_of (re_syntax_table, cc);
     }
   int syntax_word_p (Char cc) const
     {return re_syntax_word_p (char_syntax (cc));}
