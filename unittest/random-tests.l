@@ -12,7 +12,7 @@
 (deftest random-type ()
   (values
    (si:*fixnump (random 1))
-   (si:*bignump (random 100000000000000000000))
+   (si:*bignump (random 10000000000000000000000000000000000000000))
    (type-of (random 1.2))
    (type-of (random 1.2d3))
    (type-of (random 1/2)))
