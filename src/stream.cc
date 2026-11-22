@@ -5,6 +5,764 @@
 #include "sockinet.h"
 #include "sockssl.h"
 #include "debug.h"
+#include "codec.h"
+
+// ---------------------------------------------------------------------------
+// The converter of a file stream and a socket stream
+// (docs/refactoring/s4-char-design.md 4.2, 4.4, 4.5)
+//
+// A stream turns the bytes into Chars with a char_decoder and back with a
+// char_encoder.  The line end (CRLF <-> LF) is converted here, on the Chars,
+// so that a converter knows only bytes and characters.
+//
+// XYZZY_CHAR_UNICODE 0: a Char is the internal code.  The raw cp932 form that
+// the streams have always had (a lead byte and a trail byte make one Char) is
+// one converter (raw_sjis_decoder, raw_sjis_encoder) and gives the same bytes
+// and the same values as before.  The other converters give Unicode, which is
+// turned into the internal code (codec_to_chars) and back (chars_to_codec).
+// XYZZY_CHAR_UNICODE 1: a Char is a Unicode code point (or a raw byte
+// character), which is what the converters give.
+
+enum
+{
+  CONV_IB = 16,                 // bytes that wait for the rest of a sequence
+  CONV_CB = 48,                 // room for a decoder (> CODEC_DECODE_ROOM)
+  CONV_OB = CONV_CB * 2,        // Chars of the decoded characters
+  CONV_PIECE = 128,             // characters that are encoded at once
+  CONV_EOB = 512                // bytes of the output of an encoder
+};
+
+// The raw cp932 form (the internal code of 0 is the cp932 code).
+class raw_sjis_decoder: public char_decoder
+{
+public:
+  virtual void decode (const u_char *&src, const u_char *se,
+                       codec_char *&dst, codec_char *de, bool final)
+    {
+      while (src < se && dst < de)
+        {
+          int c = *src;
+          if (SJISP (c))
+            {
+              if (src + 1 == se)
+                {
+                  if (!final)
+                    return;
+                  *dst++ = c;
+                  src++;
+                }
+              else if (SJIS2P (src[1]))
+                {
+                  *dst++ = (c << 8) | src[1];
+                  src += 2;
+                }
+              else
+                {
+                  *dst++ = c;
+                  src++;
+                }
+            }
+          else
+            {
+              *dst++ = c;
+              src++;
+            }
+        }
+    }
+};
+
+class raw_sjis_encoder: public char_encoder
+{
+public:
+  virtual void encode (const codec_char *&src, const codec_char *se,
+                       u_char *&dst, u_char *de)
+    {
+      while (src < se && de - dst >= 2)
+        {
+          Char cc = *src++;
+          if (DBCP (cc))
+            *dst++ = u_char (cc >> 8);
+          *dst++ = u_char (cc);
+        }
+    }
+  virtual bool can_encode (codec_char) const {return true;}
+};
+
+// 0: Unicode (or a raw byte) -> the internal code.  1 or 2 Chars.
+static int
+codec_to_chars (codec_char u, Char *out)
+{
+  if (codec_raw_byte_p (u))
+    {
+      out[0] = u & 0xff;
+      return 1;
+    }
+  if (u < 0x10000)
+    {
+      Char cc = w2i (ucs2_t (u));
+      if (cc != CHAR_NONE)
+        {
+          out[0] = cc;
+          return 1;
+        }
+      out[0] = utf16_ucs2_to_undef_pair_high (ucs2_t (u));
+      out[1] = utf16_ucs2_to_undef_pair_low (ucs2_t (u));
+      return 2;
+    }
+  if (u < 0x110000)
+    {
+      out[0] = utf16_ucs4_to_pair_high (u);
+      out[1] = utf16_ucs4_to_pair_low (u);
+      return 2;
+    }
+  out[0] = CODEC_DEFCHAR;
+  return 1;
+}
+
+// 0: the internal code -> Unicode.  It returns the number of Chars that it
+// used, or 0 when it needs the next Char (the first half of a pair is the
+// last one).
+static int
+chars_to_codec (const Char *p, const Char *pe, codec_char &u)
+{
+  Char cc = *p;
+  if (cc < 0x80)
+    {
+      u = cc;
+      return 1;
+    }
+  if (cc < 0x10000)
+    {
+      if (utf16_surrogate_high_p (ucs2_t (cc)))
+        {
+          if (p + 1 == pe)
+            return 0;
+          if (p[1] < 0x10000 && utf16_surrogate_low_p (ucs2_t (p[1])))
+            {
+              u = utf16_pair_to_ucs4 (ucs2_t (cc), ucs2_t (p[1]));
+              return 2;
+            }
+        }
+      else if (utf16_undef_char_high_p (ucs2_t (cc)))
+        {
+          if (p + 1 == pe)
+            return 0;
+          if (p[1] < 0x10000 && utf16_undef_char_low_p (ucs2_t (p[1])))
+            {
+              u = utf16_undef_pair_to_ucs2 (ucs2_t (cc), ucs2_t (p[1]));
+              return 2;
+            }
+        }
+      ucs2_t wc = i2w (cc);
+      if (wc != ucs2_t (-1))
+        {
+          u = wc;
+          return 1;
+        }
+    }
+  u = CODEC_DEFCHAR;
+  return 1;
+}
+
+class stream_conv
+{
+public:
+  bool raw;                     // the raw cp932 form (0 only)
+  bool want_dec, want_enc;
+  bool no_signature;            // the encoder must not write a signature
+  codec_spec spec;
+  dup_memory mem;               // duplicated codes of cp932 (design 5.4)
+  char_decoder *dec;
+  char_encoder *enc;
+  u_char ib[CONV_IB];           // input bytes that the decoder did not take
+  int in_n;
+  Char ob[CONV_OB];             // decoded characters that were not read yet
+  int ob_head, ob_tail;
+  lChar peeked;                 // the character after a CR
+  Char held;                    // 0: the first half of a pair
+
+  stream_conv ()
+    : raw (false), want_dec (false), want_enc (false), no_signature (false),
+      dec (0), enc (0), in_n (0), ob_head (0), ob_tail (0),
+      peeked (lChar_EOF), held (CHAR_NONE)
+    {
+      memset (&spec, 0, sizeof spec);
+    }
+  ~stream_conv ()
+    {
+      delete dec;
+      delete enc;
+    }
+  bool make_codecs ();
+  void after_seek (bool at_start)
+    {
+      no_signature = !at_start;
+      make_codecs ();
+    }
+};
+
+bool
+stream_conv::make_codecs ()
+{
+  delete dec;
+  delete enc;
+  dec = 0;
+  enc = 0;
+  in_n = 0;
+  ob_head = ob_tail = 0;
+  peeked = lChar_EOF;
+  held = CHAR_NONE;
+
+  raw = !XYZZY_CHAR_UNICODE && spec.type == encoding_sjis;
+  if (raw)
+    {
+      if (want_dec)
+        dec = new raw_sjis_decoder;
+      if (want_enc)
+        enc = new raw_sjis_encoder;
+      return true;
+    }
+  if (want_dec)
+    dec = make_decoder (spec, &mem);
+  if (want_enc)
+    {
+      codec_spec es = spec;
+      if (no_signature)
+        es.flags &= ~ENCODING_UTF_SIGNATURE;
+      enc = make_encoder (es, &mem);
+    }
+  return (!want_dec || dec) && (!want_enc || enc);
+}
+
+// The converter of the encoding (a char-encoding object, or nil for the
+// default of a stream: *default-fileio-encoding*).
+static void
+conv_spec (lisp lencoding, codec_spec &spec)
+{
+  if (!lencoding || lencoding == Qnil)
+    lencoding = symbol_value_char_encoding (Vdefault_fileio_encoding);
+  else
+    check_char_encoding (lencoding);
+  if (!codec_spec_from_encoding (lencoding, spec))
+    FEprogram_error (Einvalid_encoding_option, lencoding);
+}
+
+static stream_conv *
+make_stream_conv (const codec_spec &spec, bool input, bool output)
+{
+  stream_conv *cv = new stream_conv;
+  cv->spec = spec;
+  cv->want_dec = input;
+  cv->want_enc = output;
+  if (!cv->make_codecs ())
+    {
+      delete cv;
+      FEprogram_error (Einvalid_encoding_option, Qnil);
+    }
+  return cv;
+}
+
+static stream_conv *
+conv_of (lisp stream)
+{
+  lstream *s = (lstream *)stream;
+  if (!s->conv)
+    {
+      codec_spec spec;
+      conv_spec (0, spec);
+      s->conv = make_stream_conv (spec, input_stream_p (stream) != 0,
+                                  output_stream_p (stream) != 0);
+    }
+  return s->conv;
+}
+
+// The sources and the sinks of the bytes.
+struct file_src
+{
+  FILE *fp;
+  int get () {return getc (fp);}
+};
+
+struct sock_src
+{
+  sockinet *so;
+  int get ()
+    {
+      int c = so->sgetc ();
+      return c == sock::eof ? EOF : c;
+    }
+};
+
+struct file_sink
+{
+  FILE *fp;
+  void put (int c) {putc (c, fp);}
+  void write (const u_char *p, size_t n) {fwrite (p, 1, n, fp);}
+};
+
+struct sock_sink
+{
+  sockinet *so;
+  void put (int c) {so->sputc (c);}
+  void write (const u_char *p, size_t n)
+    {
+      for (size_t i = 0; i < n; i++)
+        so->sputc (p[i]);
+    }
+};
+
+// Decodes the bytes in ib.  With final, whatever is left becomes raw bytes.
+static void
+conv_decode (stream_conv *cv, bool final)
+{
+  for (;;)
+    {
+      codec_char cb[CONV_CB];
+      codec_char *dst = cb;
+      const u_char *s = cv->ib, *s0 = s, *se = cv->ib + cv->in_n;
+      cv->dec->decode (s, se, dst, cb + CONV_CB, final);
+      int rest = int (se - s);
+      if (rest && s != cv->ib)
+        memmove (cv->ib, s, rest);
+      cv->in_n = rest;
+      for (const codec_char *p = cb; p < dst; p++)
+        {
+          if (cv->raw)
+            cv->ob[cv->ob_tail++] = *p;
+          else if constexpr (XYZZY_CHAR_UNICODE)
+            cv->ob[cv->ob_tail++] = *p;
+          else
+            cv->ob_tail += codec_to_chars (*p, cv->ob + cv->ob_tail);
+        }
+      if (s == s0 && dst == cb)
+        break;
+      if (!final && !cv->in_n)
+        break;
+    }
+  if (final)
+    cv->in_n = 0;
+}
+
+// The next decoded character, or lChar_EOF.  The line end is not touched.
+template <class Src>
+static lChar
+conv_getc (stream_conv *cv, Src &src)
+{
+  for (;;)
+    {
+      if (cv->ob_head < cv->ob_tail)
+        return cv->ob[cv->ob_head++];
+      cv->ob_head = cv->ob_tail = 0;
+      int c = src.get ();
+      if (c == EOF)
+        {
+          conv_decode (cv, true);
+          if (cv->ob_tail == 0)
+            return lChar_EOF;
+          continue;
+        }
+      cv->ib[cv->in_n++] = u_char (c);
+      conv_decode (cv, cv->in_n == CONV_IB);
+    }
+}
+
+template <class Src>
+static lChar
+conv_readc (stream_conv *cv, int eol, Src &src)
+{
+  lChar c;
+  if (cv->peeked != lChar_EOF)
+    {
+      c = cv->peeked;
+      cv->peeked = lChar_EOF;
+    }
+  else
+    c = conv_getc (cv, src);
+  if (c == '\r' && eol == lstream::ENCODE_CANON)
+    {
+      lChar c2 = conv_getc (cv, src);
+      if (c2 == '\n')
+        c = c2;
+      else
+        cv->peeked = c2;
+    }
+  return c;
+}
+
+static bool
+conv_pending_p (stream_conv *cv)
+{
+  return cv && (cv->ob_head < cv->ob_tail || cv->peeked != lChar_EOF);
+}
+
+template <class Sink>
+static void
+conv_encode_codec (stream_conv *cv, const codec_char *s, const codec_char *se,
+                   Sink &sink)
+{
+  while (s < se)
+    {
+      u_char ob[CONV_EOB];
+      u_char *d = ob;
+      const codec_char *s0 = s;
+      cv->enc->encode (s, se, d, ob + sizeof ob);
+      if (d != ob)
+        sink.write (ob, d - ob);
+      if (s == s0 && d == ob)
+        break;
+    }
+}
+
+template <class Sink>
+static void
+conv_encode (stream_conv *cv, const Char *p, const Char *pe, Sink &sink)
+{
+  codec_char cc[CONV_PIECE * 2 + 2];
+  codec_char *q = cc;
+  if (cv->raw)
+    while (p < pe)
+      *q++ = *p++;
+  else if constexpr (XYZZY_CHAR_UNICODE)
+    while (p < pe)
+      *q++ = *p++;
+  else
+    while (p < pe)
+      {
+        codec_char u;
+        int k = chars_to_codec (p, pe, u);
+        if (!k)
+          {
+            cv->held = *p;
+            break;
+          }
+        *q++ = u;
+        p += k;
+      }
+  conv_encode_codec (cv, cc, q, sink);
+}
+
+template <class Sink>
+static void
+conv_write (stream_conv *cv, int eol, const Char *b, size_t n, Sink &sink)
+{
+  while (n)
+    {
+      size_t m = n > CONV_PIECE ? CONV_PIECE : n;
+      Char tmp[CONV_PIECE * 2 + 2];
+      Char *t = tmp;
+      if (cv->held != CHAR_NONE)
+        {
+          *t++ = cv->held;
+          cv->held = CHAR_NONE;
+        }
+      for (size_t i = 0; i < m; i++)
+        {
+          if (eol == lstream::ENCODE_CANON && b[i] == '\n')
+            *t++ = '\r';
+          *t++ = b[i];
+        }
+      b += m;
+      n -= m;
+      conv_encode (cv, tmp, t, sink);
+    }
+}
+
+// What is pending at the end of the text (the return to ASCII of ISO-2022...).
+template <class Sink>
+static void
+conv_finish (stream_conv *cv, Sink &sink)
+{
+  if (!cv || !cv->enc)
+    return;
+  if (cv->held != CHAR_NONE)
+    {
+      cv->held = CHAR_NONE;
+      codec_char u = CODEC_DEFCHAR;
+      conv_encode_codec (cv, &u, &u + 1, sink);
+    }
+  u_char ob[CONV_EOB];
+  u_char *d = ob;
+  cv->enc->finish (d, ob + sizeof ob);
+  if (d != ob)
+    sink.write (ob, d - ob);
+}
+
+// :binary.  A byte is a character (0..255).
+template <class Sink>
+static inline void
+put_binary (Char cc, Sink &sink)
+{
+  if constexpr (XYZZY_CHAR_UNICODE)
+    sink.put (cc < 0x100 || codec_raw_byte_p (cc) ? int (cc & 0xff) : '?');
+  else
+    {
+      if (DBCP (cc))
+        sink.put (cc >> 8);
+      sink.put (u_char (cc));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The encoding of a file that is loaded (design 4.5)
+//
+//   1. BOM: EF BB BF is UTF-8, FF FE and FE FF are UTF-16
+//   2. -*- ... Encoding: <name> ... -*- in the first or the second line
+//   3. the whole file is valid UTF-8 and has a non ASCII byte: UTF-8
+//   4. otherwise cp932
+
+// Whole-file check of UTF-8.
+struct utf8_validator
+{
+  int need;
+  u_char lo, hi;
+  bool nonascii, ok;
+
+  utf8_validator () : need (0), lo (0x80), hi (0xbf), nonascii (false), ok (true) {}
+  void feed (const u_char *p, size_t n)
+    {
+      for (size_t i = 0; i < n && ok; i++)
+        {
+          u_char c = p[i];
+          if (need)
+            {
+              if (c < lo || c > hi)
+                {
+                  ok = false;
+                  return;
+                }
+              lo = 0x80;
+              hi = 0xbf;
+              need--;
+            }
+          else if (c >= 0x80)
+            {
+              nonascii = true;
+              if (c >= 0xc2 && c <= 0xdf)
+                need = 1;
+              else if (c >= 0xe0 && c <= 0xef)
+                {
+                  need = 2;
+                  if (c == 0xe0)
+                    lo = 0xa0;
+                  else if (c == 0xed)
+                    hi = 0x9f;
+                }
+              else if (c >= 0xf0 && c <= 0xf4)
+                {
+                  need = 3;
+                  if (c == 0xf0)
+                    lo = 0x90;
+                  else if (c == 0xf4)
+                    hi = 0x8f;
+                }
+              else
+                {
+                  ok = false;
+                  return;
+                }
+            }
+        }
+    }
+  bool valid () const {return ok && !need;}
+};
+
+static const u_char *
+find_mark (const u_char *p, const u_char *pe)
+{
+  for (; p + 3 <= pe; p++)
+    if (p[0] == '-' && p[1] == '*' && p[2] == '-')
+      return p;
+  return 0;
+}
+
+static bool
+mark_key_p (const u_char *p, const u_char *pe, const char *key)
+{
+  size_t l = strlen (key);
+  return size_t (pe - p) == l && !_strnicmp ((const char *)p, key, l);
+}
+
+// The value of "encoding" or "coding" in the -*- ... -*- of a line.
+static bool
+scan_line_mark (const u_char *p, const u_char *pe, char *name, size_t size)
+{
+  const u_char *b = find_mark (p, pe);
+  if (!b)
+    return false;
+  b += 3;
+  const u_char *e = find_mark (b, pe);
+  if (!e)
+    return false;
+  while (b < e)
+    {
+      const u_char *s = b;
+      while (s < e && *s != ';')
+        s++;
+      const u_char *colon = b;
+      while (colon < s && *colon != ':')
+        colon++;
+      if (colon < s)
+        {
+          const u_char *k0 = b, *k1 = colon;
+          while (k0 < k1 && isspace (*k0))
+            k0++;
+          while (k1 > k0 && isspace (k1[-1]))
+            k1--;
+          const u_char *v0 = colon + 1, *v1 = s;
+          while (v0 < v1 && isspace (*v0))
+            v0++;
+          while (v1 > v0 && isspace (v1[-1]))
+            v1--;
+          if ((mark_key_p (k0, k1, "encoding") || mark_key_p (k0, k1, "coding"))
+              && v1 > v0 && size_t (v1 - v0) < size)
+            {
+              memcpy (name, v0, v1 - v0);
+              name[v1 - v0] = 0;
+              return true;
+            }
+        }
+      b = s + 1;
+    }
+  return false;
+}
+
+static bool
+scan_encoding_mark (const u_char *p, size_t n, char *name, size_t size)
+{
+  const u_char *pe = p + n;
+  for (int line = 0; line < 2 && p < pe; line++)
+    {
+      const u_char *e = p;
+      while (e < pe && *e != '\n' && *e != '\r')
+        e++;
+      if (scan_line_mark (p, e, name, size))
+        return true;
+      p = e;
+      if (p < pe && *p == '\r')
+        p++;
+      if (p < pe && *p == '\n')
+        p++;
+    }
+  return false;
+}
+
+static bool
+spec_by_name (const char *name, codec_spec &spec)
+{
+  int l = int (strlen (name));
+
+  // The names of the char-encoding objects.
+  for (lisp p = xsymbol_value (Vchar_encoding_list); consp (p); p = xcdr (p))
+    {
+      lisp e = xcar (p);
+      if (char_encoding_p (e)
+          && stringp (xchar_encoding_name (e))
+          && string_equalp (xstring_contents (xchar_encoding_name (e)),
+                            xstring_length (xchar_encoding_name (e)), name, l)
+          && codec_spec_from_encoding (e, spec)
+          && spec.type != encoding_auto_detect)
+        return true;
+    }
+
+  // The MIME names (encoding.l makes the table from *character-set-alist*).
+  lisp package = xsymbol_value (Veditor_package);
+  if (package && package != Qunbound && package != Qnil)
+    {
+      lisp sym = Ffind_symbol (make_string ("*mime-charset-name-hash-table*"), package);
+      if (symbolp (sym) && sym != Qnil && xsymbol_value (sym) != Qunbound
+          && hash_table_p (xsymbol_value (sym)))
+        {
+          lisp e = Fgethash (make_string (name), xsymbol_value (sym), Qnil);
+          if (e != Qnil && char_encoding_p (e)
+              && codec_spec_from_encoding (e, spec)
+              && spec.type != encoding_auto_detect)
+            return true;
+        }
+    }
+
+  // Before encoding.l is loaded.
+  static const char *const utf8_names[] = {"utf-8", "utf8", "utf-8n", "utf8n"};
+  static const char *const sjis_names[] =
+    {"sjis", "shift_jis", "shift-jis", "cp932", "windows-31j", "x-sjis", "ms_kanji"};
+  for (int i = 0; i < numberof (utf8_names); i++)
+    if (!_stricmp (name, utf8_names[i]))
+      {
+        memset (&spec, 0, sizeof spec);
+        spec.type = encoding_utf8;
+        return true;
+      }
+  for (int i = 0; i < numberof (sjis_names); i++)
+    if (!_stricmp (name, sjis_names[i]))
+      {
+        memset (&spec, 0, sizeof spec);
+        spec.type = encoding_sjis;
+        return true;
+      }
+  return false;
+}
+
+// Chooses the encoding of the file stream by the rules above.  The stream
+// has to be an input file stream that is at its start.
+void
+stream_detect_load_encoding (lisp stream)
+{
+  if (!streamp (stream) || !file_stream_p (stream) || !xfile_stream_input (stream))
+    return;
+  FILE *fp = xfile_stream_input (stream);
+  if (_fseeki64 (fp, 0, SEEK_SET))
+    return;
+
+  u_char head[4096];
+  size_t n = fread (head, 1, sizeof head, fp);
+
+  codec_spec spec;
+  memset (&spec, 0, sizeof spec);
+  int64_t skip = 0;
+  bool decided = false;
+
+  if (n >= 3 && head[0] == 0xef && head[1] == 0xbb && head[2] == 0xbf)
+    {
+      spec.type = encoding_utf8;
+      skip = 3;
+      decided = true;
+    }
+  else if (n >= 2 && ((head[0] == 0xff && head[1] == 0xfe)
+                      || (head[0] == 0xfe && head[1] == 0xff)))
+    {
+      // The decoder takes the BOM and decides the byte order.
+      spec.type = encoding_utf16;
+      spec.flags = ENCODING_UTF_SIGNATURE;
+      decided = true;
+    }
+  else
+    {
+      char name[128];
+      if (scan_encoding_mark (head, n, name, sizeof name)
+          && spec_by_name (name, spec))
+        decided = true;
+    }
+
+  if (!decided)
+    {
+      utf8_validator v;
+      v.feed (head, n);
+      if (n == sizeof head)
+        {
+          u_char buf[65536];
+          size_t k;
+          while (v.ok && (k = fread (buf, 1, sizeof buf, fp)) > 0)
+            v.feed (buf, k);
+        }
+      memset (&spec, 0, sizeof spec);
+      spec.type = v.valid () && v.nonascii ? encoding_utf8 : encoding_sjis;
+    }
+
+  _fseeki64 (fp, skip, SEEK_SET);
+  stream_conv *cv = make_stream_conv (spec, true, false);
+  lstream *s = (lstream *)stream;
+  delete s->conv;
+  s->conv = cv;
+}
 
 static void
 close_file_stream (lisp stream, int abort)
@@ -28,6 +786,8 @@ close_file_stream (lisp stream, int abort)
 
 lstream::~lstream ()
 {
+  delete conv;
+  conv = 0;
   if (file_stream_p (this))
     {
       if (input && input != stdin)
@@ -56,6 +816,7 @@ make_stream (stream_type type)
   p->alt_pathname = 0;
   p->open_p = 1;
   p->encoding = lstream::ENCODE_CANON;
+  p->conv = 0;
   return p;
 }
 
@@ -280,7 +1041,7 @@ stream_encoding (lisp lencoding)
 lisp
 create_file_stream (lisp filename, lisp direction, lisp if_exists,
                     lisp if_does_not_exist, lisp lencoding,
-                    lisp lshare)
+                    lisp lshare, lisp lchar_encoding)
 {
   char path[PATH_MAX + 1];
   pathname2cstr (filename, path);
@@ -290,6 +1051,8 @@ create_file_stream (lisp filename, lisp direction, lisp if_exists,
     FEprogram_error (Einvalid_if_does_not_exist_option, if_does_not_exist);
 
   int encoding = stream_encoding (lencoding);
+  codec_spec cspec;
+  conv_spec (lchar_encoding, cspec);
   int dont_create = if_does_not_exist != Kcreate;
   int need_alt = 0;
   int create, access;
@@ -455,6 +1218,18 @@ create_file_stream (lisp filename, lisp direction, lisp if_exists,
   xfile_stream_input (stream) = (access & GENERIC_READ) ? fp : 0;
   xfile_stream_output (stream) = (access & GENERIC_WRITE) ? fp : 0;
 
+  {
+    stream_conv *cv = make_stream_conv (cspec, (access & GENERIC_READ) != 0,
+                                        (access & GENERIC_WRITE) != 0);
+    // Appending to a file that has a text: no signature in the middle.
+    if (if_exists == Kappend && _ftelli64 (fp) > 0)
+      {
+        cv->no_signature = true;
+        cv->make_codecs ();
+      }
+    ((lstream *)stream)->conv = cv;
+  }
+
   if (direction == Kprobe)
     Fclose (stream, Qnil);
 
@@ -469,6 +1244,7 @@ Fopen (lisp filename, lisp keys)
   lisp if_does_not_exist = find_keyword (Kif_does_not_exist, keys, 0);
   lisp encoding = find_keyword (Kencoding, keys, Kcanonical);
   lisp share = find_keyword (Kshare, keys, 0);
+  lisp char_encoding = find_keyword (Kchar_encoding, keys, 0);
 
   if (direction == Kinput)
     {
@@ -498,7 +1274,7 @@ Fopen (lisp filename, lisp keys)
     FEprogram_error (Einvalid_direction_option, direction);
 
   return create_file_stream (filename, direction, if_exists,
-                             if_does_not_exist, encoding, share);
+                             if_does_not_exist, encoding, share, char_encoding);
 }
 
 lisp
@@ -547,6 +1323,8 @@ Ffile_position (lisp stream, lisp lpos)
 
       if (_fseeki64 (fp, offset, origin) == -1)
         return Qnil;
+      if (((lstream *)stream)->conv)
+        ((lstream *)stream)->conv->after_seek (origin == SEEK_SET && !offset);
       if (origin == SEEK_SET && !offset)
         {
           xstream_linenum (stream) = 0;
@@ -791,9 +1569,12 @@ Fconnect (lisp lhost, lisp lport, lisp keys)
     {
       Fbegin_wait_cursor ();
       int encoding = stream_encoding (find_keyword (Kencoding, keys, Kcanonical));
+      codec_spec cspec;
+      conv_spec (find_keyword (Kchar_encoding, keys, 0), cspec);
       sockinet::saddr addr (lhost, lport);
       stream = make_socket_stream ();
       protect_gc gcpro (stream);
+      ((lstream *)stream)->conv = make_stream_conv (cspec, true, true);
       if (find_keyword_bool (Kssl, keys))
         {
           lisp lverify_mode = find_keyword (Kssl_verify_mode, keys);
@@ -888,11 +1669,14 @@ Faccept_connection (lisp stream, lisp keys)
 {
   valid_socket_stream_p (stream);
   int encoding = stream_encoding (find_keyword (Kencoding, keys, Kcanonical));
+  codec_spec cspec;
+  conv_spec (find_keyword (Kchar_encoding, keys, 0), cspec);
   lisp new_stream = Qnil;
   try
     {
       new_stream = make_socket_stream ();
       protect_gc gcpro (new_stream);
+      ((lstream *)new_stream)->conv = make_stream_conv (cspec, true, true);
       SOCKET so = xsocket_stream_sock (stream)->accept ();
       try
         {
@@ -921,6 +1705,11 @@ close_socket_stream (lisp stream, int abort)
   xstream_open_p (stream) = 0;
   try
     {
+      if (!abort)
+        {
+          sock_sink sink = {so};
+          conv_finish (((lstream *)stream)->conv, sink);
+        }
       so->close (abort);
     }
   catch (sock_error &e)
@@ -1149,6 +1938,10 @@ Fclose (lisp stream, lisp keys)
     case st_file_output:
       assert (!xfile_stream_input (stream));
       assert (xfile_stream_output (stream));
+      {
+        file_sink sink = {xfile_stream_output (stream)};
+        conv_finish (((lstream *)stream)->conv, sink);
+      }
       fclose (xfile_stream_output (stream));
       xfile_stream_output (stream) = 0;
       close_file_stream (stream, find_keyword_bool (Kabort, keys));
@@ -1157,6 +1950,10 @@ Fclose (lisp stream, lisp keys)
     case st_file_io:
       assert (xfile_stream_input (stream));
       assert (xfile_stream_output (stream));
+      {
+        file_sink sink = {xfile_stream_output (stream)};
+        conv_finish (((lstream *)stream)->conv, sink);
+      }
       fclose (xfile_stream_input (stream));
       if (xfile_stream_input (stream) != xfile_stream_output (stream))
         fclose (xfile_stream_output (stream));
@@ -1393,31 +2190,17 @@ readc_stream (lisp stream)
         case st_file_io:
         case st_file_input:
           {
-            int c = getc (xfile_stream_input (stream));
-            if (c == EOF)
-              return lChar_EOF;
-            if (xfile_stream_encoding (stream) != lstream::ENCODE_BINARY)
+            file_src src = {xfile_stream_input (stream)};
+            lChar c;
+            if (xfile_stream_encoding (stream) == lstream::ENCODE_BINARY)
               {
-                if (SJISP (c))
-                  {
-                    int c2 = getc (xfile_stream_input (stream));
-                    if (c2 == EOF)
-                      return c;
-                    if (SJIS2P (c2))
-                      return (c << 8) | c2;
-                    ungetc (c2, xfile_stream_input (stream));
-                    return c;
-                  }
-                else if (xfile_stream_encoding (stream) == lstream::ENCODE_CANON
-                         && c == '\r')
-                  {
-                    int c2 = getc (xfile_stream_input (stream));
-                    if (c2 == '\n')
-                      c = c2;
-                    else
-                      ungetc (c2, xfile_stream_input (stream));
-                  }
+                int b = src.get ();
+                c = b == EOF ? lChar_EOF : lChar (b);
               }
+            else
+              c = conv_readc (conv_of (stream), xfile_stream_encoding (stream), src);
+            if (c == lChar_EOF)
+              return lChar_EOF;
             if (c == '\n')
               xstream_linenum (stream)++;
             return c;
@@ -1459,7 +2242,16 @@ readc_stream (lisp stream)
           QUIT;
           cc = readc_stream (xcomposite_stream_input (stream));
           if (cc != lChar_EOF)
-            writec_stream (xcomposite_stream_output (stream), text_char (cc));
+            {
+              if constexpr (XYZZY_CHAR_UNICODE)
+                {
+                  // A key is not text: it is not echoed.
+                  if (text_char_p (cc))
+                    writec_stream (xcomposite_stream_output (stream), Char (cc));
+                }
+              else
+                writec_stream (xcomposite_stream_output (stream), text_char (cc));
+            }
           if (cc == '\n')
             xstream_linenum (stream)++;
           return cc;
@@ -1492,31 +2284,17 @@ readc_stream (lisp stream)
         case st_socket:
           try
             {
-              int c = xsocket_stream_sock (stream)->sgetc ();
-              if (c == sock::eof)
-                return lChar_EOF;
-              if (xsocket_stream_encoding (stream) != lstream::ENCODE_BINARY)
+              sock_src src = {xsocket_stream_sock (stream)};
+              lChar c;
+              if (xsocket_stream_encoding (stream) == lstream::ENCODE_BINARY)
                 {
-                  if (SJISP (c))
-                    {
-                      int c2 = xsocket_stream_sock (stream)->sgetc ();
-                      if (c2 == sock::eof)
-                        return c;
-                      if (SJIS2P (c2))
-                        return (c << 8) | c2;
-                      xsocket_stream_sock (stream)->sungetc (c2);
-                      return c;
-                    }
-                  else if (xsocket_stream_encoding (stream) == lstream::ENCODE_CANON
-                           && c == '\r')
-                    {
-                      int c2 = xsocket_stream_sock (stream)->sgetc ();
-                      if (c2 == '\n')
-                        c = c2;
-                      else
-                        xsocket_stream_sock (stream)->sungetc (c2);
-                    }
+                  int b = src.get ();
+                  c = b == EOF ? lChar_EOF : lChar (b);
                 }
+              else
+                c = conv_readc (conv_of (stream), xsocket_stream_encoding (stream), src);
+              if (c == lChar_EOF)
+                return lChar_EOF;
               if (c == '\n')
                 xstream_linenum (stream)++;
               return c;
@@ -1587,6 +2365,8 @@ listen_stream (lisp stream)
         case st_file_input:
           {
             // UCRT hides FILE internals (no _cnt); regular files never block.
+            if (conv_pending_p (((lstream *)stream)->conv))
+              return 1;
             HANDLE h = HANDLE (_get_osfhandle (_fileno (xfile_stream_input (stream))));
             if (GetFileType (h) != FILE_TYPE_DISK
                 && WaitForSingleObject (h, 0) == WAIT_TIMEOUT)
@@ -1642,6 +2422,8 @@ listen_stream (lisp stream)
         case st_socket:
           try
             {
+              if (conv_pending_p (((lstream *)stream)->conv))
+                return 1;
               xsocket_stream_sock (stream)->sflush ();
               return xsocket_stream_sock (stream)->no_hang_p ();
             }
@@ -1757,25 +2539,27 @@ stream_linenum (lisp stream)
 }
 
 static void
-putc_file_stream (lisp stream, Char cc)
+put_file_chars (lisp stream, const Char *b, size_t n)
 {
-  if (DBCP (cc))
-    putc (cc >> 8, xfile_stream_output (stream));
-  else if (xfile_stream_encoding (stream) == lstream::ENCODE_CANON
-           && cc == '\n')
-    putc ('\r', xfile_stream_output (stream));
-  putc (cc, xfile_stream_output (stream));
+  file_sink sink = {xfile_stream_output (stream)};
+  int eol = xfile_stream_encoding (stream);
+  if (eol == lstream::ENCODE_BINARY)
+    for (size_t i = 0; i < n; i++)
+      put_binary (b[i], sink);
+  else
+    conv_write (conv_of (stream), eol, b, n, sink);
 }
 
 static void
-putc_sock_stream (lisp stream, Char cc)
+put_sock_chars (lisp stream, const Char *b, size_t n)
 {
-  if (DBCP (cc))
-    xsocket_stream_sock (stream)->sputc (cc >> 8);
-  else if (xsocket_stream_encoding (stream) == lstream::ENCODE_CANON
-           && cc == '\n')
-    xsocket_stream_sock (stream)->sputc ('\r');
-  xsocket_stream_sock (stream)->sputc (cc);
+  sock_sink sink = {xsocket_stream_sock (stream)};
+  int eol = xsocket_stream_encoding (stream);
+  if (eol == lstream::ENCODE_BINARY)
+    for (size_t i = 0; i < n; i++)
+      put_binary (b[i], sink);
+  else
+    conv_write (conv_of (stream), eol, b, n, sink);
 }
 
 void
@@ -1799,7 +2583,7 @@ writec_stream (lisp stream, Char cc)
 
         case st_file_output:
         case st_file_io:
-          putc_file_stream (stream, cc);
+          put_file_chars (stream, &cc, 1);
           xstream_column (stream) = update_column (xstream_column (stream), cc);
           return;
 
@@ -1847,7 +2631,7 @@ writec_stream (lisp stream, Char cc)
         case st_socket:
           try
             {
-              putc_sock_stream (stream, cc);
+              put_sock_chars (stream, &cc, 1);
               xstream_column (stream) = update_column (xstream_column (stream), cc);
             }
           catch (sock_error &e)
@@ -1895,8 +2679,7 @@ write_stream (lisp stream, const Char *b, size_t size)
         case st_file_output:
         case st_file_io:
           {
-            for (size_t i = 0; i < size; i++)
-              putc_file_stream (stream, b[i]);
+            put_file_chars (stream, b, size);
             xstream_column (stream) = update_column (xstream_column (stream), b, size);
             return;
           }
@@ -1957,8 +2740,7 @@ write_stream (lisp stream, const Char *b, size_t size)
         case st_socket:
           try
             {
-              for (size_t i = 0; i < size; i++)
-                putc_sock_stream (stream, b[i]);
+              put_sock_chars (stream, b, size);
               xstream_column (stream) = update_column (xstream_column (stream), b, size);
             }
           catch (sock_error &e)

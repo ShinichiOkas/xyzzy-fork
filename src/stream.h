@@ -47,6 +47,8 @@ enum stream_type
   st_debug_output = sti_debug_stream | sti_output_stream,
 };
 
+class stream_conv;
+
 class lstream: public lisp_object
 {
 public:
@@ -62,6 +64,7 @@ public:
   int end;
   char open_p;        // ストリームがオープンされている?
   char encoding;      // エンコードモード
+  stream_conv *conv;  // ファイルとソケットのストリーム: 文字の符号の変換器
   enum
     {
       ENCODE_CANON,   // text(行末変換する)
@@ -373,7 +376,11 @@ int unreadc_stream (lChar, lisp);
 lChar peekc_stream (lisp);
 lChar readc_stream (lisp);
 void create_std_streams ();
-lisp create_file_stream (lisp, lisp, lisp, lisp, lisp, lisp);
+// The last one is the :char-encoding (a char-encoding object).  0 or nil is
+// *default-fileio-encoding*.
+lisp create_file_stream (lisp, lisp, lisp, lisp, lisp, lisp, lisp = 0);
+// load: chooses the encoding of an input file stream (design 4.5).
+void stream_detect_load_encoding (lisp);
 int listen_stream (lisp);
 int get_stream_column (lisp);
 void flush_stream (lisp);
