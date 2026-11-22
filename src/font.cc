@@ -593,3 +593,405 @@ font_exist_p (const HDC hdc, const char *face, BYTE charset)
 
   return exists;
 }
+
+/* char_face_of and the functions around it */
+
+#include "uprops.h"
+
+static inline bool
+bmp_valid_p (Char c)
+{
+  return c < 0x10000 && (c < 0xd800 || c > 0xdfff);
+}
+
+// Fill the UTF-16 units of a code point; none for a surrogate or a value
+// beyond U+10FFFF.
+static void
+set_utf16 (char_face &f, Char c)
+{
+  if (bmp_valid_p (c))
+    {
+      f.wc[0] = ucs2_t (c);
+      f.nwc = 1;
+    }
+  else if (c >= 0x10000 && c <= 0x10ffff)
+    {
+      c -= 0x10000;
+      f.wc[0] = ucs2_t (0xd800 + (c >> 10));
+      f.wc[1] = ucs2_t (0xdc00 + (c & 0x3ff));
+      f.nwc = 2;
+    }
+}
+
+// The old internal code (XYZZY_CHAR_UNICODE == 0) only.  The 2 bytes of
+// CP932 and the 1 byte of the half width kana used to go to GDI as bytes
+// (ExtTextOutA), and GDI converted them with the code page 932.  Do the same
+// conversion here, once for each code.
+static ucs2_t
+cp932_to_wc (int c1, int c2)
+{
+  static ucs2_t *pair_cache;
+  static ucs2_t single_cache[256];
+  ucs2_t *p;
+  if (c2 < 0)
+    p = &single_cache[c1 & 0xff];
+  else
+    {
+      if (!pair_cache)
+        pair_cache = (ucs2_t *)calloc (0x10000, sizeof (ucs2_t));
+      if (!pair_cache)
+        return UCS2_NONE;
+      p = &pair_cache[((c1 & 0xff) << 8) | (c2 & 0xff)];
+    }
+  if (!*p)
+    {
+      char b[2] = {char (c1), char (c2)};
+      WCHAR w[2];
+      *p = (MultiByteToWideChar (CP_JAPANESE, 0, b, c2 < 0 ? 1 : 2, w, 2) == 1
+            ? w[0] : UCS2_NONE);
+    }
+  return *p;
+}
+
+static void
+char_face_internal (Char cc, char_face &f)
+{
+  f.width = u_char (char_width (cc));
+  const int ccs = code_charset (cc);
+  int slot = -1;
+  if (f.width == 2)
+    {
+      switch (ccs)
+        {
+        default:
+          {
+            // CP932 and anything that is not listed: the 2 bytes of the code
+            f.font = FONT_JP;
+            u_char c1 = u_char (cc >> 8);
+            u_char c2 = u_char (cc & 0xff);
+            if (!c2 || !SJISP (c1))
+              {
+                f.subst = 0x30fb; // the printer draws this (0x8145)
+                return;
+              }
+            ucs2_t wc = cp932_to_wc (c1, c2);
+            if (wc != UCS2_NONE)
+              {
+                f.wc[0] = wc;
+                f.nwc = 1;
+              }
+            return;
+          }
+        case ccs_jisx0212:
+#ifdef CCS_UJP_MIN
+        case ccs_ujp:
+#endif
+          slot = FONT_JP;
+          break;
+        case ccs_gb2312:
+          slot = FONT_CN_SIMPLIFIED;
+          break;
+        case ccs_big5:
+          slot = FONT_CN_TRADITIONAL;
+          break;
+        case ccs_ksc5601:
+          slot = FONT_HANGUL;
+          break;
+        }
+    }
+  else
+    {
+      switch (ccs)
+        {
+        case ccs_usascii:
+          f.font = FONT_ASCII;
+          f.wc[0] = ucs2_t (cc);
+          f.nwc = 1;
+          return;
+        case ccs_jisx0201_kana:
+          f.font = FONT_JP;
+          if (!SJISP (cc))
+            {
+              ucs2_t wc = cp932_to_wc (int (cc & 0xff), -1);
+              if (wc != UCS2_NONE)
+                {
+                  f.wc[0] = wc;
+                  f.nwc = 1;
+                }
+            }
+          return;
+        case ccs_iso8859_1:
+        case ccs_iso8859_2:
+        case ccs_iso8859_3:
+        case ccs_iso8859_4:
+        case ccs_iso8859_9:
+        case ccs_iso8859_10:
+        case ccs_iso8859_13:
+#ifdef CCS_ULATIN_MIN
+        case ccs_ulatin:
+#endif
+          slot = FONT_LATIN;
+          break;
+        case ccs_iso8859_5:
+          slot = FONT_CYRILLIC;
+          break;
+        case ccs_iso8859_7:
+          slot = FONT_GREEK;
+          break;
+        case ccs_georgian:
+          slot = FONT_GEORGIAN;
+          break;
+        case ccs_jisx0212:
+        case ccs_ipa:
+#ifdef CCS_UJP_MIN
+        case ccs_ujp:
+#endif
+          slot = FONT_JP;
+          break;
+        case ccs_smlcdm:
+          slot = FONT_LUCIDA;
+          break;
+        default:
+          f.font = FONT_ASCII;
+          return;
+        }
+    }
+  f.font = u_char (slot);
+  ucs2_t wc = i2w (cc);
+  if (wc != UCS2_NONE)
+    {
+      f.wc[0] = wc;
+      f.nwc = 1;
+    }
+}
+
+static void
+char_face_unicode (Char cc, int han_font, char_face &f)
+{
+  int w = uc_width (cc);
+  f.width = u_char (w < 1 ? 1 : w > 2 ? 2 : w);
+  set_utf16 (f, cc);
+  if (cc >= UNICODE_SMLCDM_MIN && cc <= UNICODE_SMLCDM_MAX)
+    {
+      f.font = FONT_LUCIDA;
+      return;
+    }
+  switch (uc_font_group (cc))
+    {
+    case UC_FONT_ASCII:
+      f.font = FONT_ASCII;
+      break;
+    case UC_FONT_JP:
+      f.font = FONT_JP;
+      break;
+    case UC_FONT_HAN:
+      f.font = u_char (han_font);
+      break;
+    case UC_FONT_HANGUL:
+      f.font = FONT_HANGUL;
+      break;
+    case UC_FONT_GREEK:
+      f.font = FONT_GREEK;
+      break;
+    case UC_FONT_CYRILLIC:
+      f.font = FONT_CYRILLIC;
+      break;
+    case UC_FONT_GEORGIAN:
+      f.font = FONT_GEORGIAN;
+      break;
+    case UC_FONT_LATIN:
+      f.font = FONT_LATIN;
+      break;
+    default:
+      f.font = FONT_FALLBACK;
+      break;
+    }
+}
+
+void
+char_face_of (Char cc, int han_font, char_face &f)
+{
+  f.font = FONT_ASCII;
+  f.width = 1;
+  f.nwc = 0;
+  f.wc[0] = f.wc[1] = 0;
+  f.subst = 0;
+  if constexpr (XYZZY_CHAR_UNICODE)
+    char_face_unicode (cc, han_font, f);
+  else
+    char_face_internal (cc, f);
+}
+
+int
+char_display_width (Char cc)
+{
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      int w = uc_width (cc);
+      return w < 1 ? 1 : w > 2 ? 2 : w;
+    }
+  else
+    return char_width (cc);
+}
+
+Char
+char_unicode_of (Char cc)
+{
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return cc <= 0x10ffff ? cc : CHAR_NONE;
+  else
+    {
+      ucs2_t wc = i2w (cc);
+      return wc == UCS2_NONE ? CHAR_NONE : Char (wc);
+    }
+}
+
+static int
+cjk_font_slot (int cjk)
+{
+  switch (cjk)
+    {
+    case ENCODING_LANG_JP:
+    case ENCODING_LANG_JP2:
+      return FONT_JP;
+    case ENCODING_LANG_KR:
+      return FONT_HANGUL;
+    case ENCODING_LANG_CN_GB:
+      return FONT_CN_SIMPLIFIED;
+    case ENCODING_LANG_CN_BIG5:
+    case ENCODING_LANG_CN:
+      return FONT_CN_TRADITIONAL;
+    }
+  return -1;
+}
+
+int
+encoding_font_slot (lisp encoding, int han)
+{
+  if (!char_encoding_p (encoding))
+    return -1;
+  switch (xchar_encoding_type (encoding))
+    {
+    case encoding_sjis:
+      return FONT_JP;
+
+    case encoding_big5:
+      return FONT_CN_TRADITIONAL;
+
+    case encoding_windows_codepage:
+      switch (xchar_encoding_windows_codepage (encoding))
+        {
+        case CP_JAPANESE:
+          return FONT_JP;
+        case CP_KOREAN:
+          return FONT_HANGUL;
+        case CP_CN_TRADITIONAL:
+          return FONT_CN_TRADITIONAL;
+        case CP_CN_SIMPLIFIED:
+          return FONT_CN_SIMPLIFIED;
+        case CP_CYRILLIC:
+          return han ? -1 : FONT_CYRILLIC;
+        case CP_GREEK:
+          return han ? -1 : FONT_GREEK;
+        }
+      return -1;
+
+    case encoding_iso2022:
+      if (!han)
+        return -1;
+      return cjk_font_slot (xchar_encoding_iso_cjk (encoding));
+
+    case encoding_iso2022_noesc:
+      return cjk_font_slot (xchar_encoding_iso_cjk (encoding));
+
+    case encoding_utf7:
+    case encoding_utf8:
+    case encoding_utf16:
+    case encoding_utf5:
+      return han ? cjk_font_slot (xchar_encoding_utf_cjk (encoding)) : -1;
+
+    default:
+      break;
+    }
+  return -1;
+}
+
+int
+encoding_han_font (lisp encoding)
+{
+  int slot = encoding_font_slot (encoding, 1);
+  return slot < 0 ? FONT_JP : slot;
+}
+
+/* Lisp functions for the tests of char_face_of (both sides, whatever
+   XYZZY_CHAR_UNICODE is). */
+
+static void
+init_char_face (char_face &f)
+{
+  f.font = FONT_ASCII;
+  f.width = 1;
+  f.nwc = 0;
+  f.wc[0] = f.wc[1] = 0;
+  f.subst = 0;
+}
+
+// (font-keyword width nwc wc0 wc1 subst)
+static lisp
+char_face_to_list (const char_face &f)
+{
+  static const char *const names[] =
+    {
+      "ascii", "jp", "latin", "cyrillic", "greek", "cn-simplified",
+      "cn-traditional", "hangul", "georgian", "lucida",
+    };
+  lisp r = Qnil;
+  r = xcons (make_fixnum (f.subst), r);
+  r = xcons (make_fixnum (f.wc[1]), r);
+  r = xcons (make_fixnum (f.wc[0]), r);
+  r = xcons (make_fixnum (f.nwc), r);
+  r = xcons (make_fixnum (f.width), r);
+  r = xcons (Fintern (make_string (names[f.font]), xsymbol_value (Vkeyword_package)), r);
+  return r;
+}
+
+// The face of an old internal code (the 0 side).
+lisp
+Fsi_char_face_internal (lisp code)
+{
+  long n = fixnum_value (code);
+  if (n < 0 || n > 0xffff)
+    FErange_error (code);
+  char_face f;
+  init_char_face (f);
+  char_face_internal (Char (n), f);
+  return char_face_to_list (f);
+}
+
+// The face of a Unicode code point (the 1 side).  HAN is the slot number of
+// the Han characters (1: jp, 5: gb, 6: big5, 7: hangul).
+lisp
+Fsi_char_face_unicode (lisp code, lisp han)
+{
+  long n = fixnum_value (code);
+  if (n < 0 || n > 0x10ffff)
+    FErange_error (code);
+  int h = FONT_JP;
+  if (han && han != Qnil)
+    {
+      h = int (fixnum_value (han));
+      if (h < 0 || h >= FONT_MAX)
+        FErange_error (han);
+    }
+  char_face f;
+  init_char_face (f);
+  char_face_unicode (Char (n), h, f);
+  return char_face_to_list (f);
+}
+
+lisp
+Fsi_encoding_han_font (lisp encoding)
+{
+  check_char_encoding (encoding);
+  return make_fixnum (encoding_han_font (encoding));
+}

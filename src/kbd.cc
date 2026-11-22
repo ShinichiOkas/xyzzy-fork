@@ -1079,59 +1079,11 @@ kbd_queue::init_kbd_encoding (LANGID langid)
 const FontObject &
 kbd_queue::kbd_encoding_font ()
 {
-  lisp encoding = xsymbol_value (Vkbd_encoding);
-  switch (xchar_encoding_type (encoding))
-    {
-    case encoding_sjis:
-      return app.text_font.font (FONT_JP);
-
-    case encoding_big5:
-      return app.text_font.font (FONT_CN_TRADITIONAL);
-
-    case encoding_windows_codepage:
-      switch (xchar_encoding_windows_codepage (encoding))
-        {
-        case CP_JAPANESE:
-          return app.text_font.font (FONT_JP);
-
-        case CP_KOREAN:
-          return app.text_font.font (FONT_HANGUL);
-
-        case CP_CN_TRADITIONAL:
-          return app.text_font.font (FONT_CN_TRADITIONAL);
-
-        case CP_CN_SIMPLIFIED:
-          return app.text_font.font (FONT_CN_SIMPLIFIED);
-
-        case CP_CYRILLIC:
-          return app.text_font.font (FONT_CYRILLIC);
-
-        case CP_GREEK:
-          return app.text_font.font (FONT_GREEK);
-        }
-      break;
-
-    case encoding_iso2022_noesc:
-      switch (xchar_encoding_iso_cjk (encoding))
-        {
-        case ENCODING_LANG_JP:
-        case ENCODING_LANG_JP2:
-          return app.text_font.font (FONT_JP);
-
-        case ENCODING_LANG_KR:
-          return app.text_font.font (FONT_HANGUL);
-
-        case ENCODING_LANG_CN_GB:
-          return app.text_font.font (FONT_CN_SIMPLIFIED);
-
-        case ENCODING_LANG_CN_BIG5:
-        case ENCODING_LANG_CN:
-          return app.text_font.font (FONT_CN_TRADITIONAL);
-        }
-    }
-  return app.text_font.font (FONT_LATIN);
+  // the slot comes from font.cc, the same table that chooses the slot of the
+  // Han characters of a buffer
+  int slot = encoding_font_slot (xsymbol_value (Vkbd_encoding), 0);
+  return app.text_font.font (slot < 0 ? FONT_LATIN : slot);
 }
-
 
 key_sequence::key_sequence ()
      : k_used (0), k_last_used (0)

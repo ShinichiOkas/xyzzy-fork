@@ -129,12 +129,50 @@ public:
     {return make_font (hdc, charset, -dev.pt2ypxl (ps_font[charset].point));}
 };
 
+// The widths in pixels of the characters (non fixed pitch fonts).  The table
+// is sparse: a page of 256 characters is made when one of them is needed.
 struct glyph_width
 {
   HDC hdc;
   const HFONT *hfonts;
   int height;
-  short pixel[CHAR_LIMIT];
+  int han;                      // the slot of the Han characters (char_face_of)
+
+  glyph_width ()
+       : hdc (0), hfonts (0), height (0), han (FONT_JP)
+    {memset (gw_pages, 0, sizeof gw_pages);}
+  ~glyph_width ()
+    {
+      for (int i = 0; i < NPAGES; i++)
+        free (gw_pages[i]);
+    }
+  // -1 when the width of C is not known yet
+  int cached (Char c) const
+    {
+      const short *p = c < LIMIT ? gw_pages[c >> PAGE_BITS] : 0;
+      return p ? p[c & (PAGE_SIZE - 1)] : -1;
+    }
+  void cache (Char c, int w) const
+    {
+      if (c >= LIMIT)
+        return;
+      short *&p = gw_pages[c >> PAGE_BITS];
+      if (!p)
+        {
+          p = (short *)malloc (sizeof (short) * PAGE_SIZE);
+          if (!p)
+            return;
+          for (int i = 0; i < PAGE_SIZE; i++)
+            p[i] = -1;
+        }
+      p[c & (PAGE_SIZE - 1)] = short (w);
+    }
+private:
+  enum {PAGE_BITS = 8, PAGE_SIZE = 1 << PAGE_BITS,
+        LIMIT = 0x110000, NPAGES = LIMIT >> PAGE_BITS};
+  mutable short *gw_pages[NPAGES];
+  glyph_width (const glyph_width &);
+  void operator = (const glyph_width &);
 };
 
 struct PaintCtx;
@@ -232,12 +270,7 @@ private:
   int form_feed_p (const Point &) const;
 
   void paint_ascii (PaintCtx &, Char) const;
-  void paint_kana (PaintCtx &, Char) const;
-  void paint_kanji (PaintCtx &, Char) const;
-  void paint_latin (PaintCtx &, Char, int) const;
-  void paint_jisx0212 (PaintCtx &, Char) const;
-  void paint_full_width (PaintCtx &, Char, int) const;
-  void paint_lucida (PaintCtx &, Char) const;
+  void paint_char (PaintCtx &, Char) const;
   int paint_line (HDC, int, int, Point &, long &) const;
   void paint_header (HDC);
   void paint_footer (HDC);
