@@ -160,7 +160,7 @@
        (with-open-file (s tmp :direction :output :encoding eol
                           :char-encoding encoding
                           :if-exists :supersede)
-         (write-string string s))
+         (princ string s))
        (r4-read-bytes tmp))))
 
 (defun r4-read-with (encoding bytes &optional (eol :canonical))
@@ -244,10 +244,10 @@
    #'(lambda (tmp)
        (with-open-file (s tmp :direction :output :char-encoding *encoding-utf8*
                           :if-exists :supersede)
-         (write-string "a" s))
+         (princ "a" s))
        (with-open-file (s tmp :direction :output :char-encoding *encoding-utf8*
                           :if-exists :append)
-         (write-string "b" s))
+         (princ "b" s))
        (r4-read-bytes tmp)))
   => (#xef #xbb #xbf #x61 #x62))
 
@@ -278,7 +278,7 @@
    #'(lambda (tmp)
        (with-open-file (s tmp :direction :io :char-encoding *encoding-utf8n*
                           :if-exists :supersede)
-         (write-string (r4-hiragana-a) s)
+         (princ (r4-hiragana-a) s)
          (file-position s 0)
          (list (char-unicode (read-char s))
                (progn (file-position s :end) (file-position s))))))
@@ -302,7 +302,7 @@
                (with-open-file (o tmp :direction :output
                                   :char-encoding *encoding-utf8n*
                                   :if-exists :supersede)
-                 (write-string s o))
+                 (princ s o))
                (equal (r4-read-bytes tmp) bytes)))))
     t)
   => t)
