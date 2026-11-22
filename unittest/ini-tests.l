@@ -489,7 +489,7 @@
 
 (deftest ini-write-utf8-with-mark-1 ()
   (with-ini-file (f nil)
-    (si:ini-write f "Font" "japanese" (concat "-16,\"" *ini-t-font-name* "\",128") nil 1)
+    (si:ini-write f "Font" "japanese" (concat "-16,\"" *ini-t-font-name* "\",128") 1)
     (list (ini-t-get-bytes f)
           (si:ini-read f "Font" "japanese")))
   => #.(list (ini-t-bytes-of '(#xef #xbb #xbf) "[Font]" *ini-t-crlf* "japanese=-16,\""
@@ -501,7 +501,7 @@
   (with-ini-file (f nil)
     (ini-t-put-bytes f (ini-t-bytes-of "[Font]" *ini-t-crlf*
                                       "japanese=" *ini-t-font-cp932* *ini-t-crlf*))
-    (si:ini-write f "Font" "n" "1" nil 1)
+    (si:ini-write f "Font" "n" "1" 1)
     (list (ini-t-get-bytes f)
           (si:ini-read f "Font" "japanese")))
   => #.(list (ini-t-bytes-of '(#xef #xbb #xbf) "[Font]" *ini-t-crlf*
@@ -513,7 +513,7 @@
   (with-ini-file (f nil)
     (ini-t-put-bytes f (ini-t-bytes-of '(#xef #xbb #xbf) "[S]" *ini-t-crlf*
                                       "a=" *ini-t-font-utf8* *ini-t-crlf*))
-    (si:ini-write f "S" "b" "2" nil 1)
+    (si:ini-write f "S" "b" "2" 1)
     (ini-t-get-bytes f))
   => #.(ini-t-bytes-of '(#xef #xbb #xbf) "[S]" *ini-t-crlf*
                        "a=" *ini-t-font-utf8* *ini-t-crlf*
@@ -521,5 +521,5 @@
 
 (deftest ini-write-mode-is-checked ()
   (with-ini-file (f nil)
-    (si:ini-write f "S" "a" "1" nil 2))
+    (si:ini-write f "S" "a" "1" 2))
   !! range-error)
