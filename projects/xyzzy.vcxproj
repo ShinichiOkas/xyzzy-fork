@@ -258,6 +258,7 @@
     <ClCompile Include="..\src\vector.cc" />
     <ClCompile Include="..\src\version.cc" />
     <ClCompile Include="..\src\vfs.cc" />
+    <ClCompile Include="..\src\wfile.cc" />
     <ClCompile Include="..\src\wheel.cc" />
     <ClCompile Include="..\src\Window.cc" />
     <ClCompile Include="..\src\wstream.cc" />
@@ -402,6 +403,7 @@
     <ClInclude Include="..\src\vector.h" />
     <ClInclude Include="..\src\version.h" />
     <ClInclude Include="..\src\vfs.h" />
+    <ClInclude Include="..\src\wfile.h" />
     <ClInclude Include="..\src\waitobj.h" />
     <ClInclude Include="..\src\wheel.h" />
     <ClInclude Include="..\src\Window.h" />

@@ -67,16 +67,11 @@ Fsi_search_path (lisp lfile, lisp lpath, lisp lext)
       w2s (ext, lext);
     }
 
-  DWORD len = SearchPath (path, file, ext, 0, 0, 0);
-  if (!len)
+  char buffer[PATH_MAX * 2];
+  if (!wfile::search_path (path, file, ext, buffer, sizeof buffer, 0))
     return Qnil;
 
-  char *file_part = 0;
-  char *buffer = (char *)alloca (len);
-  if (!SearchPath (path, file, ext, len, buffer, &file_part))
-    return Qnil;
-
-  return buffer ? make_path (buffer, 0) : Qnil;
+  return make_path (buffer, 0);
 }
 
 lisp

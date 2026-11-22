@@ -17,7 +17,6 @@
 
 (defvar *history-file-name* nil)
 (defvar *resume-file-name-long* ".xyzzy.resume.")
-(defvar *resume-file-name-short* "xyzzyrsm.")
 (defvar *save-history-hook* nil)
 (defvar *load-history-hook* nil)
 (defvar *history-file-loaded* nil)
@@ -58,13 +57,10 @@
 (defun history-file-name ()
   (or *history-file-name*
       (setq *history-file-name*
-	    (merge-pathnames (if (file-system-supports-long-file-name-p (user-config-path))
-				 ".xyzzy.history" "_xyzzy.his")
-			     (user-config-path)))))
+	    (merge-pathnames ".xyzzy.history" (user-config-path)))))
 
 (defun resume-file-name-base ()
-  (if (file-system-supports-long-file-name-p (user-config-path))
-      *resume-file-name-long* *resume-file-name-short*))
+  *resume-file-name-long*)
 
 (defun load-history-file ()
   (let ((vars *history-variable-list*))
@@ -193,8 +189,7 @@
 	   (with-input-from-string (s history)
 	     (load s :verbose nil :print nil)))
 	  (t
-	   (let ((path (namestring (if (file-system-supports-long-file-name-p "~/")
-				       "~/.xyzzy.history" "~/_xyzzy.his"))))
+	   (let ((path (namestring "~/.xyzzy.history")))
 	     (load path :if-does-not-exist nil :verbose nil :print nil))))
     (mapcar #'register-history-variable vars))
   (save-history-file)

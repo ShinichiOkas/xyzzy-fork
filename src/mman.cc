@@ -30,7 +30,16 @@ mapf::open (const char *path, int mode, int share_ok)
         return 0;
     }
 
-  mf_size = GetFileSize (mf_hfile, 0);
+  int64_t size;
+  if (!wfile::get_file_size (mf_hfile, &size))
+    return 0;
+  if (size > 0x7fffffff)
+    {
+      // 内部の位置・長さは 32bit なので、2GB を超えるファイルは読み込めない
+      SetLastError (ERROR_FILE_TOO_LARGE);
+      return 0;
+    }
+  mf_size = DWORD (size);
   if (mf_size)
     {
       mf_hmap = CreateFileMapping (mf_hfile, 0, PAGE_READONLY, 0, 0, 0);

@@ -49,18 +49,6 @@
       (shell-execute path exec-dir params :verb :runas))))
 
 (defun shell-command-line (cmd dir)
-  (when (and (not (featurep :windows-nt))
-	     (string-match "\\(^\\|[\\/]\\)command\\(\\.com\\)?$" *shell*))
-    (let ((sdir (get-short-path-name (append-trail-slash dir))))
-      (when (>= (length sdir) 67)
-	(return-from shell-command-line
-	  (values (format nil "~A ~A ~A -- ~A ~A ~A ~A"
-			  *shell* *shell-command-option*
-			  (map-slash-to-backslash
-			   (get-short-path-name
-			    (merge-pathnames "xyzzyenv.exe" (si:system-root))))
-			  sdir *shell* *shell-command-option* cmd)
-		  (si:system-root))))))
   (values (format nil "~A ~A ~A" *shell* *shell-command-option* cmd)
 	  (if (pathname-host dir)
 	      (get-windows-directory)

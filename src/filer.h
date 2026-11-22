@@ -32,7 +32,7 @@ struct filer_data
   void operator delete (void *, FilerView *) {}
 #endif
 
-  filer_data (const WIN32_FIND_DATA &);
+  filer_data (const wfile::find_data &);
   filer_data (const FILETIME &);
   filer_data () {}
 };
@@ -388,7 +388,7 @@ filer_data::operator new (size_t, FilerView *fv)
 }
 
 inline
-filer_data::filer_data (const WIN32_FIND_DATA &fd)
+filer_data::filer_data (const wfile::find_data &fd)
 {
   attr = fd.dwFileAttributes;
   time = fd.ftLastWriteTime;

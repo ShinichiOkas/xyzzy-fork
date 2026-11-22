@@ -5,7 +5,7 @@ class mapf
 {
   HANDLE mf_hfile;
   HANDLE mf_hmap;
-  DWORD mf_size;
+  DWORD mf_size;  // 2GB まで（それより大きいファイルは開けない）
   void *mf_base;
 
   void init ()

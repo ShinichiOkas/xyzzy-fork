@@ -382,14 +382,19 @@ create_file_stream (lisp filename, lisp direction, lisp if_exists,
 
   if (need_alt)
     {
-      char *sl = find_last_slash (path);
+      // 同じディレクトリに一時ファイル（xyzXXXX.tmp）を作る。GetTempFileName は
+      // 長いパスを扱えないので、自前の make_temp_file_name を使う。
+      char buf[PATH_MAX + 16];
+      const char *sl = find_last_slash (path);
       if (sl)
-        sl[1] = 0;
-      char buf[PATH_MAX + 1];
-      if (!WINFS::GetTempFileName (sl ? path : ".", "xyz", 0, buf))
+        {
+          memcpy (buf, path, sl + 1 - path);
+          buf[sl + 1 - path] = 0;
+        }
+      else
+        strcpy (buf, "./");
+      if (!make_temp_file_name (buf, "xyz", "tmp"))
         file_error (GetLastError ());
-      if (sl)
-        sl[1] = '/';
       xfile_stream_alt_pathname (stream) = xstrdup (buf);
     }
 
@@ -525,7 +530,7 @@ Ffile_position (lisp stream, lisp lpos)
   if (lpos && lpos != Qnil)
     {
       int origin = SEEK_SET;
-      long offset;
+      int64_t offset;
       if (lpos == Kstart)
         offset = 0;
       else if (lpos == Kend)
@@ -535,12 +540,12 @@ Ffile_position (lisp stream, lisp lpos)
         }
       else
         {
-          offset = fixnum_value (lpos);
+          offset = fixnum_value64 (lpos);
           if (offset < 0)
             FErange_error (lpos);
         }
 
-      if (fseek (fp, offset, origin) == -1)
+      if (_fseeki64 (fp, offset, origin) == -1)
         return Qnil;
       if (origin == SEEK_SET && !offset)
         {
@@ -551,8 +556,8 @@ Ffile_position (lisp stream, lisp lpos)
     }
   else
     {
-      long offset = ftell (fp);
-      return offset >= 0 ? make_fixnum (offset) : Qnil;
+      int64_t offset = _ftelli64 (fp);
+      return offset >= 0 ? make_integer (offset) : Qnil;
     }
 }
 

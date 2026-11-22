@@ -14082,8 +14082,9 @@ get-buffer-createを用いて実装されています。
 <arguments>get-file-info PATHNAME</arguments>
 <package>editor</package>
 <description>
-ファイルの属性をまとめて取得します。属性・最終更新日・サイズ・短い
-名前のリストの形式です。属性は以下の感じで。
+ファイルの属性をまとめて取得します。属性・最終更新日・サイズのリスト
+の形式です（サイズは 4GB を超えるファイルでも正しい値になります）。
+属性は以下の感じで。
   ed::*file-attribute-readonly*
   ed::*file-attribute-hidden*
   ed::*file-attribute-system*
@@ -14093,7 +14094,7 @@ get-buffer-createを用いて実装されています。
 
 使用例：
   (setq i (get-file-info (si:system-root)))
-  =&gt; (16 3208385786 0 "XYZZY")
+  =&gt; (16 3208385786 0)
   (logand (car i) ed::*file-attribute-directory*)
   =&gt; 16
   (logand (car i) ed::*file-attribute-hidden*)
@@ -14227,26 +14228,6 @@ get-buffer-createを用いて実装されています。
 <seealso>set-selection-type</seealso>
 <seealso>start-selection</seealso>
 <section>バッファ</section>
-<file>builtin.l</file>
-</chapter>
-
-<chapter>
-<title>get-short-path-name</title>
-<type>Function</type>
-<arguments>get-short-path-name PATHNAME</arguments>
-<package>lisp</package>
-<description>
-PATHNAMEの8.3形式でのパスを返します。
-使用例：
-  (setq a (merge-pathnames "xyzzy.exe" (si:system-root)))
-  =&gt;"C:/Applications/xyzzy/xyzzy.exe"
-
-  (get-short-path-name a)
-  =&gt;"C:/APPLIC~2/xyzzy/xyzzy.exe"
-</description>
-<seealso>truename</seealso>
-<link></link>
-<section>ファイルシステム</section>
 <file>builtin.l</file>
 </chapter>
 
@@ -30214,7 +30195,6 @@ IMEのON/OFFを制御します。
   (truename "C:/applications/xyzzy/")
   =&gt; "C:/applications/xyzzy"
 </description>
-<seealso>get-short-path-name</seealso>
 <section>ファイルシステム</section>
 <file>builtin.l</file>
 </chapter>

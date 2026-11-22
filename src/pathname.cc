@@ -137,7 +137,7 @@ set_device_dir (const char *path, int f)
   if (f || xsymbol_value (Vauto_update_per_device_directory) != Qnil)
     {
       char curdir[PATH_MAX];
-      if (GetCurrentDirectory (sizeof curdir, curdir)
+      if (wfile::get_current_directory (curdir, sizeof curdir)
           && alpha_char_p (*curdir & 255) && curdir[1] == ':')
         strcpy (devdirs[_char_downcase (*curdir) - 'a'], curdir + 2);
     }
@@ -739,7 +739,7 @@ Ftruename (lisp pathname)
           char *p = jindex (sl, '\\');
           if (p)
             *p = 0;
-          WIN32_FIND_DATA fd;
+          wfile::find_data fd;
           if (WINFS::get_file_data (path, fd))
             t = stpcpy (t, fd.cFileName);
           else if (p)
@@ -784,26 +784,6 @@ match_suffixes (const char *name, lisp ignores)
         return 1;
     }
   return 0;
-}
-
-lisp
-Ffile_system_supports_long_file_name_p (lisp path)
-{
-  pathbuf_t buf;
-  const Char *p, *pe;
-  coerce_to_pathname (path, buf, p, pe);
-  if (pe - p < 2)
-    return Qnil;
-  Char *t = skip_device_or_host (p, pe);
-  if (p != buf)
-    bcopy (p, buf, t - p);
-  t = buf + (t - p);
-  *t++ = SEPCHAR;
-  char cbuf[PATH_MAX + 1];
-  w2s (cbuf, buf, t - buf);
-
-  DWORD maxl, flags;
-  return boole (WINFS::GetVolumeInformation (cbuf, 0, 0, 0, &maxl, &flags, 0, 0) && maxl > 12);
 }
 
 lisp
@@ -917,8 +897,6 @@ Fcompile_file_pathname (lisp pathname)
     {
       if (type == type_e)
         *b++ = '.';
-      else if (Ffile_system_supports_long_file_name_p (pathname) == Qnil)
-        b -= type_e - type;
       else if (string_equalp (type, type_e - type, "lisp", 4))
         b -= type_e - type;
       else
@@ -966,7 +944,7 @@ FileTime::file_modtime (lisp filename, int dir_ok)
 {
   char path[PATH_MAX + 1];
   pathname2cstr (filename, path);
-  WIN32_FIND_DATA fd;
+  wfile::find_data fd;
   if (!WINFS::get_file_data (path, fd)
       || (!dir_ok && fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
     clear ();
@@ -996,7 +974,7 @@ Fchdir (lisp dirname)
   pathname2cstr (dir, path);
   if (!WINFS::SetCurrentDirectory (path))
     file_error (GetLastError (), dir);
-  if (!GetCurrentDirectory (sizeof path, path))
+  if (!wfile::get_current_directory (path, sizeof path))
     file_error (GetLastError (), dir);
 
   if (strcmp (sysdep.curdir, path) == 0)
@@ -1038,7 +1016,7 @@ Fmake_temp_file_name (lisp lprefix, lisp lsuffix, lisp dir, lisp dirp)
         file_error (Enot_a_directory, dir);
       pathname2cstr (dir, temp);
     }
-  else if (!GetTempPath (sizeof temp, temp))
+  else if (!wfile::get_temp_path (temp, sizeof temp))
     file_error (Ecannot_make_temp_file_name);
   char *sl = find_last_slash (temp);
   if (!sl)
@@ -1203,95 +1181,6 @@ Fdelete_file (lisp name, lisp keys)
   return Qt;
 }
 
-static int
-copyn (char *d, const char *s, int n, int l)
-{
-  if (n < l)
-    l = check_kanji2 (s, n) ? n - 1 : n;
-  memcpy (d, s, l);
-  d[l] = 0;
-  return l;
-}
-
-static void
-rename_short_name (const char *fpath, const char *tname, const char *longname)
-{
-  char temppath[PATH_MAX + 1], tempname[PATH_MAX + 1], realpath[PATH_MAX + 1];
-  int l = tname - fpath;
-  memcpy (temppath, fpath, l);
-  temppath[l] = 0;
-  map_sl_to_backsl (temppath);
-  memcpy (realpath, fpath, l);
-  strcpy (realpath + l, longname);
-
-  if (!GetTempFileName (temppath, "xyz", 0, tempname))
-    return;
-  if (!WINFS::DeleteFile (tempname)
-      || !WINFS::MoveFile (realpath, tempname))
-    return;
-
-  HANDLE h = WINFS::CreateFile (fpath, GENERIC_READ, 0, 0, CREATE_NEW,
-                                FILE_ATTRIBUTE_ARCHIVE, 0);
-
-  if (h != INVALID_HANDLE_VALUE)
-    {
-      int r = WINFS::MoveFile (tempname, realpath);
-      CloseHandle (h);
-      WINFS::DeleteFile (fpath);
-      if (r)
-        return;
-    }
-
-  if (WINFS::MoveFile (tempname, realpath))
-    return;
-
-  if (WINFS::MoveFile (tempname, fpath)
-      && WINFS::MoveFile (fpath, realpath))
-    return;
-
-  char buf[PATH_MAX * 3];
-  map_backsl_to_sl (tempname);
-  sprintf (buf, get_message_string (Erename_failed), tempname, realpath);
-  MsgBox (get_active_window (), buf, TitleBarString,
-          MB_OK | MB_ICONEXCLAMATION,
-          xsymbol_value (Vbeep_on_error) != Qnil);
-}
-
-static void
-check_short_names (const char *from_path, const char *to_path)
-{
-  if (xsymbol_value (Vrename_alternate_file_name) == Qnil)
-    return;
-
-  WIN32_FIND_DATA from_fd, to_fd;
-  if (!WINFS::get_file_data (to_path, to_fd))
-    return;
-
-  if (!*to_fd.cAlternateFileName
-      || strcaseeq (to_fd.cFileName, to_fd.cAlternateFileName))
-    return;
-
-  if (!WINFS::get_file_data (from_path, from_fd))
-    return;
-
-  if (*from_fd.cAlternateFileName
-      && !strcaseeq (from_fd.cFileName, from_fd.cAlternateFileName))
-    return;
-
-  if (!strcaseeq (from_fd.cFileName, to_fd.cAlternateFileName))
-    return;
-
-  const char *sf = find_last_slash (from_path);
-  if (!sf || !strcaseeq (sf + 1, from_fd.cFileName))
-    return;
-
-  const char *st = find_last_slash (to_path);
-  if (!st || !strcaseeq (st + 1, to_fd.cAlternateFileName))
-    return;
-
-  rename_short_name (to_path, st + 1, to_fd.cFileName);
-}
-
 enum
 {
   OFW_OK1,
@@ -1313,7 +1202,7 @@ public:
   void complete () {sw_complete = 1;}
   int open_for_write (lisp, int, int &);
   const char *path () const {return sw_path;}
-  int ensure_room (LONG, LONG);
+  int ensure_room (int64_t);
 };
 
 safe_write_handle::safe_write_handle (lisp path)
@@ -1372,20 +1261,19 @@ safe_write_handle::open_for_write (lisp if_exists, int open_mode, int &e)
 }
 
 int
-safe_write_handle::ensure_room (LONG hi, LONG lo)
+safe_write_handle::ensure_room (int64_t size)
 {
-  if (SetFilePointer (*this, lo, &hi, FILE_BEGIN) == -1)
-    {
-      int e = GetLastError ();
-      if (e != NO_ERROR)
-        return e;
-    }
+  LARGE_INTEGER li;
+  li.QuadPart = size;
+  if (!SetFilePointerEx (*this, li, 0, FILE_BEGIN))
+    return GetLastError ();
   if (!SetEndOfFile (*this))
     return GetLastError ();
 
   sw_delete_if_fail = 1;
 
-  if (SetFilePointer (*this, 0, 0, FILE_BEGIN) == -1)
+  li.QuadPart = 0;
+  if (!SetFilePointerEx (*this, li, 0, FILE_BEGIN))
     return GetLastError ();
 
   return NO_ERROR;
@@ -1398,8 +1286,6 @@ Fcopy_file (lisp from_name, lisp to_name, lisp keys)
   pathname2cstr (from_name, fromf);
 
   safe_write_handle w (to_name);
-
-  check_short_names (fromf, w.path ());
 
   lisp if_exists = find_keyword (Kif_exists, keys);
   if (if_exists == Qnil)
@@ -1467,12 +1353,11 @@ Fcopy_file (lisp from_name, lisp to_name, lisp keys)
       file_error (e, to_name);
     }
 
-  DWORD hi, lo;
-  lo = GetFileSize (r, &hi);
-  if (lo == -1 && (e = GetLastError ()) != NO_ERROR)
-    file_error (e, from_name);
+  int64_t size;
+  if (!wfile::get_file_size (r, &size))
+    file_error (GetLastError (), from_name);
 
-  e = w.ensure_room (hi, lo);
+  e = w.ensure_room (size);
   if (e != NO_ERROR)
     file_error (e, to_name);
 
@@ -1514,8 +1399,6 @@ Frename_file (lisp from_name, lisp to_name, lisp keys)
   char fromf[PATH_MAX + 1], tof[PATH_MAX + 1];
   pathname2cstr (from_name, fromf);
   pathname2cstr (to_name, tof);
-
-  check_short_names (fromf, tof);
 
   lisp if_exists = find_keyword (Kif_exists, keys);
   if (if_exists == Qnil)
@@ -1592,7 +1475,7 @@ Frename_file (lisp from_name, lisp to_name, lisp keys)
 static int
 mkdirhier (char *path, int exists_ok)
 {
-  if (WINFS::CreateDirectory (path, 0))
+  if (WINFS::CreateDirectory (path))
     return 1;
   if (exists_ok)
     {
@@ -1610,9 +1493,9 @@ mkdirhier (char *path, int exists_ok)
   for (char *p = path; (p = jindex (p, '\\')); *p++ = '\\')
     {
       *p = 0;
-      WINFS::CreateDirectory (path, 0);
+      WINFS::CreateDirectory (path);
     }
-  if (WINFS::CreateDirectory (path, 0))
+  if (WINFS::CreateDirectory (path))
     return 1;
   DWORD a = WINFS::GetFileAttributes (path);
   return a != -1 && a & FILE_ATTRIBUTE_DIRECTORY;
@@ -1768,7 +1651,7 @@ Fmodify_file_attributes (lisp lpath, lisp lon, lisp loff)
 }
 
 int
-strict_get_file_data (const char *path, WIN32_FIND_DATA &fd)
+strict_get_file_data (const char *path, wfile::find_data &fd)
 {
   for (const u_char *p = (const u_char *)path; *p;)
     {
@@ -1792,12 +1675,10 @@ Ffile_length (lisp lpath)
 {
   char path[PATH_MAX + 1];
   pathname2cstr (lpath, path);
-  WIN32_FIND_DATA fd;
+  wfile::find_data fd;
   if (!strict_get_file_data (path, fd))
     return Qnil;
-  int64_t i = (int64_t (fd.nFileSizeHigh) << 32 |
-               int64_t (fd.nFileSizeLow));
-  return make_integer (i);
+  return make_integer (fd.size ());
 }
 
 struct gdu
@@ -1821,7 +1702,7 @@ get_disk_usage (char *path, gdu *du)
   *pe = '*';
   pe[1] = 0;
 
-  WIN32_FIND_DATA fd;
+  wfile::find_data fd;
   HANDLE h = WINFS::FindFirstFile (path, &fd);
   if (h != INVALID_HANDLE_VALUE)
     {
@@ -1841,10 +1722,7 @@ get_disk_usage (char *path, gdu *du)
             }
           else
             {
-              double size = ((fd.nFileSizeHigh
-                              * double (1 << (sizeof (DWORD) * 4))
-                              * double (1 << (sizeof (DWORD) * 4)))
-                             + fd.nFileSizeLow);
+              double size = double (fd.size ());
               du->nbytes += size;
               du->blocks += ceil (size / du->blocksize);
               du->nfiles++;
@@ -1865,15 +1743,19 @@ Fget_disk_usage (lisp dirname, lisp recursive)
   gdu du;
   bzero (&du, sizeof du);
 
-  WINFS::SetCurrentDirectory (path);
+  DWORD attr = WINFS::GetFileAttributes (path);
+  if (attr == DWORD (-1))
+    file_error (GetLastError (), dirname);
+  if (!(attr & FILE_ATTRIBUTE_DIRECTORY))
+    file_error (ERROR_DIRECTORY, dirname);
+  char root[PATH_MAX * 2];
   DWORD SectorsPerCluster;
   DWORD BytesPerSector;
   DWORD FreeClusters;
   DWORD Clusters;
-  int f = WINFS::GetDiskFreeSpace (0, &SectorsPerCluster, &BytesPerSector,
-                                   &FreeClusters, &Clusters);
+  int f = WINFS::GetDiskFreeSpace (root_path_name (root, path), &SectorsPerCluster,
+                                   &BytesPerSector, &FreeClusters, &Clusters);
   int e = GetLastError ();
-  WINFS::SetCurrentDirectory (sysdep.curdir);
 
   if (!f)
     file_error (e, dirname);
@@ -2036,8 +1918,8 @@ eject_media_winnt (int drive, int type)
   char dev[] = "\\\\.\\x:";
   dev[4] = char (drive);
 
-  dyn_handle h (CreateFile (dev, flags, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                            0, OPEN_EXISTING, 0, 0));
+  dyn_handle h (wfile::create_file (dev, flags, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                    0, OPEN_EXISTING, 0, 0));
   if (!h.valid ())
     file_error (GetLastError ());
 
@@ -2075,7 +1957,7 @@ Feject_media (lisp ldrive)
 
   char root[] = "x:\\";
   root[0] = char (xchar_code (ldrive));
-  int type = GetDriveType (root);
+  int type = wfile::get_drive_type (root);
   switch (type)
     {
     default:
@@ -2286,37 +2168,13 @@ Fset_per_device_directory (lisp lpath)
 }
 
 lisp
-Fget_short_path_name (lisp lpath)
+make_file_info (const wfile::find_data &fd)
 {
-  char path[PATH_MAX + 1], spath[PATH_MAX + 1];
-  pathname2cstr (lpath, path);
-  map_sl_to_backsl (path);
-  if (!GetShortPathName (path, spath, PATH_MAX))
-    file_error (GetLastError (), lpath);
-  map_backsl_to_sl (spath);
-  if (stringp (lpath) && xstring_length (lpath)
-      && dir_separator_p (xstring_contents (lpath)[xstring_length (lpath) - 1]))
-    {
-      char *sl = find_last_slash (spath);
-      if (sl && sl[1])
-        strcat (sl, "/");
-    }
-  return make_string (spath);
-}
-
-lisp
-make_file_info (const WIN32_FIND_DATA &fd)
-{
-  int64_t sz = (int64_t (fd.nFileSizeHigh) << 32 |
-                int64_t (fd.nFileSizeLow));
   return make_list (make_fixnum (fd.dwFileAttributes),
                     //file_time_to_universal_time (fd.ftCreationTime),
                     //file_time_to_universal_time (fd.ftLastAccessTime),
                     file_time_to_universal_time (fd.ftLastWriteTime),
-                    make_integer (sz),
-                    (*fd.cAlternateFileName
-                     ? make_string (fd.cAlternateFileName)
-                     : Qnil),
+                    make_integer (fd.size ()),
                     0);
 }
 
@@ -2325,7 +2183,7 @@ Fget_file_info (lisp lpath)
 {
   char path[PATH_MAX + 1];
   pathname2cstr (lpath, path);
-  WIN32_FIND_DATA fd;
+  wfile::find_data fd;
   if (!strict_get_file_data (path, fd))
     file_error (GetLastError (), lpath);
   return make_file_info (fd);
