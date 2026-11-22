@@ -137,7 +137,10 @@
         (princ "x" s))
       (values
        (file-namestring (truename (concat dir "truename.txt")))
-       (string-equal (truename (concat dir "truename.txt")) file))))
+       ;; Compare with the truename of FILE, not FILE itself: DIR comes from
+       ;; TEMP, which can hold 8.3 names (a service's TEMP has NETWOR~1), and
+       ;; truename gives the long names.
+       (string-equal (truename (concat dir "truename.txt")) (truename file)))))
   => "Truename.txt"
   => t)
 
