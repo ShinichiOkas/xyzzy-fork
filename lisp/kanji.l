@@ -22,7 +22,10 @@
 
 (defun map-char-encoding-region (p1 p2 &optional encoding)
   (interactive "*r\n0ZEncoding: ")
-  (let ((string (buffer-substring p1 p2)))
+  ;; The characters of the buffer are taken as the bytes of the file: they
+  ;; are written back by the encoding of the buffer, and read again.
+  (let ((string (convert-encoding-from-internal (buffer-fileio-encoding)
+						(buffer-substring p1 p2))))
     (or encoding (setq encoding (detect-char-encoding string)))
     (cond (encoding
 	   (delete-region p1 p2)

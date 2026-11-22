@@ -39,18 +39,44 @@ stpcpy (char *d, const char *s)
   return d - 1;
 }
 
+// The strings that xyzzycli handles are UTF-8 (made from GetCommandLineW),
+// whatever the ACP is. A byte of a multibyte character of UTF-8 is never a
+// space, a quote or a backslash, so no lead byte test is needed.
+//
+// The ini file and the path of the module are the ACP (they are read with the
+// A functions); they are converted to UTF-8 when they are read.
+
+static char *
+wide_to_utf8 (const wchar_t *w)
+{
+  int n = WideCharToMultiByte (CP_UTF8, 0, w, -1, 0, 0, 0, 0);
+  char *s = (char *)HeapAlloc (GetProcessHeap (), 0, n + 1);
+  if (!s)
+    ExitProcess (2);
+  if (!WideCharToMultiByte (CP_UTF8, 0, w, -1, s, n, 0, 0))
+    n = 0;
+  s[n] = 0;
+  return s;
+}
+
+static void
+acp_to_utf8 (const char *a, char *d, int dsize)
+{
+  wchar_t w[2048];
+  d[0] = 0;
+  if (!MultiByteToWideChar (CP_ACP, 0, a, -1, w, sizeof w / sizeof *w))
+    return;
+  if (!WideCharToMultiByte (CP_UTF8, 0, w, -1, d, dsize, 0, 0))
+    d[0] = 0;
+}
+
 static char *
 store (char *d, const char *s)
 {
   *d++ = '"';
   while (*s)
     {
-      if (IsDBCSLeadByte (*s) && s[1])
-        {
-          *d++ = *s++;
-          *d++ = *s++;
-        }
-      else if (*s == '\\' || *s == '"')
+      if (*s == '\\' || *s == '"')
         {
           *d++ = '\\';
           *d++ = *s++;
@@ -99,8 +125,10 @@ public:
 static int
 create_sexp (xyzzysrv &sv, int ac, char **av)
 {
-  char curdir[MAX_PATH + 1];
-  GetCurrentDirectory (sizeof curdir, curdir);
+  wchar_t wcurdir[MAX_PATH + 1];
+  if (!GetCurrentDirectoryW (sizeof wcurdir / sizeof *wcurdir, wcurdir))
+    wcurdir[0] = 0;
+  const char *curdir = wide_to_utf8 (wcurdir);
   int l = 256 + lstrlen (curdir) * 2;
   for (int i = 0; i < ac; i++)
     l += lstrlen (av[i]) * 2 + 3;
@@ -185,11 +213,19 @@ run_xyzzy (int argc, char **argv, const char *xyzzy)
       p = stpcpy (p, argv[i]);
     }
 
+  // cl is UTF-8 (see above): the W function takes it as it is.
+  int wl = MultiByteToWideChar (CP_UTF8, 0, cl, -1, 0, 0);
+  if (!wl)
+    return 0;
+  wchar_t *const wcl = (wchar_t *)_alloca (wl * sizeof (wchar_t));
+  if (!MultiByteToWideChar (CP_UTF8, 0, cl, -1, wcl, wl))
+    return 0;
+
   PROCESS_INFORMATION pi;
-  STARTUPINFO si;
+  STARTUPINFOW si;
   memset (&si, 0, sizeof si);
   si.cb = sizeof si;
-  if (!CreateProcess (0, cl, 0, 0, 0, 0, 0, 0, &si, &pi))
+  if (!CreateProcessW (0, wcl, 0, 0, 0, 0, 0, 0, &si, &pi))
     return 0;
   WaitForInputIdle (pi.hProcess, 60000);
   CloseHandle (pi.hProcess);
@@ -350,14 +386,7 @@ parse_cmdline1 (const char *p, char *&b0, int &ac, char **&av0, int nchars)
             break;
 
           if (!ignore)
-            {
-              if (IsDBCSLeadByte (*p) && p[1])
-                {
-                  COPYCHAR (*p);
-                  p++;
-                }
-              COPYCHAR (*p);
-            }
+            COPYCHAR (*p);
           p++;
         }
       COPYCHAR (0);
@@ -385,14 +414,7 @@ notepad_parse_cmdline (const char *p, char *&b0, int &ac, char **&av0, int nchar
       do
         {
           if (*p != '"')
-            {
-              if (IsDBCSLeadByte (*p) && p[1])
-                {
-                  COPYCHAR (*p);
-                  p++;
-                }
-              COPYCHAR (*p);
-            }
+            COPYCHAR (*p);
           p++;
         }
       while (*p);
@@ -405,9 +427,9 @@ notepad_parse_cmdline (const char *p, char *&b0, int &ac, char **&av0, int nchar
 
 struct config
 {
-  char xyzzy[MAX_PATH];
-  char pre_opt[1024];
-  char post_opt[1024];
+  char xyzzy[MAX_PATH * 3];     // UTF-8
+  char pre_opt[1024 * 3];       // UTF-8
+  char post_opt[1024 * 3];      // UTF-8
   int notepad;
   int multi_instance;
 };
@@ -423,14 +445,7 @@ parse_cmdline (const char *p, char *b, int &ac, char **av, const config &cf)
   if (*p == '"')
     {
       for (p++; *p && *p != '"'; p++)
-        {
-          if (IsDBCSLeadByte (*p) && p[1])
-            {
-              COPYCHAR (*p);
-              p++;
-            }
-          COPYCHAR (*p);
-        }
+        COPYCHAR (*p);
       COPYCHAR (0);
       if (*p == '"')
         p++;
@@ -438,14 +453,7 @@ parse_cmdline (const char *p, char *b, int &ac, char **av, const config &cf)
   else
     {
       for (; *p && *p != ' ' && *p != '\t'; p++)
-        {
-          if (IsDBCSLeadByte (*p) && p[1])
-            {
-              COPYCHAR (*p);
-              p++;
-            }
-          COPYCHAR (*p);
-        }
+        COPYCHAR (*p);
       COPYCHAR (0);
     }
 
@@ -498,15 +506,21 @@ read_config (config &cf)
     lstrcpy (&path[l - 3], "ini");
   else
     lstrcpy (path + l, ".ini");
+  // The ini is read with the A functions (the ACP); the strings are made
+  // UTF-8 here.
+  char buf[MAX_PATH + 1024];
   GetPrivateProfileString ("xyzzy", "path", "xyzzy.exe",
-                           cf.xyzzy, sizeof cf.xyzzy, path);
+                           buf, MAX_PATH, path);
+  acp_to_utf8 (buf, cf.xyzzy, sizeof cf.xyzzy);
   if (!cf.notepad)
     cf.notepad = GetPrivateProfileInt ("xyzzy", "compatNotepad", 0, path);
   cf.multi_instance = GetPrivateProfileInt ("xyzzy", "multipleInstances", 0, path);
   GetPrivateProfileString ("xyzzy", "precedingOptions", "",
-                           cf.pre_opt, sizeof cf.pre_opt, path);
+                           buf, 1024, path);
+  acp_to_utf8 (buf, cf.pre_opt, sizeof cf.pre_opt);
   GetPrivateProfileString ("xyzzy", "followingOptions", "",
-                           cf.post_opt, sizeof cf.post_opt, path);
+                           buf, 1024, path);
+  acp_to_utf8 (buf, cf.post_opt, sizeof cf.post_opt);
 }
 
 int WINAPI
@@ -515,7 +529,9 @@ WinMain (HINSTANCE hinst, HINSTANCE, LPSTR, int cmdshow)
   config cf;
   read_config (cf);
 
-  const char *const cl = GetCommandLine ();
+  // The command line is made from GetCommandLineW, so that a character that
+  // the ACP does not have is not lost. Everything below is UTF-8.
+  const char *const cl = wide_to_utf8 (GetCommandLineW ());
   int ac;
   int nchars = parse_cmdline (cl, 0, ac, 0, cf);
   char **av = (char **)_alloca (sizeof *av * (ac + 1) + nchars);

@@ -16,13 +16,23 @@
 	  decode-mime-header decode-mime-header-region
 	  decode-mime-field rfc822-detect-header))
 
+;; What a decoder returns is "a string of bytes" (one character is one
+;; byte). As text, it is read by *expected-fileio-encoding*; when that is
+;; auto, the encoding is detected from the bytes (sjis when it cannot be).
+(defun text-decode-octets (octets)
+  (let ((encoding *expected-fileio-encoding*))
+    (when (or (null encoding) (eq encoding *encoding-auto*))
+      (setq encoding (detect-char-encoding octets)))
+    (convert-encoding-to-internal (or encoding *encoding-sjis*) octets)))
+
 (defun text-decode-region (decode from to)
   (or (< from to)
       (rotatef from to))
-  (insert (with-output-to-string (s)
-	    (with-input-from-buffer ((selected-buffer) from to)
-	      (funcall decode nil s))
-	    (delete-region from to))))
+  (insert (text-decode-octets
+	   (with-output-to-string (s)
+	     (with-input-from-buffer ((selected-buffer) from to)
+	       (funcall decode nil s))
+	     (delete-region from to)))))
 
 (defun text-decode-region-to-file (decode filename from to)
   (or (< from to)

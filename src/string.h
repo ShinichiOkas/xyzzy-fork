@@ -96,6 +96,15 @@ void a2w (Char *, const char *, size_t);
 Char *a2w (Char *, const char *);
 Char *a2w (const char *, size_t);
 size_t w2sl (const Char *, size_t);
+// The largest size of the buffer (with the NUL) for w2s of nchars
+// characters: 2 bytes a character for cp932 (XYZZY_CHAR_UNICODE 0), 4 for
+// UTF-8. The buffers of the form `xstring_length (x) * 2 + 1` must become
+// this when the switch is turned on.
+inline size_t
+w2s_max (size_t nchars)
+{
+  return nchars * (XYZZY_CHAR_UNICODE ? 4 : 2) + 1;
+}
 char *w2s (char *, const Char *, size_t);
 char *w2s (const Char *, size_t);
 char *w2s (char *, char *, const Char *, size_t);
@@ -114,6 +123,8 @@ lisp make_string (const char *);
 lisp make_string (const u_char *);
 lisp make_string (const char *, size_t);
 lisp make_string_simple (const char *, size_t);
+lisp make_string_utf8 (const char *, size_t);
+size_t chars_to_utf16 (wchar_t *, const Char *, size_t);
 lisp make_string (const Char *, size_t);
 lisp make_string (Char, size_t);
 lisp make_complex_string (Char, int, int, int);

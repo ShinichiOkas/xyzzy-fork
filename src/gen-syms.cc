@@ -1,6 +1,5 @@
 #include "gen-stdafx.h"
 #include <time.h>
-#include <mbctype.h>
 #define NOT_COMPILE_TIME
 #include "symbol.h"
 #include "function.h"
@@ -821,6 +820,9 @@ static symbols sys[] =
   SI_DEFUN3 (*set-char, 3, 0, 0),
   SI_DEFUN3 (*set-schar, 3, 0, 0),
   SI_DEFUN3 (octet-length, 1, 0, FFneed_rest),
+  SI_DEFUN3 (acp-utf8-decode, 1, 0, 0),
+  SI_DEFUN3 (acp-utf8-encode, 1, 0, 0),
+  SI_DEFUN3 (chars-to-utf16, 1, 0, 0),
 
   /* codec-fns.cc */
   SI_DEFUN3 (codec-decode, 2, 2, 0),
@@ -987,15 +989,16 @@ static symbols sys[] =
   MAKE_SYMBOL (chunk, Qsi_chunk),
 
   /* encdec.cc */
-  SI_DEFUN3 (base64-decode, 1, 1, 0),
-  SI_DEFUN3 (base64-encode, 1, 2, 0),
-  SI_DEFUN3 (uuencode, 1, 1, 0),
-  SI_DEFUN3 (uudecode, 1, 1, 0),
-  SI_DEFUN3 (quoted-printable-decode, 1, 2, 0),
-  SI_DEFUN3 (quoted-printable-encode, 1, 2, 0),
-  SI_DEFUN3 (www-url-decode, 1, 1, 0),
-  SI_DEFUN3 (www-url-encode, 1, 2, 0),
-  SI_DEFUN3 (binhex-decode, 1, 1, 0),
+  SI_DEFUN3 (base64-decode, 1, 1, FFneed_rest),
+  SI_DEFUN3 (base64-encode, 1, 2, FFneed_rest),
+  SI_DEFUN3 (uuencode, 1, 1, FFneed_rest),
+  SI_DEFUN3 (uudecode, 1, 1, FFneed_rest),
+  SI_DEFUN3 (quoted-printable-decode, 1, 2, FFneed_rest),
+  SI_DEFUN3 (quoted-printable-encode, 1, 2, FFneed_rest),
+  SI_DEFUN3 (www-url-decode, 1, 1, FFneed_rest),
+  SI_DEFUN3 (www-url-encode, 1, 2, FFneed_rest),
+  SI_DEFUN3 (binhex-decode, 1, 1, FFneed_rest),
+  SI_DEFUN3 (octet-rule-encode, 1, 0, FFneed_rest),
   SI_DEFUN3 (md5, 1, 0, FFneed_rest),
   SI_DEFUN3 (sha-1, 1, 0, FFneed_rest),
   SI_DEFUN3 (sha-224, 1, 0, FFneed_rest),
@@ -1356,6 +1359,7 @@ static symbols kwd[] =
 #undef cdecl
   DEFKWD2 (cdecl),
   DEFKWD2 (encoding),
+  DEFKWD2 (one-by-one),
   DEFKWD2 (text),
   DEFKWD2 (canonical),
   DEFKWD2 (raw),
@@ -2982,9 +2986,10 @@ putq (const char *p)
         {
           /* 非 ASCII は 8 進のエスケープで出す。生成物を ASCII にして、
              ソースの文字コード（/source-charset）に依らず同じバイトにする */
+          /* バイトごとに出す。cp932 の先行バイトの判定（_ismbblead）は
+             要らない: 2 バイト目も 0x80 以上でなければ素の文字として
+             出る〈`\` と `"` は下で逃がす〉ので、どの符号でも同じ値になる */
           printf ("\\%03o", c);
-          if (((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc)) && *p)
-            printf ("\\%03o", *p++ & 0xff);
         }
       else
         {

@@ -129,7 +129,13 @@ eval_xyzzysrv_param (xyzzysrv_param *param)
       try
         {
           save_cursor_depth cursor_depth;
-          stream = Fmake_string_input_stream (make_string (param->data), 0, 0);
+          // The text is UTF-8 whatever the ACP is (xyzzycli.exe writes it from
+          // GetCommandLineW). It must end within the memory that was mapped.
+          size_t n = 0;
+          const char *limit = (const char *)param + param->size;
+          while (param->data + n < limit && param->data[n])
+            n++;
+          stream = Fmake_string_input_stream (make_string_utf8 (param->data, n), 0, 0);
           lisp obj = Feval (Fread (stream, Qnil, Qnil, Qnil));
           if (wait_object_p (obj)
               && xwait_object_hevent (obj)

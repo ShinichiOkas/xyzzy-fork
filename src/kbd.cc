@@ -998,9 +998,37 @@ kbd_queue::reconvert (RECONVERTSTRING *rsbuf, int unicode_p)
           int size = p2 - p1;
           safe_ptr <Char> data (new Char [size + 1]);
           bp->substring (p1, size, data);
+          if constexpr (XYZZY_CHAR_UNICODE)
+            {
+              if (unicode_p)
+                {
+                  // A Char is a code point: UTF-16 is made from the Chars
+                  // directly, without the bytes of the ACP.
+                  size_t l1 = chars_to_utf16 (0, data, r1 - p1);
+                  size_t l2 = chars_to_utf16 (0, data + (r1 - p1), r2 - r1);
+                  size_t l3 = chars_to_utf16 (0, data + (r2 - p1), p2 - r2);
+                  size_t l = l1 + l2 + l3;
+                  size = sizeof *reconv + (l + 1) * sizeof (wchar_t);
+                  reconv = (RECONVERTSTRING *)xmalloc (size);
+                  reconv->dwSize = size;
+                  reconv->dwVersion = 0;
+                  reconv->dwStrLen = DWORD (l);
+                  reconv->dwStrOffset = sizeof *reconv;
+                  reconv->dwCompStrLen = DWORD (l2);
+                  reconv->dwCompStrOffset = DWORD (l1 * sizeof (wchar_t));
+                  reconv->dwTargetStrLen = DWORD (l2);
+                  reconv->dwTargetStrOffset = DWORD (l1 * sizeof (wchar_t));
+                  wchar_t *w = (wchar_t *)(reconv + 1);
+                  chars_to_utf16 (w, data, r1 - p1);
+                  chars_to_utf16 (w + l1, data + (r1 - p1), r2 - r1);
+                  chars_to_utf16 (w + l1 + l2, data + (r2 - p1), p2 - r2);
+                  w[l] = 0;
+                  return reconv->dwSize;
+                }
+            }
           // The bytes for Win32 (the ACP) go to their own buffer: a Char is not
           // a char, and does not have a fixed width.
-          safe_ptr <char> bytes (new char [size * 2 + 1]);
+          safe_ptr <char> bytes (new char [w2s_max (size)]);
           char *b0 = bytes;
           char *b1 = w2s (b0, data, r1 - p1);
           char *b2 = w2s (b1, data + (r1 - p1), r2 - r1);
@@ -1068,6 +1096,36 @@ kbd_queue::documentfeed (RECONVERTSTRING *rsbuf, int unicode_p)
 
       lisp b = multiple_value::value (0);
       lisp c = multiple_value::value (1);
+
+      if constexpr (XYZZY_CHAR_UNICODE)
+        {
+          if (unicode_p)
+            {
+              // A Char is a code point: UTF-16 is made from the Chars
+              // directly. The lengths are the same as the ones of the ACP
+              // path below (dwStrLen counts the bytes with the NUL).
+              size_t numc = chars_to_utf16 (0, xstring_contents (c), xstring_length (c));
+              size_t numo = chars_to_utf16 (0, xstring_contents (b), xstring_length (b));
+              long wlen = long ((numc + 1) * sizeof (wchar_t));
+              long woffset = long (numo * sizeof (wchar_t));
+              long wsize = sizeof *rsbuf + wlen;
+              if (!rsbuf)
+                return wsize;
+
+              rsbuf->dwSize = wsize;
+              rsbuf->dwVersion = 0;
+              rsbuf->dwStrLen = wlen;
+              rsbuf->dwStrOffset = sizeof *rsbuf;
+              rsbuf->dwCompStrLen = 0;
+              rsbuf->dwCompStrOffset = 0;
+              rsbuf->dwTargetStrLen = 0;
+              rsbuf->dwTargetStrOffset = woffset;
+              wchar_t *w = (wchar_t *)(rsbuf + 1);
+              chars_to_utf16 (w, xstring_contents (c), xstring_length (c));
+              w[numc] = 0;
+              return wsize;
+            }
+        }
 
       // w2s (lisp) returns a malloc'ed buffer.  Free it at every exit.
       struct sjis_buffer
