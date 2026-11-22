@@ -49,6 +49,24 @@ if (-not (Test-Path (Join-Path $InstallDir 'config.cmd'))) {
   Write-Host '[2/4] runner already downloaded'
 }
 
+if (Test-Path (Join-Path $InstallDir '.runner')) {
+  # A previous run registered the runner but did not finish (config.cmd refuses
+  # to configure twice). Remove the local registration first.
+  Write-Host '[2b/4] remove the earlier registration of this runner'
+  $rt = (gh api -X POST "repos/$repo/actions/runners/remove-token" --jq .token).Trim()
+  if (-not $rt) { throw 'could not get a removal token (gh auth?)' }
+  & .\config.cmd remove --token $rt
+  if ($LASTEXITCODE -ne 0) { throw "config.cmd remove failed ($LASTEXITCODE)" }
+}
+
+# The service writes to the Application event log under this source. Creating
+# the source in advance avoids "cannot open log for source ... access denied"
+# when the runner creates it and writes to it in the same moment.
+$src = 'ActionsRunnerService'
+if (-not (Test-Path "HKLM:\SYSTEM\CurrentControlSet\Services\EventLog\Application\$src")) {
+  New-EventLog -LogName Application -Source $src
+}
+
 if (-not $Token) {
   Write-Host '[3/4] registration token from GitHub (gh)'
   $Token = (gh api -X POST "repos/$repo/actions/runners/registration-token" --jq .token).Trim()
