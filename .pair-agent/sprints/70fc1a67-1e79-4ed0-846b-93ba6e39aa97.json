@@ -1,0 +1,12 @@
+{
+  "sprint_id": "70fc1a67-1e79-4ed0-846b-93ba6e39aa97",
+  "status": "in_progress",
+  "goal": "S4: character handling - Unicode code points internally, UTF-16 with Win32, one encoder layer, W file APIs, UTF-8 sources",
+  "created_at": "2026-11-22T02:10:00+09:00",
+  "agreement_path": ".pair-agent/agreements/s4-character-handling.md",
+  "size": "XL (split into S4-0, S4-d, design, S4-k, S4-c, S4-a/b)",
+  "notes": [
+    "Owner: '進めて' (2026-11-22) after S3 closed",
+    "Start: parent does S4-d (sources to UTF-8, execution charset kept cp932); roles: S4-0 byte round-trip test, 4a/4b design doc"
+  ]
+}
