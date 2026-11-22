@@ -449,7 +449,8 @@
 (deftest ini-xyzzy-restart-keeps-the-font-name-0 ()
   ;; A folder (XYZZYCONFIGPATH) with a cp932 xyzzy.ini that has a Japanese
   ;; name of a font. xyzzy starts, reads it, changes the size and saves; the
-  ;; file has the name in cp932; xyzzy starts again and reads the name.
+  ;; file has the name in cp932 (the size in the line depends on the DPI of the
+  ;; screen, so it is not compared); xyzzy starts again and reads the name.
   (with-temp-dirs (cfg)
     (let ((ini (merge-pathnames "xyzzy.ini" cfg))
           (env `(("XYZZYCONFIGPATH" . ,cfg))))
@@ -466,9 +467,10 @@
                            (getf (get-text-font :japanese) :face))
                         :options "-q" :environ env))
                    (bytes (ini-t-get-bytes ini))
-                   (found (ini-t-contains-p bytes
-                                         (ini-t-bytes-of "japanese=30,\""
-                                                         *ini-t-font-cp932* "\",128")))
+                   (found (and (ini-t-contains-p bytes
+                                         (ini-t-bytes-of ",\"" *ini-t-font-cp932*
+                                                         "\",128"))
+                               (not (equal (subseq bytes 0 3) '(#xef #xbb #xbf)))))
                    (r2 (multiple-value-list
                         (eval-in-another-xyzzy
                          '(let ((f (get-text-font :japanese)))
@@ -481,3 +483,43 @@
         (when (file-exist-p ini)
           (delete-file ini)))))
   => (t t t 15))
+;;; The 1 side of XYZZY_CHAR_UNICODE writes UTF-8 with a byte order mark. The
+;;; tests ask for it with the last argument of si:ini-write (the build is the
+;;; 0 side).
+
+(deftest ini-write-utf8-with-mark-1 ()
+  (with-ini-file (f nil)
+    (si:ini-write f "Font" "japanese" (concat "-16,\"" *ini-t-font-name* "\",128") nil 1)
+    (list (ini-t-get-bytes f)
+          (si:ini-read f "Font" "japanese")))
+  => #.(list (ini-t-bytes-of '(#xef #xbb #xbf) "[Font]" *ini-t-crlf* "japanese=-16,\""
+                             *ini-t-font-utf8* "\",128" *ini-t-crlf*)
+             (concat "-16,\"" *ini-t-font-name* "\",128")))
+
+(deftest ini-write-turns-a-cp932-file-into-utf8-with-mark-1 ()
+  ;; The other lines are kept (as text).
+  (with-ini-file (f nil)
+    (ini-t-put-bytes f (ini-t-bytes-of "[Font]" *ini-t-crlf*
+                                      "japanese=" *ini-t-font-cp932* *ini-t-crlf*))
+    (si:ini-write f "Font" "n" "1" nil 1)
+    (list (ini-t-get-bytes f)
+          (si:ini-read f "Font" "japanese")))
+  => #.(list (ini-t-bytes-of '(#xef #xbb #xbf) "[Font]" *ini-t-crlf*
+                             "japanese=" *ini-t-font-utf8* *ini-t-crlf*
+                             "n=1" *ini-t-crlf*)
+             *ini-t-font-name*))
+
+(deftest ini-write-utf8-file-stays-utf8-with-mark-1 ()
+  (with-ini-file (f nil)
+    (ini-t-put-bytes f (ini-t-bytes-of '(#xef #xbb #xbf) "[S]" *ini-t-crlf*
+                                      "a=" *ini-t-font-utf8* *ini-t-crlf*))
+    (si:ini-write f "S" "b" "2" nil 1)
+    (ini-t-get-bytes f))
+  => #.(ini-t-bytes-of '(#xef #xbb #xbf) "[S]" *ini-t-crlf*
+                       "a=" *ini-t-font-utf8* *ini-t-crlf*
+                       "b=2" *ini-t-crlf*))
+
+(deftest ini-write-mode-is-checked ()
+  (with-ini-file (f nil)
+    (si:ini-write f "S" "a" "1" nil 2))
+  !! range-error)

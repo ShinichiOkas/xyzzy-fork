@@ -75,12 +75,15 @@ ini_narrow_spec ()
 }
 
 // The encoding that a file is written in.
+// mode: INI_WRITE_DEFAULT is by XYZZY_CHAR_UNICODE.
 static codec_spec
-ini_write_spec ()
+ini_write_spec (int mode)
 {
   // (Not "if constexpr": the project is built as C++14, where it is warning
   // C4984. Both sides are compiled either way.)
-  if (XYZZY_CHAR_UNICODE)
+  if (mode == INI_WRITE_DEFAULT)
+    mode = XYZZY_CHAR_UNICODE ? INI_WRITE_UTF8_BOM : INI_WRITE_CP932;
+  if (mode == INI_WRITE_UTF8_BOM)
     return spec_utf8 (true);
   return spec_cp932 ();
 }
@@ -452,13 +455,32 @@ stat_file (const wfile::path &p, bool &exists, FILETIME &mtime,
   return true;
 }
 
+// Opens a file. Another xyzzy may be writing it (the writer holds it
+// exclusively for a moment): a sharing violation is tried again a few times.
+static HANDLE
+open_retry (const wfile::path &p, DWORD access, DWORD share, DWORD disposition)
+{
+  for (int i = 0;; i++)
+    {
+      HANDLE h = wfile::create_file (p, access, share, 0, disposition,
+                                     FILE_ATTRIBUTE_NORMAL, 0);
+      if (h != INVALID_HANDLE_VALUE)
+        return h;
+      DWORD e = GetLastError ();
+      if (i >= 20 || (e != ERROR_SHARING_VIOLATION && e != ERROR_LOCK_VIOLATION))
+        return h;
+      Sleep (25);
+    }
+}
+
+// false: the file could not be read as a whole.
 static bool
 read_all (const wfile::path &p, std::vector <u_char> &data)
 {
   data.clear ();
-  HANDLE h = wfile::create_file (p, GENERIC_READ,
-                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+  HANDLE h = open_retry (p, GENERIC_READ,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                         OPEN_EXISTING);
   if (h == INVALID_HANDLE_VALUE)
     return false;
   int64_t size;
@@ -474,15 +496,18 @@ read_all (const wfile::path &p, std::vector <u_char> &data)
             break;
           done += n;
         }
+      ok = done == data.size ();
       data.resize (done);
     }
   CloseHandle (h);
   return ok;
 }
 
-// The lines of the file (empty if there is no file). The result lives in
-// the cache.
-static lines_t &
+// The lines of the file (none if there is no file). The result lives in the
+// cache. It returns 0 if the file exists but cannot be read: nothing is
+// cached then, and a write must not go on (it would replace the file with
+// the lines of this write only).
+static lines_t *
 load (const wfile::path &p)
 {
   bool ex;
@@ -492,13 +517,13 @@ load (const wfile::path &p)
   if (cache.valid && cache.path == p.c_str () && cache.exists == ex
       && (!ex || (!CompareFileTime (&cache.mtime, &mt)
                   && cache.size_low == sl && cache.size_high == sh)))
-    return cache.lines;
+    return &cache.lines;
 
   cache.valid = false;
   cache.lines.clear ();
   std::vector <u_char> data;
-  if (ex)
-    read_all (p, data);
+  if (ex && !read_all (p, data))
+    return 0;
   ustr text;
   decode_file (data, text);
   split_lines (text, cache.lines);
@@ -508,16 +533,15 @@ load (const wfile::path &p)
   cache.size_low = sl;
   cache.size_high = sh;
   cache.valid = true;
-  return cache.lines;
+  return &cache.lines;
 }
 
 static bool
 write_all (const wfile::path &p, const std::vector <u_char> &data)
 {
   // Opened without truncating, so that the attributes and the links of the
-  // file stay; the length is set at the end.
-  HANDLE h = wfile::create_file (p, GENERIC_WRITE, FILE_SHARE_READ,
-                                 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+  // file stay; the length is set at the end. Nobody reads it meanwhile.
+  HANDLE h = open_retry (p, GENERIC_WRITE, 0, OPEN_ALWAYS);
   if (h == INVALID_HANDLE_VALUE)
     return false;
   bool ok = true;
@@ -539,12 +563,12 @@ write_all (const wfile::path &p, const std::vector <u_char> &data)
 }
 
 static bool
-save (const wfile::path &p, lines_t &ls)
+save (const wfile::path &p, lines_t &ls, int mode)
 {
   ustr text;
   join_lines (ls, text);
   std::vector <u_char> data;
-  encode_points (ini_write_spec (), text, data);
+  encode_points (ini_write_spec (mode), text, data);
   cache.valid = false;
   if (!write_all (p, data))
     return false;
@@ -585,7 +609,8 @@ ini_read (const char *file, const char *section, const char *key,
   ustr sec, k, val;
   narrow_to_ustr (section, sec);
   narrow_to_ustr (key, k);
-  if (!lookup (load (p), trim (sec), trim (k), val))
+  lines_t *ls = load (p);
+  if (!ls || !lookup (*ls, trim (sec), trim (k), val))
     return 0;
   std::string nb;
   ustr_to_narrow (val, nb);
@@ -601,7 +626,7 @@ ini_read (const char *file, const char *section, const char *key,
 
 int
 ini_write (const char *file, const char *section, const char *key,
-           const char *value)
+           const char *value, int mode)
 {
   if (!file || !section)
     return 0;
@@ -621,10 +646,13 @@ ini_write (const char *file, const char *section, const char *key,
   if (value)
     narrow_to_ustr (value, v);
 
-  lines_t ls = load (p);
+  lines_t *cur = load (p);
+  if (!cur)
+    return 0;
+  lines_t ls = *cur;
   if (!modify (ls, sec, key ? &k : 0, key && value ? &v : 0))
     return 1;
-  return save (p, ls) ? 1 : 0;
+  return save (p, ls, mode) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------
@@ -632,8 +660,11 @@ ini_write (const char *file, const char *section, const char *key,
 // any file (they do not touch the settings of the user).
 //
 //   (si:ini-read file section key) => string, or nil if there is no such key
-//   (si:ini-write file section key value)
+//   (si:ini-write file section key value [mode])
 //       value nil: delete the key. key nil: delete the section.
+//       mode: nil (by XYZZY_CHAR_UNICODE), 0 (cp932) or 1 (UTF-8 with a
+//       byte order mark): the encoding that the file is written in. The tests
+//       use it to check the 1 side on the build of the 0 side.
 //       => t if written
 
 static char *
@@ -661,8 +692,15 @@ Fsi_ini_read (lisp file, lisp section, lisp key)
 }
 
 lisp
-Fsi_ini_write (lisp file, lisp section, lisp key, lisp value)
+Fsi_ini_write (lisp file, lisp section, lisp key, lisp value, lisp mode)
 {
+  int m = INI_WRITE_DEFAULT;
+  if (mode && mode != Qnil)
+    {
+      m = int (fixnum_value (mode));
+      if (m != INI_WRITE_CP932 && m != INI_WRITE_UTF8_BOM)
+        FErange_error (mode);
+    }
   std::vector <char> f, s, k, v;
   lisp_narrow (file, f);
   lisp_narrow (section, s);
@@ -671,5 +709,5 @@ Fsi_ini_write (lisp file, lisp section, lisp key, lisp value)
   if (value != Qnil)
     lisp_narrow (value, v);
   return boole (ini_write (&f[0], &s[0], key == Qnil ? 0 : &k[0],
-                           value == Qnil ? 0 : &v[0]));
+                           value == Qnil ? 0 : &v[0], m));
 }

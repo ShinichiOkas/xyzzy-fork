@@ -37,8 +37,14 @@ int ini_read (const char *file, const char *section, const char *key,
 
 // Writes a value of a key. With value == 0 the key is deleted; with key == 0
 // the section is deleted. It returns 1 when the file is written (or when
-// there is nothing to change), 0 when it could not be written.
+// there is nothing to change), 0 when it could not be written (a file that
+// exists but cannot be read is not written: it would lose the lines).
+// mode: the encoding of the file that is written. The default is by
+// XYZZY_CHAR_UNICODE; the tests ask for the 1 side on the 0 build.
+#define INI_WRITE_DEFAULT (-1)
+#define INI_WRITE_CP932 0
+#define INI_WRITE_UTF8_BOM 1
 int ini_write (const char *file, const char *section, const char *key,
-               const char *value);
+               const char *value, int mode = INI_WRITE_DEFAULT);
 
 #endif /* _ini_h_ */

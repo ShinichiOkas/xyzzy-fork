@@ -646,7 +646,7 @@
 (si::defun-builtin codec-encode (encoding code-points &optional memory chunk))
 (si::defun-builtin codec-can-encode (encoding code-point))
 (si::defun-builtin ini-read (file section key))
-(si::defun-builtin ini-write (file section key value))
+(si::defun-builtin ini-write (file section key value &optional mode))
 (si::defun-builtin uprops-category (code-point))
 (si::defun-builtin uprops-east-asian-width (code-point))
 (si::defun-builtin uprops-script (code-point))

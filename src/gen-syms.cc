@@ -829,7 +829,7 @@ static symbols sys[] =
 
   /* ini.cc */
   SI_DEFUN3 (ini-read, 3, 0, 0),
-  SI_DEFUN3 (ini-write, 4, 0, 0),
+  SI_DEFUN3 (ini-write, 4, 1, 0),
 
   /* hash.cc */
   SI_DEFUN3 (*puthash, 3, 0, 0),
