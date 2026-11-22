@@ -17,3 +17,14 @@
 ## コードで見えること
 - eval-in-another-xyzzy の時間切れは `signal-process` を呼ぶ。Fsignal_process は NormalProcess の p_event を SetEvent するだけで、プロセスを終わらせない（終わらせるのは `kill-process` = TerminateProcess）。時間切れの後も子は生き、ed::process-list に残る。
 - 試験が終わると write-batch-report-and-exit が `kill-xyzzy` を呼ぶ。Buffer::query_kill_xyzzy は query_kill_subprocesses を呼び、process-list が空でなければ `yes_or_no_p`（Msubprocesses_are_running）で確認の対話を開く。バッチには答える者がおらず、報告（tests.log）も書かれないまま止まる。
+
+## 原因（確かめたこと）
+- HEAD で、時間切れにした子を持つ試験は、試験自体は失敗して先へ進むが、run-tests は終わらなかった（上の再現）。`kill-process` に替えると子は終わり（`process-status` が :exit）、終了までの対話は出ない。
+- `process-list` は名前のない（uninterned）シンボルで、Lisp から `ed::process-list` では引けない（`find-symbol` が nil、`editor::process-list` は未束縛）。残った子の一覧は、バッファの `buffer-process` と、eval-in-another-xyzzy が自分で控えた一覧から集める。
+- 子が `-image` で終わらなかった理由は分からないまま（HEAD では `-image` の子は動く）。R2 の d977e87 の画像の読みの側の問題か、フックの問題かは確かめていない。どちらでも、子が終わらないときに run-tests が止まらないようにした。
+
+## 修正（unittest/simple-test.l、試験は unittest/child-xyzzy-tests.l）
+- eval-in-another-xyzzy の時間切れは `kill-process` で子を終わらせ、終わるのを待つ。後始末でも走っている子を終わらせる。
+- write-batch-report-and-exit は、`kill-xyzzy` の前に残った子を終わらせて待つ。
+- バッチの run（XYZZY_TEST_LOG あり）では、5 秒ごとのタイマーが 1 件の試験の時間を見て、XYZZY_TEST_TIMEOUT 秒（既定 120）を超えたら残った子を終わらせる（子を待つ試験が失敗して先へ進む）。xyzzy 自身が止まる試験は止められない（待ちの間は kill-xyzzy が断られる）。全体の上限は ci-test.ps1（20 分）。
+- 試験: `-image` の子が画像から値を読む試験、時間切れの子が殺され子が残らない試験。
