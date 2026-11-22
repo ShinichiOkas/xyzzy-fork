@@ -1218,7 +1218,8 @@ static const int nobject_type = ldata_end - ldata_begin - 1;
 // left by an older xyzzy.exe (for example one given with -image) is thrown away.
 //   1  until S4 W (Char is 16bit)
 //   2  S4 W: Char is 32bit (the values of the characters are the same)
-#define DUMP_FORMAT 2
+//   3  S4 R2: a syntax table has the sparse overrides (Char match[256])
+#define DUMP_FORMAT 3
 
 struct dump_header
 {
@@ -2143,7 +2144,13 @@ dump_object (FILE *fp, const lsyntax_table *d, int n,
 {
   for (const lsyntax_table *de = d + n; d < de; d++)
     if (bitisset (used, bit_index (d)))
-      writef (fp, d->table, sizeof *d->table);
+      {
+        // The table as it is (the pointer of the overrides is stale and is
+        // replaced on reading), then the overrides.
+        writef (fp, d->table, sizeof *d->table);
+        if (d->table->nov)
+          writef (fp, d->table->ov, d->table->nov * sizeof *d->table->ov);
+      }
 }
 
 static void
@@ -2155,6 +2162,14 @@ rdump_object (FILE *fp, lsyntax_table *d, int n,
       {
         d->table = (syntax_table *)xmalloc (sizeof *d->table);
         readf (fp, d->table, sizeof *d->table);
+        syntax_table *t = d->table;
+        t->ov = 0;
+        t->ovcap = t->nov;
+        if (t->nov)
+          {
+            t->ov = (syntax_override *)xmalloc (t->nov * sizeof *t->ov);
+            readf (fp, t->ov, t->nov * sizeof *t->ov);
+          }
       }
 }
 
