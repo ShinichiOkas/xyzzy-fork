@@ -45,7 +45,7 @@ typedef u_long u_int32_t;
 
 typedef uintptr_t pointer_t;
 
-typedef u_int16_t Char;
+typedef u_int32_t Char;
 # define CHAR_LIMIT 0x10000
 typedef u_long lChar;
 const lChar lChar_EOF = lChar (-1);

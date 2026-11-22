@@ -1213,6 +1213,13 @@ combine_syms ()
 #include "dataP.h"
 static const int nobject_type = ldata_end - ldata_begin - 1;
 
+// The form of the dump.  It is raised by a change that gen-syms does not see (a
+// change that is not in cdecl.h, function.h or symbol.h), so that a dump that was
+// left by an older xyzzy.exe (for example one given with -image) is thrown away.
+//   1  until S4 W (Char is 16bit)
+//   2  S4 W: Char is 32bit (the values of the characters are the same)
+#define DUMP_FORMAT 2
+
 struct dump_header
 {
   long magic;
@@ -1221,6 +1228,8 @@ struct dump_header
   long file_size_not;
   int nobject_type;
   int nreps;
+  int format;
+  int sizeof_char;
   lisp nil;
 };
 
@@ -2682,6 +2691,8 @@ Fdump_xyzzy (lisp filename)
   head.file_size_not = 0;
   head.nobject_type = nobject_type;
   head.nreps = nreps;
+  head.format = DUMP_FORMAT;
+  head.sizeof_char = sizeof (Char);
   head.nil = lmap (Qnil);
   writef (fp, &head, sizeof head);
   writef (fp, counts, sizeof counts);
@@ -2718,7 +2729,9 @@ rdump_xyzzy (FILE *fp)
       || head.version != dump_version
       || head.file_size != _filelength (_fileno (fp))
       || head.file_size_not != ~head.file_size
-      || head.nobject_type != nobject_type)
+      || head.nobject_type != nobject_type
+      || head.format != DUMP_FORMAT
+      || head.sizeof_char != sizeof (Char))
     return 0;
 
   int counts[nobject_type];

@@ -3,7 +3,8 @@
 #include "except.h"
 #include "mman.h"
 
-#define MAGIC 'CODX'
+// A DOC of a 16bit Char is not read as a DOC of a 32bit Char (the magic is different).
+#define MAGIC 'CDX4'
 
 static void
 snarf_doc (FILE *fp, lisp vec, lisp symlist)
