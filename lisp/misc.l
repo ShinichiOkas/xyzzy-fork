@@ -293,6 +293,16 @@
 (defvar *fundamental-mode-syntax-table* (make-syntax-table))
 (defvar *fundamental-mode-map* (make-sparse-keymap))
 
+;; A table with characters of 256 or more in it, for the dump test in
+;; unittest/syntax-table-tests.l: it has to come back from the dump image.
+(defvar *syntax-table-dump-fixture*
+  (let ((tab (make-syntax-table)))
+    (set-syntax-word tab (unicode-char #x3042))
+    (set-syntax-punctuation tab (unicode-char #xe9))
+    (set-syntax-match tab (unicode-char #x300c) (unicode-char #x300d))
+    (set-syntax-start-multi-comment tab (coerce (list (unicode-char #x3044) (unicode-char #x3046)) (quote string)))
+    tab))
+
 (defun fundamental-mode ()
   (interactive)
   (kill-all-local-variables)

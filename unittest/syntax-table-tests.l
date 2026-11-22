@@ -340,3 +340,26 @@ kana, C1 controls are junk, CJK, Hangul, full width forms and symbols are kanji.
       "j" "j" "j" "j" "j" "j" "j" "j" "j" "j"
       "j" "j"))
 
+
+;; The overrides go into the dump (xyzzy.wxp) and come back.  lisp/misc.l makes
+;; a table with overrides (*syntax-table-dump-fixture*) while the dump is made;
+;; when this test runs, the table has been read back from the dump image.
+(deftest syntax-nonascii-survives-dump ()
+  "The sparse overrides of a table that is in the dump image are there."
+  (let ((tab ed::*syntax-table-dump-fixture*))
+    (gc)
+    (list (syntax-word-p (unicode-char #x3042) tab)
+          (syntax-punctuation-p (unicode-char #x00e9) tab)
+          (syntax-open-p (unicode-char #x300c) tab)
+          (syntax-close-p (unicode-char #x300d) tab)
+          (syntax-start-multi-comment-1-p (unicode-char #x3044) tab)
+          (syntax-start-multi-comment-2-p (unicode-char #x3046) tab)
+          (syntax-word-p (unicode-char #x3044) tab)
+          (syntax-word-p (unicode-char #x4e00) tab)
+          ;; a copy of it keeps them, and is a table of its own
+          (let ((copy (make-syntax-table)))
+            (copy-syntax-table tab copy)
+            (set-syntax-whitespace copy (unicode-char #x3042))
+            (list (syntax-punctuation-p (unicode-char #x00e9) copy)
+                  (syntax-word-p (unicode-char #x3042) tab)))))
+  => (t t t t t t nil nil (t t)))
