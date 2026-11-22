@@ -907,7 +907,7 @@
 
 (defun insert-internal-char-table ()
   (interactive)
-  (insert-char-table #'code-char))
+  (insert-char-table (if (si:char-unicode-p) #'unicode-char #'code-char)))
 
 (defun insert-unicode-char-table ()
   (interactive)

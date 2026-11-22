@@ -5,6 +5,8 @@
 #include "byte-stream.h"
 #include "iso2022state.h"
 #include "guess.h"
+#include "charfn.h"
+#include "codec-priv.h"
 
 int
 check_kanji2 (const char *string, u_int off)
@@ -21,6 +23,45 @@ char_defined_p (Char c)
 {
   ucs2_t w = i2w (c);
   return w != ucs2_t (-1) && !ucs2_PUA_p (w);
+}
+
+// Is a pair of bytes a defined character (not private use)?  CCS is
+// ccs_jisx0208, ccs_jisx0212, ccs_ksc5601 or ccs_gb2312 (c1 and c2 are the
+// 7 bit code), or -1 (the bytes of cp932).
+static inline int
+bytes_defined_p (int ccs, int c1, int c2)
+{
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      int u = (ccs < 0
+               ? codec_cp932_get (c1, c2)
+               : charset_code_to_unicode ((c1 << 8) | c2, ccs,
+                                          ENCODING_ISO_VENDER_NECEXT));
+      return u >= 0 && !(u >= 0xe000 && u <= 0xf8ff);
+    }
+  else
+    {
+      Char c;
+      switch (ccs)
+        {
+        case ccs_jisx0208:
+          c = (j2sh (c1, c2) << 8) | j2sl (c1, c2);
+          break;
+        case ccs_jisx0212:
+          c = jisx0212_to_int (c1, c2);
+          break;
+        case ccs_ksc5601:
+          c = ksc5601_to_int (c1, c2);
+          break;
+        case ccs_gb2312:
+          c = gb2312_to_int (c1, c2);
+          break;
+        default:
+          c = (c1 << 8) | c2;
+          break;
+        }
+      return char_defined_p (c);
+    }
 }
 
 class iso2022_state
@@ -212,15 +253,15 @@ euc_state::update (int c)
               int t1 = s_c1 & 127, t2 = c & 127;
 
               if (!(s_bad_char & F_JP)
-                  && !char_defined_p ((j2sh (t1, t2) << 8) | j2sl (t1, t2)))
+                  && !bytes_defined_p (ccs_jisx0208, t1, t2))
                 s_bad_char |= F_JP;
 
               if (!(s_bad_char & F_KR)
-                  && !char_defined_p (ksc5601_to_int (t1, t2)))
+                  && !bytes_defined_p (ccs_ksc5601, t1, t2))
                 s_bad_char |= F_KR;
 
               if (!(s_bad_char & F_GB)
-                  && !char_defined_p (gb2312_to_int (t1, t2)))
+                  && !bytes_defined_p (ccs_gb2312, t1, t2))
                 s_bad_char |= F_GB;
             }
 
@@ -262,7 +303,7 @@ euc_state::update (int c)
                 {
                   s_c1 &= 127;
                   c &= 127;
-                  if (!char_defined_p (jisx0212_to_int (s_c1, c)))
+                  if (!bytes_defined_p (ccs_jisx0212, s_c1, c))
                     s_bad_char |= F_JP;
                 }
             }
@@ -306,7 +347,7 @@ sjis_state::update (int c)
     {
       if (!SJIS2P (c))
         s_bad_range = 1;
-      else if (!char_defined_p ((s_c1 << 8) | c))
+      else if (!bytes_defined_p (-1, s_c1, c))
         s_bad_char = 1;
       s_state = 0;
     }
@@ -705,6 +746,256 @@ map_flags (lisp keys)
   return flags;
 }
 
+// ---------------------------------------------------------------------------
+// The Unicode side of map-to-half-width and map-to-full-width
+// (XYZZY_CHAR_UNICODE = 1).  The tables are in kanjitab.h (gen-ktab.cc); the
+// half width kana are U+FF61..U+FF9F.  A character is converted when its
+// kind (1 ASCII, 2 hiragana, 4 katakana; the punctuation of kana is 2 | 4)
+// shares a bit with the flags.  :greek and :cyrillic do nothing: the Greek
+// and Cyrillic letters have one code point whatever the width.
+//
+// The conversion works on edits, one per character of the input: n = 1 or 2
+// characters replace it, n = 0 deletes it (the voiced sound mark that was
+// joined to the character before it).
+
+struct width_edit
+{
+  Char c[2];
+  int n;
+};
+
+static int to_full_flags (lisp);
+
+static const u_width_entry *
+u_find (const u_width_entry *t, int n, Char c)
+{
+  int lo = 0, hi = n - 1;
+  while (lo <= hi)
+    {
+      int mid = (lo + hi) / 2;
+      if (t[mid].a == c)
+        return &t[mid];
+      if (t[mid].a < c)
+        lo = mid + 1;
+      else
+        hi = mid - 1;
+    }
+  return 0;
+}
+
+static const u_width_entry *
+u_find_combine (Char base, Char mark)
+{
+  int lo = 0, hi = U_COMBINE_COUNT - 1;
+  while (lo <= hi)
+    {
+      int mid = (lo + hi) / 2;
+      const u_width_entry &e = u_combine[mid];
+      if (e.a == base && e.b == mark)
+        return &e;
+      if (e.a < base || (e.a == base && e.b < mark))
+        lo = mid + 1;
+      else
+        hi = mid - 1;
+    }
+  return 0;
+}
+
+static void
+unicode_map_to_half (const Char *s, size_t n, int flags,
+                     std::vector <width_edit> &out)
+{
+  out.resize (n);
+  for (size_t i = 0; i < n; i++)
+    {
+      Char c = s[i];
+      width_edit &e = out[i];
+      e.c[0] = c;
+      e.c[1] = 0;
+      e.n = 1;
+      if (c < 0x2018)           // the smallest full width character
+        continue;
+      if (flags & (HIRA | KATA))
+        {
+          const u_width_entry *v = u_find (u_voiced, U_VOICED_COUNT, c);
+          if (v && (v->kind & flags))
+            {
+              e.c[0] = v->b;
+              e.c[1] = v->c;
+              e.n = 2;
+              continue;
+            }
+        }
+      const u_width_entry *h = u_find (u_to_half, U_TO_HALF_COUNT, c);
+      if (h && (h->kind & flags))
+        e.c[0] = h->b;
+    }
+}
+
+static void
+unicode_map_to_full (const Char *s, size_t n, int flags,
+                     std::vector <width_edit> &out)
+{
+  const Char *tof = (flags & HIRA
+                     ? u_to_fullhira_ff61_ff9f : u_to_fullkata_ff61_ff9f);
+  std::vector <Char> t (s, s + n);
+  for (size_t i = 0; i < n; i++)
+    {
+      Char c = t[i];
+      if (flags & (HIRA | KATA) && c >= 0xff61 && c <= 0xff9f)
+        t[i] = tof[c - 0xff61];
+      else if (flags & ASC && c >= 0x20 && c <= 0x7e)
+        t[i] = u_to_full_20_7e[c - 0x20];
+    }
+
+  out.resize (n);
+  for (size_t i = 0; i < n; i++)
+    {
+      out[i].c[0] = t[i];
+      out[i].c[1] = 0;
+      out[i].n = 1;
+    }
+
+  if (!(flags & (HIRA | KATA)))
+    return;
+  // A character and the voiced (semi voiced) sound mark after it make one
+  // character (the first mark of a run of marks is used).
+  for (size_t i = 0; i + 1 < n; i++)
+    {
+      if (t[i + 1] != U_VOICED_SOUND_MARK
+          && t[i + 1] != U_SEMI_VOICED_SOUND_MARK)
+        continue;
+      const u_width_entry *e = u_find_combine (t[i], t[i + 1]);
+      if (!e || !(e->kind & flags))
+        continue;
+      out[i].c[0] = e->c;
+      out[i + 1].n = 0;
+      i++;
+    }
+}
+
+static void
+unicode_map_width (const Char *s, size_t n, int flags, bool half,
+                   std::vector <width_edit> &out)
+{
+  if (half)
+    unicode_map_to_half (s, n, flags, out);
+  else
+    unicode_map_to_full (s, n, flags, out);
+}
+
+static lisp
+unicode_map_width_string (lisp string, int flags, bool half)
+{
+  std::vector <width_edit> e;
+  unicode_map_width (xstring_contents (string), xstring_length (string),
+                     flags, half, e);
+  std::vector <Char> r;
+  for (size_t i = 0; i < e.size (); i++)
+    for (int j = 0; j < e[i].n; j++)
+      r.push_back (e[i].c[j]);
+  static const Char none[1] = {0};
+  return make_string (r.empty () ? none : &r[0], int (r.size ()));
+}
+
+static lisp
+unicode_map_width_region (lisp from, lisp to, int flags, bool half)
+{
+  Window *wp = selected_window ();
+  Buffer *bp = wp->w_bufp;
+  point_t p2 = bp->prepare_modify_region (wp, from, to);
+  if (p2 == -1)
+    return Qt;
+  wp->w_disp_flags |= Window::WDF_GOAL_COLUMN;
+
+  Point &point = wp->w_point;
+  point_t p1 = point.p_point;
+  std::vector <Char> text;
+  while (point.p_point < p2)
+    {
+      text.push_back (point.ch ());
+      if (!bp->forward_char (point, 1))
+        break;
+    }
+
+  std::vector <width_edit> e;
+  if (!text.empty ())
+    unicode_map_width (&text[0], text.size (), flags, half, e);
+
+  // From the end, so that the positions before are not moved.
+  long delta = 0;
+  for (size_t i = e.size (); i-- > 0;)
+    {
+      if (e[i].n == 1 && e[i].c[0] == text[i])
+        continue;
+      point_t pos = p1 + point_t (i);
+      bp->goto_char (point, pos);
+      if (e[i].n == 0)
+        {
+          if (!bp->delete_region_internal (point, pos, pos + 1))
+            {
+              bp->post_buffer_modified (Kmodify, point, p1, p2 + delta);
+              FEstorage_error ();
+            }
+          delta--;
+        }
+      else
+        {
+          point.ch () = e[i].c[e[i].n - 1];
+          if (e[i].n == 2)
+            {
+              Char c = e[i].c[0];
+              if (!bp->insert_chars_internal (point, &c, 1, 1))
+                {
+                  bp->post_buffer_modified (Kmodify, point, p1, p2 + delta);
+                  FEstorage_error ();
+                }
+              delta++;
+            }
+        }
+    }
+
+  bp->goto_char (point, p2 + delta);
+  bp->post_buffer_modified (Kmodify, point, p1, point.p_point);
+  return Qt;
+}
+
+// (si:unicode-map-to-half-width code-points &key :ascii :hiragana :katakana
+//  :greek :cyrillic) => a list of code points.  The 1 side on code points,
+// whatever the switch is.
+static lisp
+unicode_map_width_list (lisp codes, int flags, bool half)
+{
+  std::vector <Char> in;
+  for (lisp p = codes; consp (p); p = xcdr (p))
+    {
+      long c = fixnum_value (xcar (p));
+      if (c < 0 || c >= UNICODE_CHAR_LIMIT)
+        FErange_error (xcar (p));
+      in.push_back (Char (c));
+    }
+  std::vector <width_edit> e;
+  if (!in.empty ())
+    unicode_map_width (&in[0], in.size (), flags, half, e);
+  lisp r = Qnil;
+  for (size_t i = e.size (); i-- > 0;)
+    for (int j = e[i].n; j-- > 0;)
+      r = xcons (make_fixnum (e[i].c[j]), r);
+  return r;
+}
+
+lisp
+Fsi_unicode_map_to_half_width (lisp codes, lisp keys)
+{
+  return unicode_map_width_list (codes, map_flags (keys), true);
+}
+
+lisp
+Fsi_unicode_map_to_full_width (lisp codes, lisp keys)
+{
+  return unicode_map_width_list (codes, to_full_flags (keys), false);
+}
+
 struct to_half_param
 {
   int flags;
@@ -762,6 +1053,14 @@ to_half_param::to_half_param (lisp keys)
 lisp
 Fmap_to_half_width_region (lisp from, lisp to, lisp keys)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      int fl = map_flags (keys);
+      if (!fl)
+        return Qnil;
+      return unicode_map_width_region (from, to, fl, true);
+    }
+
   to_half_param thp (keys);
   if (!thp.flags)
     return Qnil;
@@ -848,6 +1147,9 @@ Fmap_to_full_width_region (lisp from, lisp to, lisp keys)
   int flags = to_full_flags (keys);
   if (!flags)
     return Qnil;
+
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return unicode_map_width_region (from, to, flags, false);
 
   const Char *tof = flags & HIRA ? to_fullhira_a1_df : to_fullkata_a1_df;
 
@@ -961,6 +1263,12 @@ Fmap_to_half_width_string (lisp string, lisp keys)
 {
   check_string (string);
 
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      int fl = map_flags (keys);
+      return fl ? unicode_map_width_string (string, fl, true) : string;
+    }
+
   to_half_param thp (keys);
   if (!thp.flags)
     return string;
@@ -1024,6 +1332,9 @@ Fmap_to_full_width_string (lisp string, lisp keys)
   int flags = to_full_flags (keys);
   if (!flags)
     return string;
+
+  if constexpr (XYZZY_CHAR_UNICODE)
+    return unicode_map_width_string (string, flags, false);
 
   const Char *tof = flags & HIRA ? to_fullhira_a1_df : to_fullkata_a1_df;
 

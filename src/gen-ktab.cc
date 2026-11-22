@@ -48,6 +48,8 @@ static const u_char fk_semi_voiced_ca_ce[] = "パピプペポ";
 
 #define F(T, N) (u_short (((T) [(N) * 2] << 8) + (T) [(N) * 2 + 1]))
 
+static void gen_unicode_tables ();
+
 static void
 soutput (u_char *buf, int n)
 {
@@ -234,6 +236,190 @@ gen_ktab (int argc, char **argv)
   printf ("#define FULL_WIDTH_KATAKANA_MIN 0x8340\n");
   printf ("#define FULL_WIDTH_KATAKANA_MAX 0x8396\n");
 
+  gen_unicode_tables ();
+
   exit (0);
 }
 
+
+// ---------------------------------------------------------------------------
+// The tables for XYZZY_CHAR_UNICODE = 1 (S4 R9).  They hold the same data as
+// the tables above but are written in Unicode (the half width forms are
+// U+FF61..U+FF9F), so that they do not depend on the code of cp932.
+//
+// kind is a set of the flags of map-to-*-width: 1 ASCII, 2 hiragana,
+// 4 katakana.  The punctuation of kana (the full stop, the brackets, the
+// middle dot, the prolonged sound mark and the voiced sound marks) is in both
+// of the tables of kana, so its kind is 6.
+
+#define K_ASC 1
+#define K_HIRA 2
+#define K_KATA 4
+
+static const wchar_t w_f_20_7e[] = L"　！”＃＄％＆’（）＊＋，－．／"
+                                   L"０１２３４５６７８９：；＜＝＞？"
+                                   L"＠ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯ"
+                                   L"ＰＱＲＳＴＵＶＷＸＹＺ［￥］＾＿"
+                                   L"‘ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏ"
+                                   L"ｐｑｒｓｔｕｖｗｘｙｚ｛｜｝￣";
+
+static const wchar_t w_fk_a1_df[] = L"。「」、・ヲァィゥェォャュョッ"
+                                    L"ーアイウエオカキクケコサシスセソ"
+                                    L"タチツテトナニヌネノハヒフヘホマ"
+                                    L"ミムメモヤユヨラリルレロワン゛゜";
+
+static const wchar_t w_fh_a1_df[] = L"。「」、・をぁぃぅぇぉゃゅょっ"
+                                    L"ーあいうえおかきくけこさしすせそ"
+                                    L"たちつてとなにぬねのはひふへほま"
+                                    L"みむめもやゆよらりるれろわん゛゜";
+
+static const wchar_t w_fh_voiced_b6_ce[] = L"がぎぐげござじずぜぞだぢづでど"
+                                           L"     ばびぶべぼ";
+
+static const wchar_t w_fk_voiced_b3_ce[] = L"ヴ  ガギグゲゴザジズゼゾ"
+                                           L"ダヂヅデド     バビブベボ";
+
+static const wchar_t w_fh_semi_voiced_ca_ce[] = L"ぱぴぷぺぽ";
+
+static const wchar_t w_fk_semi_voiced_ca_ce[] = L"パピプペポ";
+
+struct u_entry
+{
+  unsigned short a, b, c;
+  unsigned char kind;
+};
+
+static u_entry u_half[512];
+static int u_nhalf;
+static u_entry u_voiced[128];
+static int u_nvoiced;
+static u_entry u_combine[128];
+static int u_ncombine;
+
+static int
+u_cmp (const void *x, const void *y)
+{
+  const u_entry *p = (const u_entry *)x;
+  const u_entry *q = (const u_entry *)y;
+  if (p->a != q->a)
+    return p->a < q->a ? -1 : 1;
+  if (p->b != q->b)
+    return p->b < q->b ? -1 : 1;
+  return 0;
+}
+
+static void
+u_print_chars (const char *name, const wchar_t *t, int n)
+{
+  printf ("static const Char %s[] = {\n", name);
+  for (int i = 0; i < n; i++)
+    {
+      printf ("0x%04x,", t[i]);
+      if ((i & 7) == 7)
+        printf ("\n");
+    }
+  printf ("};\n\n");
+}
+
+// A full width character -> the half width character, for a kind.
+static void
+u_add_half (unsigned short full, unsigned short half, int kind)
+{
+  for (int i = 0; i < u_nhalf; i++)
+    if (u_half[i].a == full)
+      {
+        if (u_half[i].b != half)
+          {
+            fprintf (stderr, "gen-ktab: U+%04x has two half width forms\n", full);
+            exit (2);
+          }
+        u_half[i].kind |= kind;
+        return;
+      }
+  u_half[u_nhalf].a = full;
+  u_half[u_nhalf].b = half;
+  u_half[u_nhalf].kind = kind;
+  u_nhalf++;
+}
+
+// The voiced (or semi voiced) full width characters of T[0..N), the half
+// width kana of the code FIRST + i: the character -> the base and the mark
+// (all half width), and the base (the full width character of the base in
+// BASE_TABLE) + the full width mark -> the character.
+static void
+u_add_voiced (const wchar_t *t, int n, int first, int kind, int semi,
+              const wchar_t *base_table)
+{
+  for (int i = 0; i < n; i++)
+    {
+      if (t[i] == L' ')
+        continue;
+      int code = first + i;             // the code in 0xa1..0xdf
+      u_voiced[u_nvoiced].a = t[i];
+      u_voiced[u_nvoiced].b = 0xff61 + (code - 0xa1);
+      u_voiced[u_nvoiced].c = semi ? 0xff9f : 0xff9e;
+      u_voiced[u_nvoiced].kind = kind;
+      u_nvoiced++;
+
+      u_combine[u_ncombine].a = base_table[code - 0xa1];
+      u_combine[u_ncombine].b = semi ? 0x309c : 0x309b;
+      u_combine[u_ncombine].c = t[i];
+      u_combine[u_ncombine].kind = kind;
+      u_ncombine++;
+    }
+}
+
+static void
+gen_unicode_tables ()
+{
+  printf ("\n// Unicode tables (XYZZY_CHAR_UNICODE = 1)\n");
+  u_print_chars ("u_to_full_20_7e", w_f_20_7e, 95);
+  u_print_chars ("u_to_fullkata_ff61_ff9f", w_fk_a1_df, 63);
+  u_print_chars ("u_to_fullhira_ff61_ff9f", w_fh_a1_df, 63);
+  printf ("#define U_VOICED_SOUND_MARK 0x309b\n");
+  printf ("#define U_SEMI_VOICED_SOUND_MARK 0x309c\n");
+  printf ("#define U_HALF_VOICED_SOUND_MARK 0xff9e\n");
+  printf ("#define U_HALF_SEMI_VOICED_SOUND_MARK 0xff9f\n\n");
+
+  for (int i = 0; i < 95; i++)
+    u_add_half (w_f_20_7e[i], 0x20 + i, K_ASC);
+  for (int i = 0; i < 63; i++)
+    {
+      u_add_half (w_fk_a1_df[i], 0xff61 + i, K_KATA);
+      u_add_half (w_fh_a1_df[i], 0xff61 + i, K_HIRA);
+    }
+  qsort (u_half, u_nhalf, sizeof u_half[0], u_cmp);
+
+  u_add_voiced (w_fh_voiced_b6_ce, 25, 0xb6, K_HIRA, 0, w_fh_a1_df);
+  u_add_voiced (w_fh_semi_voiced_ca_ce, 5, 0xca, K_HIRA, 1, w_fh_a1_df);
+  u_add_voiced (w_fk_voiced_b3_ce, 28, 0xb3, K_KATA, 0, w_fk_a1_df);
+  u_add_voiced (w_fk_semi_voiced_ca_ce, 5, 0xca, K_KATA, 1, w_fk_a1_df);
+  qsort (u_voiced, u_nvoiced, sizeof u_voiced[0], u_cmp);
+  qsort (u_combine, u_ncombine, sizeof u_combine[0], u_cmp);
+
+  printf ("struct u_width_entry\n{\n  u_int16_t a, b, c;\n  u_char kind;\n};\n\n");
+
+  // a = full width, b = half width
+  printf ("#define U_TO_HALF_COUNT %d\n", u_nhalf);
+  printf ("static const u_width_entry u_to_half[] = {\n");
+  for (int i = 0; i < u_nhalf; i++)
+    printf ("{0x%04x,0x%04x,0,%d},\n", u_half[i].a, u_half[i].b, u_half[i].kind);
+  printf ("};\n\n");
+
+  // a = full width voiced (or semi voiced), b = the base, c = the mark
+  // (both half width)
+  printf ("#define U_VOICED_COUNT %d\n", u_nvoiced);
+  printf ("static const u_width_entry u_voiced[] = {\n");
+  for (int i = 0; i < u_nvoiced; i++)
+    printf ("{0x%04x,0x%04x,0x%04x,%d},\n",
+            u_voiced[i].a, u_voiced[i].b, u_voiced[i].c, u_voiced[i].kind);
+  printf ("};\n\n");
+
+  // a = base, b = the full width mark, c = the full width voiced
+  printf ("#define U_COMBINE_COUNT %d\n", u_ncombine);
+  printf ("static const u_width_entry u_combine[] = {\n");
+  for (int i = 0; i < u_ncombine; i++)
+    printf ("{0x%04x,0x%04x,0x%04x,%d},\n",
+            u_combine[i].a, u_combine[i].b, u_combine[i].c, u_combine[i].kind);
+  printf ("};\n\n");
+}

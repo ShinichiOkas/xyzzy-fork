@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "ed.h"
+#include "charfn.h"
 
 static const lisp *const encoding_type_key[] =
 {
@@ -718,6 +719,18 @@ parse_encoding_finish (int accept, int found)
 static int
 parse_encoding_exec (Char cc, int accept, int &found)
 {
+  if constexpr (XYZZY_CHAR_UNICODE)
+    {
+      // The first charset that has the character, of the accepted ones.
+      int ccs = unicode_find_charset (cc, accept,
+                                      (accept & (1 << ccs_pseudo_cp932)) != 0,
+                                      vender_depend_code (ENCODING_ISO_VENDER_NIL));
+      if (ccs < 0)
+        return 0;
+      found |= 1 << ccs;
+      return 1;
+    }
+
   if (cc != DEFCHAR)
     {
       cc = convert_ibmext (cc);

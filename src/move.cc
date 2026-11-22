@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "ed.h"
+#include "charfn.h"
 
 point_t
 Buffer::coerce_to_point (lisp x) const
@@ -776,7 +777,12 @@ hang_char (fold_info &f, int mode)
 static int
 iso8859_word_char_p (Char cc)
 {
-  ucs2_t wc = i2w (cc);
+  // The code point.  A raw byte (beyond U+10FFFF) is not a letter.
+  u_int32_t wc;
+  if constexpr (XYZZY_CHAR_UNICODE)
+    wc = cc;
+  else
+    wc = i2w (cc);
   return (wc >= 0xc0
           && (wc <= 0x1ff
               || (wc >= 0x250
@@ -875,7 +881,7 @@ word_wrap (const Buffer *bp, fold_info &f)
 static inline int
 word_char_p (Char cc)
 {
-  return cc > ' ' && char_width (cc) == 1 && !kana_char_p (cc);
+  return cc > ' ' && char_width (cc) == 1 && !fn_kana_char_p (cc);
 }
 
 static void
@@ -2507,7 +2513,7 @@ lisp
 Fchar_columns (lisp c)
 {
   check_char (c);
-  return make_fixnum (char_width (xchar_code (c)));
+  return make_fixnum (fn_char_columns (xchar_code (c)));
 }
 
 lisp
