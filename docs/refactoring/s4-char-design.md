@@ -184,6 +184,7 @@ Lisp の文字との出し入れ（char.h）:
 |---|---|
 | `make_char (Char)` | テキストの文字。今と同じ |
 | `make_key_char (keycode_t)` | キーの文字。文字のキーなら make_char と同じ値 |
+| `make_char_value (lChar)` | 値から文字を作る（テキストでもキーでも）。readc_stream の結果を Lisp の文字にする所で使う |
 | `xchar_code (lisp)` → Char | テキストの文字だけ。キーなら type-error（「キーは文字列やバッファに入れられません」） |
 | `xchar_value (lisp)` → u_int32_t | どちらでも。char-code、char=・char< など、eql・equalp のハッシュ、印字で使う |
 | `xkeycode (lisp)` → keycode_t | どちらでも（テキストの文字はその文字のキー）。keymap、キーの列、変換表で使う |
@@ -205,7 +206,13 @@ Lisp の文字との出し入れ（char.h）:
 | chname.cc | 名前の表の値を keycode_t にする |
 | char.cc | 文字の関数は全部キーを受ける（xchar_value）。述語（alpha-char-p、digit-char-p、upper-case-p、graphic-char-p など）はキーなら nil、大文字小文字（char-upcase など）はキーならそのまま、比べる関数（char=〜char-not-lessp、char-equal〜）は値で比べる。今と同じ結果になる（例: cmds.l の process-prefix-args は `(digit-char-p #\F1)` を呼ぶ）。Fset_meta_bit を keycode.h で。Fcode_char は値の範囲を検査する（不具合 F1 を直す） |
 | pred.cc | equalp の文字の比較（char_upcase (xchar_code …) の 2 箇所）を xchar_value で |
-| eval.cc | Fcommand_execute（上の行）と、文字を比べる所（xchar_code の 1 箇所）を xchar_value で |
+| eval.cc | Fcommand_execute（上の行）。Fcommandp は `stringp (object)` を t にしている所に、文字のベクタも足す（minibuf.cc の「C」の補完がこれを使う）。process_interactive_string の文字の比較を xchar_value で |
+| lread.cc（キーボードの読み） | Fread_char・Fread_char_no_hang・Fpeek_char は、readc_stream の値（lChar。キーボードならキー）を、キーも作れる `make_char_value (lChar)` で文字にする（今は `make_char (Char (c))` で切り詰める）。Funread_char と Fpeek_char の peek-type は xchar_value。cmds.l の process-prefix-args が `(unread-char cc *keyboard*)` にキーを渡すため |
+| kbd.cc（そのほか） | Fset_next_prefix_args（キーを受ける。cmds.l の process-prefix-args が渡す）、pre_decode_vkeys・lookup_translate_table（上の行） |
+| toplev.cc（そのほか） | Fset_quit_char と、toplevel_wndproc で `app.lquit_char` を putc する所を xkeycode で |
+| filer.cc（そのほか） | Filer::read_char の `app.lquit_char`、Ffiler_read_char（`make_char (Char (cc))` → make_char_value）、Ffiler_isearch（キーなら何もしない） |
+| fnkey.cc | Fset_function_bar_label を xkeycode で |
+| lisp/help.l | describe-function の `(stringp def)`（「a keyboard macro.」）に文字のベクタも足す |
 | bytecode.cc | BCchar_code・BCcode_char・文字の比較の命令（CHAR_CASE_PRED など）を char.cc と同じにする |
 | hash.cc | 文字のハッシュ（equalp の表で char_upcase (xchar_code …) を使う所）を xchar_value で |
 | stream.cc | キーボードの流れ（st_keyboard）の読みで、lChar を make_key_char にする |
@@ -213,7 +220,8 @@ Lisp の文字との出し入れ（char.h）:
 | lisp/help.l | view-lossage が get-recent-keys のベクタを扱う（`~:C` で印字しているので、列として回せばよい） |
 | unittest/ | 新しい試験（3.7） |
 
-- xchar_code の呼び出しは 27 ファイル 136 箇所ある。分け方: キーを受けるべき所（char.cc 43、keymap.cc 7、lprint.cc 4、hash.cc 4、kbd.cc 3、filer.cc 3、bytecode.cc 3、pred.cc 2、toplev.cc 2、fnkey.cc 1、eval.cc 1、lread.cc の一部）は上の表のとおり xchar_value・xkeycode に替える。文字列・バッファ・パスにテキストとして入れる所（array.cc、sequence.cc、string.cc、vector.cc、insdel.cc、stream.cc の write-char、pathname.cc、syntax.cc、search.cc、move.cc、disp.cc、dialogs.cc、stdctl.cc、ldialog.cc、hashpjw.cc）は**変えない**。xchar_code が中で検査するので、キーが来れば type-error になる。
+- xchar_code の呼び出しは 27 ファイル 136 箇所ある。分け方: キーを受けるべき所（char.cc 43、keymap.cc 7、lprint.cc 4、hash.cc 4、kbd.cc 3、filer.cc 3、bytecode.cc 3、pred.cc 2、toplev.cc 2、fnkey.cc 1、eval.cc 1、lread.cc の Funread_char・Fpeek_char の 2）は上の表のとおり xchar_value・xkeycode に替える。それ以外は**変えない**。xchar_code が中で検査するので、キーが来れば type-error になる。変えない所は、文字列・バッファ・パスにテキストとして入れる所（array.cc、sequence.cc、string.cc、vector.cc、insdel.cc の Finsert・check_attrib、stream.cc の汎用入力の流れ、pathname.cc、syntax.cc、search.cc の scan_last_match、dialogs.cc、stdctl.cc、ldialog.cc の EM_SETPASSWORDCHAR、hashpjw.cc）、テキストだけの関数（move.cc の Fchar_columns・Fextended_alphabet_char_p、disp.cc の glyph_bmchar）、読みの表（lread.cc の parse_digit_char・call_macro_reader・call_dispmacro_reader・check_macro_char・check_dispmacro_char・Fread_delimited_list）。
+- キーボードの流れから文字を受け取る Lisp の関数は全部キーを受ける: read-char、read-char-no-hang、peek-char、unread-char、set-next-prefix-args、set-quit-char、filer-read-char、`*last-command-char*`、`*filer-last-command-char*`。
 - gen-ctab.cc の疑似の制御文字の表（pseudo_char2ctl_table・pseudo_ctl2char_table）は番号だけを持つので、そのまま。
 
 ### 3.6 Lisp から見える変化（S4-k）
@@ -315,6 +323,8 @@ lisp decode_bytes (lisp encoding, const void *, size_t);   // バイト → Lisp
 | binary | binary | バイト b ⇔ U+00bb。生のバイトの文字は元のバイト |
 
 - 表は全部、ビルドのときに生成する（gen-codec.cc、新規。gen-src1 の AfterBuild に足す）。OS の符号ページは使わない（作る PC に依らない。inventory-numbers の指摘）。
+- CP932.TXT は読み（バイト → Unicode）の表で、書きの正準形は決まらない（同じ種類の表から作った Python の変換器は、Windows と逆の形を選んだ。5.2）。だから書きの表は生成器が規則で作る: 同じ Unicode に複数の符号があるときは JIS X 0208 ＞ NEC の 13 区 ＞ IBM 拡張（FA〜FC）＞ NEC 選定 IBM 拡張（ED・EE）の順に選ぶ。この規則で、この PC の WideCharToMultiByte の 398 個と全部一致する（5.2 の表）。
+- CP932.TXT に行が無いもの（利用者定義の F040–F9FC、単独の 0x80）は、生成器が規則で足す（F040–F9FC → U+E000–U+E757、0x80 → U+0080）。足したものも上の突き合わせの試験で確かめる。
 - 生成した cp932 の表を、この PC の MultiByteToWideChar(932, MB_ERR_INVALID_CHARS) と、全部の 1 バイトと 2 バイトで突き合わせる試験を置く。この PC で確かめた数: 定義のある 2 バイトは 9604 個、先行バイトと後続バイトの範囲の中で定義のないものは 1676 個、往復で変わるものは 398 個。
 - CP936・CP949・CP950 も同じように、OS の表と突き合わせて差を記録する（今の gen-ucs2tab.cc はこれらを OS から取っていた。どちらに合わせるかは、差を見てから V の役が決める）。
 
@@ -399,6 +409,11 @@ lisp decode_bytes (lisp encoding, const void *, size_t);   // バイト → Lisp
 - 採らない案: バイト 0x80–0xFF を生のバイトの文字（0x1100xx）で表す。既定の規則は要らなくなるが、`(char-code (read-char s))` がバイトの値でなくなり、:binary のストリームを読む利用者のコード（imagehdr.l など）が全部壊れる。
 
 ## 5. cp932 の往復
+
+S4-0 の役へ（先に読むこと）:
+- 今のコードでは、どのバイト列も往復で変わらない（5.1）。S4-0 はこれを基準に置いてよい。
+- 拡幅（V）の後は、判断 A のどちらを選んでも、「同じ文字を 2 つの符号で書いたファイル」の期待のバイト列は変わる。推奨の案（5.4）で往復を保つには、ED・EE の場合、FA〜FC の場合、NEC の 13 区の場合を**別のファイル**に置く。1 つのファイルに全部を入れる試験は、V の後に期待値を「最初に出た符号に揃う」へ直す。
+- 不正なバイト、定義のない符号、利用者定義、末尾の先行バイトは、V の後も往復で変わらない（5.3）。
 
 ### 5.1 今（事実。コードを読んで確かめた）
 
@@ -671,7 +686,7 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 | 片 | 中身 | 触るファイル | 規模 | 依存 | 完了の基準と試験 |
 |---|---|---|---|---|---|
 | S4-k キー | 3 章 | 3.5 の表 | M | S4-d | 3.7 |
-| S4-c ファイル | W 版のファイルの層（長いパス、8.3 の削除、GetFileSizeEx）。Char → UTF-16 の変換は 1 つの関数にまとめる | pathname.cc・pathname.h、fileio.cc、mman.cc・mman.h、stream.cc の create_file_stream（fopen）、filer.cc のファイル操作、ほか S4-c の役が決める | M〜L | S4-d | 合意の S4-c の基準。260 文字を超えるパス、4GB を超えるファイルの大きさ、既存の試験 |
+| S4-c ファイル | W 版のファイルの層（長いパス、8.3 の削除、GetFileSizeEx）。Char → UTF-16 の変換は 1 つの関数にまとめる。10.4 の F（ファイル名）の 165 箇所が対象。DnD.cc・com.cc・filer.cc の MultiByteToWideChar (CP_ACP)・WideCharToMultiByte (CP_OEMCP) のパスの変換（不具合 F8 を含む）もここで扱う | pathname.cc・pathname.h、fileio.cc、mman.cc・mman.h、stream.cc の create_file_stream（fopen）、filer.cc のファイル操作、DnD.cc、com.cc、glob.cc、ほか S4-c の役が決める | M〜L | S4-d | 合意の S4-c の基準。260 文字を超えるパス、4GB を超えるファイルの大きさ、既存の試験 |
 | P1 変換器 | 4.2 の変換器（バイト ⇔ コードポイントの列）。生成器と表。試験用の si:%codec-decode・si:%codec-encode（コードポイントの整数の列を返す。内部の値に依らない） | 新規: codec.h、codec*.cc、gen-codec.cc、src/unicode/CP932.TXT。projects/gen-src1.vcxproj・xyzzy.vcxproj、gen-syms.cc（関数の登録を足すだけ） | L | なし | cp932 の全 1 バイト・2 バイトが OS（MB_ERR_INVALID_CHARS）と一致。5.3 の表の各場合の往復。重複符号の覚え（判断 A）。ほかの符号は今の表（i2w を通した結果）と一致するか、差を記録 |
 | P2 属性の表 | 7.2 の uprops。試験用の si:%uprop-width など | 新規: uprops.h・uprops.cc、gen-uprops.cc、src/unicode/ucd/。projects、gen-syms.cc | M | なし | 代表の文字（ASCII、かな、漢字、ハングル、曖昧、絵文字、結合文字）の幅と群が UCD どおり |
 
@@ -696,7 +711,7 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 | R5 xyzzy のデータファイル | 4.3 の履歴・resume・session・キーボードマクロのファイル・abbrev を UTF-8 と版の印で書く。9.4 の旧い形の読み（切り替え 1 の側）。.lc の版の印と load の検査（9.2） | lisp/history.l、session.l、kbdmacro.l、abbrev.l、compile.l、lread.cc（.lc の 1 行目の検査だけ。R4 と同じファイルなので R4 の後） | M | R4 | 旧い履歴（今の形で書いたもの）を読んで、同じ値になる。新しい形で書いて読み戻す |
 | R6 ini | 4.3。conf.cc に ini の読み書きを作る | conf.cc・conf.h | S | W、P1 | 今の cp932 の ini を読める。書いて読み戻す。フォントの名前（日本語）が往復する |
 | R7 octet の関数 | 4.7 の「バイトの文字列」の規則（切り替え 1 の側）と、:encoding を足す | byte-stream.cc・byte-stream.h、encdec.cc、string.cc（Fsi_octet_length と make_string_simple だけ）、lisp/encdec.l（text-decode-region）、lisp/kanji.l（map-char-encoding-region） | S〜M | W、P1 | system-tests.l の HMAC・md5・octet-length が、直さずに通る。MIME のヘッダの復号（decode-mime-header）の試験を足す |
-| R8 Win32 の境界 | 10.4。s2w・w2s を「ACP の変換器」1 つに通す（切り替え 0 は今の cp932、1 は UTF-8）。CP_ACP・CP_OEMCP・IsDBCSLeadByte・_ismbblead の所を直す | string.cc（s2w・w2s の中身だけ）、DnD.cc、com.cc、filer.cc（480 行の所）、kbd.cc（再変換 864〜941 行）、gen-syms.cc（2938 行。生成器） | M | W | 既存の全件。ドラッグ＆ドロップ、ショートカットの解決、IME の再変換を画面で確かめる |
+| R8 Win32 の境界 | 10.4。s2w・w2s を「ACP の変換器」1 つに通す（切り替え 0 は今の cp932、1 は UTF-8）。IME の再変換の MultiByteToWideChar (CP_ACP) を、Char から直接 UTF-16 を作る形に。gen-syms.cc の _ismbblead。xyzzycli との受け渡しを UTF-8 に決める（10.4） | string.cc（s2w・w2s の中身だけ）、kbd.cc（kbd_queue::reconvert）、gen-syms.cc（_ismbblead の所。生成器）、xyzzycli.cc、listen.cc（eval_xyzzysrv_param）、listen.h | M | W | 既存の全件。IME の再変換と、xyzzycli で日本語の名前のファイルを開くのを画面で確かめる |
 | R9 文字の関数 | 8.1 の unicode-char・char-unicode・iso-*・kanji-char-p・kana-char-p・char-columns・graphic-char-p・map-to-half/full-width-*、kanjitab の作り直し。8.2 の Lisp の直し（charname.l は cnamedef.l の Unicode の値を回し、文字集合の前置きの名前〈`JISX0208_…`〉は変換器の can_encode で付ける。cmds.l の quote-char・what-cursor-position。encoding.l の insert-internal-char-table と map-* の関数） | char.cc、kanji.cc、move.cc（Fchar_columns・iso8859_word_char_p）、gen-ktab.cc、ces.cc（parse-char-encoding-*）、lisp/charname.l、lisp/cmds.l、lisp/encoding.l | M | W、P1、P2 | 切り替え 0 で既存の全件。切り替え 1 の側の試験（8.1 の表の各行、`#\HIRAGANA_LETTER_A` と `#\JISX0208_HIRAGANA_LETTER_A` が読める）を用意しておく |
 | R10 キー入力 | WM_CHAR・WM_IME_CHAR・ImmGetCompositionString を UTF-16 で受ける経路に寄せる（切り替え 1 で） | kbd.cc（putc・puts の所）、toplev.cc（WM_CHAR・WM_PRIVATE_WCHAR・WM_IME_CHAR・IME の確定の所） | S〜M | W、S4-k | 画面で日本語の入力（IME）、BMP の外の文字（絵文字の入力）を確かめる |
 
@@ -757,11 +772,12 @@ S4-d ─┬─ S4-k ─┐
 |---|---|---|
 | xyzzy.ini（GetPrivateProfileStringA） | 古い cp932 の ini を UTF-8 として読んで化ける | R6 で自前の読み書きにする（V の前に） |
 | CRT の _mbs*・_ismbblead（archiver.cc、gen-syms.cc） | UTF-8 の ACP では 2 バイト文字として扱わない | archiver.cc は S9 で消える。gen-syms.cc はビルドの道具なので /utf-8 のリテラルに合わせて直す（R8） |
-| MultiByteToWideChar (CP_ACP)・WideCharToMultiByte (CP_OEMCP)（DnD.cc、com.cc、filer.cc、kbd.cc） | ACP が UTF-8 になる。OEMCP は 932 のまま | R8 で、Char から直接 UTF-16 を作る形にする |
+| MultiByteToWideChar (CP_ACP)・WideCharToMultiByte (CP_OEMCP)（DnD.cc、com.cc、filer.cc、kbd.cc） | ACP が UTF-8 になる。OEMCP は 932 のまま | パスの所（DnD.cc、com.cc、filer.cc）は S4-c、IME の再変換（kbd.cc）は R8 で、Char から直接 UTF-16 を作る形にする |
 | ANSI のウィンドウの WM_CHAR | UTF-8 のバイトが来るか、確かめていない | R10 で WM_PRIVATE_WCHAR（ToUnicode）と WM_IME_CHAR・ImmGetCompositionStringW の経路に寄せる。V で画面を撮って確かめる |
 | 子プロセスのコマンド行・環境（CreateProcessA） | UTF-8 から UTF-16 に変換されて渡る（今より良くなる） | S5 で CreateProcessW にする |
 | プロセスの出力の読み | `*default-process-encoding*`（sjis）で読む。ACP に依らない | 変えない |
-| xyzzycli.exe、xyzzyenv.exe | 別の exe。manifest を入れなければ今のまま | S5 で扱う |
+| xyzzycli.exe → xyzzy.exe の受け渡し | xyzzycli は引数から作った Lisp の式を、共有メモリ（xyzzysrv_param の `char data[]`）に ACP（cp932）のバイトで書く。xyzzy は listen.cc の eval_xyzzysrv_param で `make_string (param->data)`（s2w）で読む。xyzzy だけ UTF-8 にすると、日本語の名前のファイルを xyzzycli から開けなくなる | R8 で受け渡しを UTF-8 に決める: xyzzycli は GetCommandLineW から UTF-8 を作って書き、xyzzy は UTF-8 として読む。listen.h の `xyzzysrv_name`（"xyzzy-server v2"）を v3 に上げ、版の違う組み合わせは繋がらないようにする |
+| xyzzycli.exe・xyzzyenv.exe のそのほか（IsDBCSLeadByte で引数を区切る、xyzzycli.ini を A 版で読む） | 別の exe。manifest を入れなければ今のまま | S5 で扱う |
 
 ## 11. リスクと、この PC で確かめられないこと
 
