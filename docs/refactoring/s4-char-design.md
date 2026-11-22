@@ -823,6 +823,16 @@ S4-c（W 版のファイルの層。統合 aabf8d8）から:
 - 画面を使う確かめ（R3・R8・R10 と画面の確かめの役）は、ロック（スクラッチパッドの `gui.lock` フォルダを `mkdir` で作れたら使ってよい。終わったら消す）で 1 つずつ行う。IMM32 の IME はこの PC では実機で確かめられない（plan.md §4.6）。限界として記録し、繰り返さない。
 
 
+R3（画面と印刷。2026-11-22）から:
+
+- 文字 → 「フォントの枠・表示の幅・UTF-16 の列」は `char_face_of (Char, han_font, char_face &)`（font.cc）の 1 つ。画面（disp.cc）、印刷（print.cc）、ステータスの U+（statarea.cc の `char_unicode_of`）が使う。切り替え 0 は今の内部の符号から今と同じ結果（cp932 の 2 バイト・半角カナは、今まで ExtTextOutA で GDI が行っていた変換を `MultiByteToWideChar (932)` で行う）、1 は uprops（`uc_font_group`・`uc_width` の 1 引数の形。判断 B の変数 `*east-asian-ambiguous-width*` が効く）。試験用: `si:char-face-internal`・`si:char-face-unicode`・`si:encoding-han-font`（unittest/char-face-tests.l）。
+- 画面の 1 マス（`glyph_t`）は 64bit。下位 32bit は今の属性の並びのまま（insdel.cc の textprop の `t_attrib` と同じ位置）、上位 32bit がそのマスの Char（bitmap のマスは bitmap の番号）。charset の 5bit は「フォントの枠」（`GLYPH_FONT (FONT_*)`、`FONT_LUCIDA` は枠の外の擬似の枠）になった。全角は 2 マス（先頭 LEAD・後続 TRAIL。後続も同じ Char を持ち、単独では描かない）。描画は ExtTextOutW だけ（ASCII の枠は 1 回の呼び出し、ほかの枠は 1 文字ずつ・マスごとの clip）。
+- 漢字の枠は `encoding_han_font (buffer->lchar_encoding)`（ファイルを読んだ符号から。sjis・euc-jp・iso-8859 など → JP、EUC-KR・-kr の UTF → HANGUL、EUC-GB・-gb → CN_SIMPLIFIED、Big5・-big5 → CN_TRADITIONAL）。バッファ・ローカルの変数（`buffer-han-language`）は C3 以降。符号が変わっても、その行を描き直すまで枠は変わらない。
+- 1 にしたとき（V）: FALLBACK の枠は C3 まで LATIN の枠で代用（`FONT_FALLBACK`）。幅 0 の文字（結合文字）は画面では 1 マスにしている（`char_display_width` は 1〜2）。surrogate・U+10FFFF 超・生のバイトは「描くものなし」（空の箱）。生のバイトの `\x85` の 4 マス表示は V で足す。`charset.h` の `char_width` は V で `char_display_width` と同じ中身に（今は move.cc などが `char_width` を引く）。
+- 印刷（切り替え 0 の側の元の癖）: DEL の幅が `^` + `_`（BUG-0058）、GB・KSC・Big5 の全角が半角のずらし（BUG-0059）は、保った（切り替え 1 は全角に正しいずらし）。印刷の ASCII でない文字の入口は `paint_char` の 1 つ。ヘッダ・フッタの文字列（ANSI のバイト）は切り替え 1 で `MultiByteToWideChar (CP_ACP)` を通す（R8 の境界の整理で置き換える）。
+- 残した A 版: disp.cc の modeline・ステータスの文字列（`ExtTextOut`。Lisp の文字列を cp932 に変えて描く所。R8 の s2w・w2s と一緒に）。
+- `regexp_kwd::possible_match_p` の fastmap の引き（`c >> 8`）は、16bit を超える文字で「当たりうる」と返すようにした（R1 の fastmap の作り直しで置き換える）。
+
 ## 11. リスクと、この PC で確かめられないこと
 
 | リスク | 内容 | 対策 |
