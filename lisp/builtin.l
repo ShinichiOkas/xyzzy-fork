@@ -1104,6 +1104,8 @@
 (si::defun-builtin *kbd-queue-put (char &optional mark))
 (si::defun-builtin *kbd-queue-dispatch ())
 (si::defun-builtin *kbd-macro-p (object))
+(si::defun-builtin *utf16-to-chars (units &optional unicode half-width))
+(si::defun-builtin *kbd-queue-put-utf16 (unit))
 (si::defun-builtin get-ime-composition-string ())
 (si::defun-builtin pop-ime-composition-string ())
 (si::defun-builtin set-ime-read-string (&optional string))

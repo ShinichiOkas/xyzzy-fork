@@ -6,6 +6,32 @@
 
 class kbd_macro_context;
 
+// UTF-16 code units to Chars (S4 R10).  Every way that the keyboard and the
+// IME give UTF-16 (ToUnicode, WM_CHAR of a Unicode window, WM_IME_CHAR,
+// ImmGetCompositionStringW) goes through feed ().
+//
+//   unicode == false: the code of now.  A unit is a character by itself; the
+//     ones that the internal codes do not have (a surrogate) become a pair of
+//     the undefined codes (utf16_ucs2_to_undef_pair_*).  No state.
+//   unicode == true: a Char is a Unicode code point.  A high surrogate waits
+//     for the low one and the two become one character.  A surrogate that has
+//     no partner is the character of its own value (design 2.3).
+//
+// tab (unicode == false only) is a table of a keyboard language that wins
+// over the common one; half_width takes the half width form of the
+// characters that have one (the keyboard).
+class kbd_utf16_decoder
+{
+  ucs2_t ud_high;
+public:
+  enum {OUT_MAX = 2};
+  kbd_utf16_decoder () : ud_high (0) {}
+  int feed (ucs2_t, Char *, bool, const Char * = 0, bool = false);
+  int flush (Char *, bool);
+  bool pending_p () const {return ud_high != 0;}
+  void reset () {ud_high = 0;}
+};
+
 class kbd_queue
 {
   enum {QUEUE_MAX = 1024};
@@ -23,6 +49,7 @@ class kbd_queue
   int delayed_activate;
   int in_hook;
   int putc_pending;
+  kbd_utf16_decoder utf16_in;
   typedef HKL (WINAPI *GETKEYBOARDLAYOUT)(DWORD);
   GETKEYBOARDLAYOUT GetKeyboardLayout;
 
@@ -103,6 +130,8 @@ public:
   int put_key (lChar c) {return putraw (c);}
   int putw (int);
   int puts (const char *, int);
+  int put_char (Char);
+  int put_utf16 (ucs2_t);
   lChar peek (int);
   lChar fetch (int, int);
   int listen ();
@@ -133,7 +162,9 @@ public:
     {return LANGID (LOWORD (get_kbd_layout ()));}
   HKL get_kbd_layout () const;
   int ime_property () const {return ime_prop;}
-  int unicode_kbd_p () const {return unicode_kbd;}
+  // With Unicode characters the keyboard always gives UTF-16 (ToUnicode):
+  // the bytes of an ANSI window cannot hold a character out of the code page.
+  int unicode_kbd_p () const {return XYZZY_CHAR_UNICODE ? 1 : unicode_kbd;}
   void gc_timer_expired () {gc_timer = 1;}
 };
 
