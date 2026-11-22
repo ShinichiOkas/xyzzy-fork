@@ -11,6 +11,7 @@ void gen_ktab (int argc, char **argv);
 void gen_lucida_width (int argc, char **argv);
 void gen_syms (int argc, char **argv);
 void gen_ucs2tab (int argc, char **argv);
+void gen_uprops (int argc, char **argv);
 void gen_utf2sjis (int argc, char **argv);
 
 const gensrc_action actions[] =
@@ -28,5 +29,6 @@ const gensrc_action actions[] =
   {"gen-lucida-width", gen_lucida_width},
   {"gen-syms", gen_syms},
   {"gen-ucs2tab", gen_ucs2tab},
+  {"gen-uprops", gen_uprops},
   {"gen-utf2sjis", gen_utf2sjis},
 };

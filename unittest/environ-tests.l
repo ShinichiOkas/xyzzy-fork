@@ -37,3 +37,17 @@
   => "hoge1"
   => "hoge2"
   => "hoge2")
+
+;; BUG-0045: the name of an environment variable that has double-byte
+;; characters (si:environ passed the byte count as a character count).
+(deftest test-environ-double-byte-name ()
+  (let ((name "テスト変数")
+        (value "value=1"))
+    (si:putenv name value)
+    (unwind-protect
+        (let ((kv (assoc name (si:environ) :test #'string=)))
+          (values (car kv) (cdr kv) (si:getenv name)))
+      (si:putenv name nil)))
+  => "テスト変数"
+  => "value=1"
+  => "value=1")

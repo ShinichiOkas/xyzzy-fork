@@ -395,7 +395,7 @@ FontSet::create (const FontSetParam &param)
     {
       fs_font[i].calc_offset (fs_size);
       if (fs_font[i].size ().cx != fs_size.cx
-          || ex[i][0].cx * 2 != ex[i][0].cx)
+          || ex[i][0].cx * 2 != ex[i][1].cx)
         {
           fs_font[i].require_pad ();
           fs_need_pad = 1;

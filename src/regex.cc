@@ -1106,6 +1106,21 @@ regexp_compile::char_class_fastmap (const Char *p, char *fastmap) const
     }
 }
 
+// Set the fastmap of a syntax test PRED (syntax code -> bool).  A character of
+// 256 or more is SCword or SCkanji (syntax_of) and its slot is the high byte,
+// 1..255, so when PRED holds for either every such slot is set.
+template <class F>
+static void
+syntax_fastmap (const syntax_table *tab, char *fastmap, F pred)
+{
+  for (int i = 0; i < 256; i++)
+    if (pred (xchar_syntax (tab, i)))
+      fastmap[i] = 1;
+  if (pred (SCkanji) || pred (SCword))
+    for (int i = 1; i < 256; i++)
+      fastmap[i] = 1;
+}
+
 void
 regexp_compile::char_class_not_fastmap (const Char *p, char *fastmap) const
 {
@@ -1208,52 +1223,38 @@ regexp_compile::compile_fastmap (char *fastmap, const Char *p, const Char *pe) c
           break;
 
         case WORDCHAR:
-          {
-            for (int i = 0; i < 256; i++)
-              if (re_syntax_word_p (xchar_syntax (r_syntax_table, i)))
-                fastmap[i] = 1;
-            return 1;
-          }
+          syntax_fastmap (r_syntax_table, fastmap,
+                          [] (int sc) {return re_syntax_word_p (sc);});
+          return 1;
 
         case NOT_WORDCHAR:
-          {
-            for (int i = 0; i < 256; i++)
-              if (!re_syntax_word_p (xchar_syntax (r_syntax_table, i)))
-                fastmap[i] = 1;
-            return 1;
-          }
+          syntax_fastmap (r_syntax_table, fastmap,
+                          [] (int sc) {return !re_syntax_word_p (sc);});
+          return 1;
 
         case SYMBOLCHAR:
-          {
-            for (int i = 0; i < 256; i++)
-              if (re_syntax_symbol_p (xchar_syntax (r_syntax_table, i)))
-                fastmap[i] = 1;
-            return 1;
-          }
+          syntax_fastmap (r_syntax_table, fastmap,
+                          [] (int sc) {return re_syntax_symbol_p (sc);});
+          return 1;
 
         case NOT_SYMBOLCHAR:
-          {
-            for (int i = 0; i < 256; i++)
-              if (!re_syntax_symbol_p (xchar_syntax (r_syntax_table, i)))
-                fastmap[i] = 1;
-            return 1;
-          }
+          syntax_fastmap (r_syntax_table, fastmap,
+                          [] (int sc) {return !re_syntax_symbol_p (sc);});
+          return 1;
 
         case SYNTAX_SPEC:
           {
             int n = *p++;
-            for (int i = 0; i < 256; i++)
-              if (xchar_syntax (r_syntax_table, i) == n)
-                fastmap[i] = 1;
+            syntax_fastmap (r_syntax_table, fastmap,
+                            [n] (int sc) {return sc == n;});
             return 1;
           }
 
         case NOT_SYNTAX_SPEC:
           {
             int n = *p++;
-            for (int i = 0; i < 256; i++)
-              if (xchar_syntax (r_syntax_table, i) != n)
-                fastmap[i] = 1;
+            syntax_fastmap (r_syntax_table, fastmap,
+                            [n] (int sc) {return sc != n;});
             return 1;
           }
         }

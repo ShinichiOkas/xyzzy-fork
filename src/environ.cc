@@ -909,7 +909,9 @@ Fsi_environ ()
     {
       char *eq = strchr (*e, '=');
       if (!eq) continue;
-      lisp env = xcons (make_string (*e, eq - *e),
+      /* make_string (const char *, size_t) takes the number of
+         characters, not bytes. */
+      lisp env = xcons (make_string (*e, s2wl (*e, eq, 0)),
                         make_string (eq + 1));
       r = xcons (env, r);
     }

@@ -553,6 +553,13 @@ word_state::char_category (const syntax_table *tab, Char c)
     }
 }
 
+u_char
+wide_syntax (Char c)
+{
+  return (word_state::char_category (0, c) == word_state::WCword
+          ? SCword : SCkanji);
+}
+
 int
 word_state::forward (Char c)
 {
@@ -739,9 +746,9 @@ static int flag_pure;
 static inline syntax_code
 syntax (const syntax_table *tab, Char c)
 {
-  if (SBCP (c))
-    return syntax_code (xchar_syntax (tab, c));
-  return SCkanji;
+  // The scanner keeps every character of 256 or more as SCkanji
+  // (syntax_of would make the letters SCword; BUG-0050).
+  return SBCP (c) ? syntax_code (xchar_syntax (tab, c)) : SCkanji;
 }
 
 static inline syntax_code
