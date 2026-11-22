@@ -154,6 +154,7 @@
     <ClInclude Include="..\src\cdecl.h" />
     <ClInclude Include="..\src\charset.h" />
     <ClInclude Include="..\src\chtype.h" />
+    <ClInclude Include="..\src\keycode.h" />
     <ClInclude Include="..\src\function.h" />
     <ClInclude Include="..\src\gen-action1.h" />
     <ClInclude Include="..\src\gen-stdafx.h" />
@@ -178,7 +179,7 @@
     <Exec Command="&quot;$(TargetPath)&quot; gen-char-width &gt; &quot;$(GenCharWidthOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
   </Target>
   <PropertyGroup>
-    <GenCtabInputs>..\src\gen-ctab.cc;..\src\cdecl.h;..\src\chtype.h</GenCtabInputs>
+    <GenCtabInputs>..\src\gen-ctab.cc;..\src\cdecl.h;..\src\chtype.h;..\src\keycode.h</GenCtabInputs>
     <GenCtabOutput>$(GenerateDir)chtab.cc</GenCtabOutput>
   </PropertyGroup>
   <Target Name="GenCtab" Inputs="$(GenCtabInputs)" Outputs="$(GenCtabOutput)" DependsOnTargets="PrepareGenerate">

@@ -454,6 +454,9 @@
     <ClInclude Include="..\src\chtype.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\keycode.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\trace.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

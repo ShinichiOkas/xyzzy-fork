@@ -850,43 +850,46 @@ quote_char (wStream &stream, Char c)
     }
 }
 
+// A character (a text character or a key) by its name.
 static void
-print_char (wStream &stream, Char c, int escape)
+print_char (wStream &stream, keycode_t key, int escape)
 {
   int meta = 0;
 
-  if (meta_char_p (c))
+  if (keycode_meta_ascii_p (key))
     {
       meta = 1;
-      c = meta_char_to_char (c);
+      key = keycode_meta_ascii_to_char (key);
     }
-  else if (meta_function_char_p (c))
+  else if (keycode_meta_function_p (key))
     {
       meta = 1;
-      c = meta_function_to_function (c);
+      key = keycode_meta_function_to_function (key);
     }
 
-  if (function_char_p (c))
+  if (keycode_function_p (key))
     {
-      if (pseudo_ctlchar_p (c))
+      u_int low = keycode_low (key);
+      if (keycode_pseudo_ctl_p (key))
         {
           stream.add ("C-");
           if (meta)
             stream.add ("M-");
-          c = pseudo_ctl2char_table[c & 0xff];
+          Char c = pseudo_ctl2char_table[low & 0xff];
           if (escape)
             quote_char (stream, c);
           stream.add (c);
         }
       else
         {
-          if (c & CCF_SHIFT_BIT)
+          if (low & CCF_SHIFT_BIT)
             stream.add ("S-");
-          if (c & CCF_CTRL_BIT)
+          if (low & CCF_CTRL_BIT)
             stream.add ("C-");
           if (meta)
             stream.add ("M-");
-          const char *p = function_Char2name (c & ~(CCF_SHIFT_BIT | CCF_CTRL_BIT));
+          const char *p = function_key2name
+            (make_keycode (keycode_value (key) & ~u_int32_t (CCF_SHIFT_BIT | CCF_CTRL_BIT)));
           if (p)
             stream.add (p);
           else
@@ -895,6 +898,7 @@ print_char (wStream &stream, Char c, int escape)
     }
   else
     {
+      Char c = keycode_to_char (key);
       const char *p = standard_Char2name (c);
       if (p)
         {
@@ -955,15 +959,17 @@ print_char (wStream &stream, Char c, int escape)
 }
 
 static void
-print_char (wStream &stream, const print_control &pc, Char c)
+print_char (wStream &stream, const print_control &pc, keycode_t k)
 {
   if (pc.readably || pc.escape)
     {
       stream.add ("#\\");
-      print_char (stream, c, 1);
+      print_char (stream, k, 1);
     }
+  else if (keycode_text_p (k))
+    stream.add (keycode_to_char (k));
   else
-    stream.add (c);
+    print_char (stream, k, 0);
 }
 
 static void
@@ -1175,7 +1181,7 @@ print_array (wStream &stream, const print_control &pc,
           switch (type)
             {
             case Tstring_array:
-              print_char (stream, pc, xstring_array_contents (object) [i]);
+              print_char (stream, pc, keycode_from_char (xstring_array_contents (object) [i]));
               break;
 
             default:
@@ -1619,7 +1625,7 @@ print_sexp (wStream &stream, const print_control &pc, lisp object, int level)
       if (short_int_p (object))
         print_integer (stream, pc, object);
       else if (charp (object))
-        print_char (stream, pc, xchar_code (object));
+        print_char (stream, pc, xkeycode (object));
       else if (messagep (object))
         print_message (stream, pc, xmessage_code (object));
       else
@@ -2338,7 +2344,7 @@ Format::character (wStream &stream)
   max_param (0);
   lisp x = getarg ();
   check_char (x);
-  Char c = xchar_code (x);
+  keycode_t c = xkeycode (x);
   if (colon)
     print_char (stream, c, 0);
   else if (atsign)
@@ -2346,8 +2352,10 @@ Format::character (wStream &stream)
       stream.add ("#\\");
       print_char (stream, c, 1);
     }
+  else if (keycode_text_p (c))
+    stream.add (keycode_to_char (c));
   else
-    stream.add (c);
+    print_char (stream, c, 0);
 }
 
 static int
@@ -4302,7 +4310,7 @@ format_yes_or_no_p (message_code m, ...)
 }
 
 char *
-print_key_sequence (char *b, char *be, Char c)
+print_key_sequence (char *b, char *be, keycode_t c)
 {
   wStream stream;
   print_char (stream, c, 0);

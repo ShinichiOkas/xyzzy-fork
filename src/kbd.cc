@@ -124,14 +124,16 @@ kbd_queue::peek (int req_mouse_move)
             return lChar_EOF;
           c = cc[head];
           head = (head + 1) % QUEUE_MAX;
-          if (!req_mouse_move && char_mouse_move_p (Char (c)))
+          if (!lchar_menu_p (c)
+              && !req_mouse_move && char_mouse_move_p (lchar_to_keycode (c)))
             return lChar_EOF;
-          if (save_p () && !(c & LCHAR_MENU) && !char_mouse_move_p (Char (c)))
+          if (save_p () && !lchar_menu_p (c)
+              && !char_mouse_move_p (lchar_to_keycode (c)))
             {
               if (nsaved == KBDMACRO_MAX)
                 stop_macro ();
               else
-                saved[nsaved++] = Char (c);
+                saved[nsaved++] = lchar_to_keycode (c);
             }
         }
     }
@@ -299,7 +301,32 @@ kbd_queue::end_macro ()
 {
   assert (save_p ());
   stop_macro ();
-  return make_string (saved, min (nsaved, last_command_key_index));
+  int n = min (nsaved, last_command_key_index);
+  lisp macro = make_vector (n, Qnil);
+  for (int i = 0; i < n; i++)
+    xvector_contents (macro)[i] = make_key_char (saved[i]);
+  return macro;
+}
+
+// A kbd macro is a vector of characters.  A string (before S4-k) is also a
+// kbd macro; its elements are the 16bit values.
+int
+kbd_macro_p (lisp x)
+{
+  if (stringp (x))
+    return 1;
+  if (!general_vector_p (x) || !xvector_length (x))
+    return 0;
+  for (int i = 0, n = xvector_length (x); i < n; i++)
+    if (!charp (xvector_contents (x)[i]))
+      return 0;
+  return 1;
+}
+
+int
+kbd_macro_length (lisp x)
+{
+  return stringp (x) ? xstring_length (x) : xvector_length (x);
 }
 
 void
@@ -310,13 +337,19 @@ kbd_queue::stop_macro ()
   current_mode = input_mode (disablep () | im_normal);
 }
 
-Char
+lChar
 kbd_queue::macro_char ()
 {
   assert (kbd_macro);
-  assert (kbd_macro->index < xstring_length (kbd_macro->string));
-  Char c = xstring_contents (kbd_macro->string) [kbd_macro->index++];
-  if (kbd_macro->index >= xstring_length (kbd_macro->string))
+  lisp macro = kbd_macro->string;
+  assert (kbd_macro->index < kbd_macro_length (macro));
+  lChar c;
+  if (stringp (macro))
+    c = keycode_value (keycode_from_legacy (xstring_contents (macro) [kbd_macro->index]));
+  else
+    c = keycode_value (xkeycode (xvector_contents (macro) [kbd_macro->index]));
+  kbd_macro->index++;
+  if (kbd_macro->index >= kbd_macro_length (macro))
     kbd_macro = kbd_macro->last;
   return c;
 }
@@ -582,6 +615,18 @@ XyzzyTranslateMessage (const MSG *msg)
   return app.kbdq.gime.TranslateMessage (msg);
 }
 
+static inline int
+lkey_function_p (lChar c)
+{
+  return keycode_function_p (make_keycode (c));
+}
+
+static inline lChar
+lkey_to_meta (lChar c)
+{
+  return keycode_value (keycode_function_to_meta_function (make_keycode (c)));
+}
+
 static lChar
 pre_decode_vkeys (UINT vkey, int syskey)
 {
@@ -608,7 +653,7 @@ pre_decode_vkeys (UINT vkey, int syskey)
   if (!charp (cc))
     return lChar_EOF;
 
-  return xchar_code (cc);
+  return xchar_value (cc);
 }
 
 lChar
@@ -622,24 +667,24 @@ lookup_translate_table (lChar cc)
   if (xvector_length (vec) != 128)
     return cc;
   lisp lcc = xvector_contents (vec)[cc];
-  return charp (lcc) ? xchar_code (lcc) : cc;
+  return charp (lcc) ? xchar_value (lcc) : cc;
 }
 
 static lChar
 decode_vkeys (UINT vkey)
 {
   if (vkey == VK_APPS)
-    return CCF_APPS;
+    return keycode_value (KEY_APPS);
   if (vkey == VK_PAUSE)
-    return CCF_PAUSE;
+    return keycode_value (KEY_PAUSE);
   if (vkey == VK_SCROLL)
-    return CCF_SCROLL;
+    return keycode_value (KEY_SCROLL);
   if (vkey >= VK_SELECT && vkey <= VK_SNAPSHOT)
     return lChar_EOF;
   if (vkey >= VK_PRIOR && vkey <= VK_HELP)
-    return CCF_PRIOR + vkey - VK_PRIOR;
-  if (vkey >= VK_F1 && vkey <= VK_F1 + CCF_Fn_MAX - CCF_F1)
-    return CCF_F1 + vkey - VK_F1;
+    return keycode_value (KEY_PRIOR) + vkey - VK_PRIOR;
+  if (vkey >= VK_F1 && vkey <= VK_F1 + keycode_value (KEY_Fn_MAX) - keycode_value (KEY_F1))
+    return keycode_value (KEY_F1) + vkey - VK_F1;
   return lChar_EOF;
 }
 
@@ -651,7 +696,7 @@ decode_ctlchars (UINT vk, UINT sc)
     return lChar_EOF;
   if (!pseudo_char2ctl_table[key])
     return lChar_EOF;
-  return CCF_CHAR_MIN + pseudo_char2ctl_table[key];
+  return keycode_value (KEY_CHAR_MIN) + pseudo_char2ctl_table[key];
 }
 
 lChar
@@ -661,9 +706,9 @@ decode_syschars (WPARAM wparam)
   if (GetKeyState (VK_MENU) < 0)
     {
       if (ascii_char_p (cc))
-        cc |= CC_META_BIT;
-      else if (function_char_p (Char (cc)))
-        cc = function_to_meta_function (Char (cc));
+        cc = keycode_value (keycode_meta_ascii (cc));
+      else if (lkey_function_p (cc))
+        cc = lkey_to_meta (cc);
     }
   return cc;
 }
@@ -692,7 +737,7 @@ decode_syskeys (WPARAM wparam, LPARAM lparam)
       if (GetKeyState (VK_CONTROL) < 0)
         c |= CCF_CTRL_BIT;
       if (GetKeyState (VK_MENU) < 0)
-        c = function_to_meta_function (Char (c));
+        c = lkey_to_meta (c);
     }
   else
     {
@@ -700,8 +745,8 @@ decode_syskeys (WPARAM wparam, LPARAM lparam)
       if (c != lChar_EOF)
         {
           c = lookup_translate_table (c);
-          if (GetKeyState (VK_MENU) < 0 && function_char_p (Char (c)))
-            c = function_to_meta_function (Char (c));
+          if (GetKeyState (VK_MENU) < 0 && lkey_function_p (c))
+            c = lkey_to_meta (c);
         }
     }
   return c;
@@ -722,7 +767,7 @@ decode_keys (WPARAM wparam, LPARAM lparam)
       if (GetKeyState (VK_CONTROL) < 0)
         c |= CCF_CTRL_BIT;
       if (GetKeyState (VK_MENU) < 0)  // ???
-        c = function_to_meta_function (Char (c));
+        c = lkey_to_meta (c);
     }
   else
     {
@@ -730,8 +775,8 @@ decode_keys (WPARAM wparam, LPARAM lparam)
       if (c != lChar_EOF)
         {
           c = lookup_translate_table (c);
-          if (GetKeyState (VK_MENU) < 0 && function_char_p (Char (c)))
-            c = function_to_meta_function (Char (c));
+          if (GetKeyState (VK_MENU) < 0 && lkey_function_p (c))
+            c = lkey_to_meta (c);
         }
       else
         {
@@ -753,9 +798,9 @@ decode_keys (WPARAM wparam, LPARAM lparam)
           if (GetKeyState (VK_MENU) < 0)
             {
               if (ascii_char_p (c))
-                c |= CC_META_BIT;
-              else if (function_char_p (Char (c)))
-                c = function_to_meta_function (Char (c));
+                c = keycode_value (keycode_meta_ascii (c));
+              else if (lkey_function_p (c))
+                c = lkey_to_meta (c);
             }
         }
     }
@@ -763,17 +808,17 @@ decode_keys (WPARAM wparam, LPARAM lparam)
 }
 
 int
-kbd_queue::copy_queue (Char *b0, int size) const
+kbd_queue::copy_queue (keycode_t *b0, int size) const
 {
-  Char *b = b0 + size;
+  keycode_t *b = b0 + size;
   for (int i = (head + QUEUE_MAX - 1) % QUEUE_MAX; i != tail && b > b0;
        i = (i + QUEUE_MAX - 1) % QUEUE_MAX)
-    if (cc[i] != lChar_EOF && !(cc[i] & LCHAR_MENU))
-      *--b = Char (cc[i]);
+    if (cc[i] != lChar_EOF && !lchar_menu_p (cc[i]))
+      *--b = lchar_to_keycode (cc[i]);
   int l = b0 + size - b;
   if (pending != lChar_EOF && l)
     l--;
-  bcopy (b, b0, l);
+  memmove (b0, b, l * sizeof *b);
   return l;
 }
 
@@ -910,8 +955,17 @@ kbd_queue::documentfeed (RECONVERTSTRING *rsbuf, int unicode_p)
       lisp b = multiple_value::value (0);
       lisp c = multiple_value::value (1);
 
-      char *content = w2s (c);
-      char *before = w2s (b);
+      // w2s (lisp) returns a malloc'ed buffer.  Free it at every exit.
+      struct sjis_buffer
+        {
+          char *p;
+          sjis_buffer (char *p_) : p (p_) {}
+          ~sjis_buffer () {xfree (p);}
+        };
+      sjis_buffer content_guard (w2s (c));
+      sjis_buffer before_guard (w2s (b));
+      const char *content = content_guard.p;
+      const char *before = before_guard.p;
       long len = strlen (content);
       long offset = strlen (before);
       if (unicode_p)
@@ -1083,7 +1137,7 @@ key_sequence::key_sequence ()
 }
 
 inline void
-key_sequence::store (Char c)
+key_sequence::store (keycode_t c)
 {
   if (k_used < MAX_KEYSEQ)
     k_seq[k_used] = c;
@@ -1112,7 +1166,7 @@ key_sequence::notice (int n, int cont)
 }
 
 void
-key_sequence::push (Char c, int f)
+key_sequence::push (keycode_t c, int f)
 {
   store (c);
   if (f)
@@ -1120,7 +1174,7 @@ key_sequence::push (Char c, int f)
 }
 
 void
-key_sequence::done (Char c, int f)
+key_sequence::done (keycode_t c, int f)
 {
   store (c);
   k_last_used = k_used;
@@ -1272,7 +1326,7 @@ Fset_next_prefix_args (lisp arg, lisp value, lisp c)
   if (c && c != Qnil)
     {
       check_char (c);
-      app.keyseq.push (xchar_code (c), !app.kbdq.macro_is_running ());
+      app.keyseq.push (xkeycode (c), !app.kbdq.macro_is_running ());
       Fcontinue_pre_selection ();
       app.kbdq.close_ime ();
       app.kbdq.keep_next_command_key ();
@@ -1316,9 +1370,12 @@ Ftoggle_ime (lisp arg)
 lisp
 Fget_recent_keys ()
 {
-  Char b[128];
+  keycode_t b[128];
   int n = app.kbdq.copy_queue (b, numberof (b));
-  return make_string (b, n);
+  lisp keys = make_vector (n, Qnil);
+  for (int i = 0; i < n; i++)
+    xvector_contents (keys)[i] = make_key_char (b[i]);
+  return keys;
 }
 
 lisp
@@ -1508,9 +1565,34 @@ Fcurrent_kbd_layout ()
 }
 
 int
-char_mouse_move_p (Char cc)
+char_mouse_move_p (keycode_t cc)
 {
-  if (function_char_p (cc))
-    cc = meta_function_to_function (cc & ~(CCF_SHIFT_BIT | CCF_CTRL_BIT));
-  return cc == CCF_MOUSEMOVE;
+  if (keycode_function_p (cc))
+    cc = keycode_meta_function_to_function (make_keycode (keycode_value (cc)
+                                                          & ~u_int32_t (CCF_SHIFT_BIT | CCF_CTRL_BIT)));
+  return cc == KEY_MOUSEMOVE;
+}
+
+// For tests: put a character (a key or a text character) into the key queue.
+// mark: 0 = keyboard, 1 = mouse (LCHAR_MOUSE), 2 = menu (LCHAR_MENU).
+lisp
+Fsi_kbd_queue_put (lisp lc, lisp lmark)
+{
+  check_char (lc);
+  lChar c = xchar_value (lc);
+  int mark = lmark && lmark != Qnil ? fixnum_value (lmark) : 0;
+  if (mark == 1)
+    c |= LCHAR_MOUSE;
+  else if (mark == 2)
+    c |= LCHAR_MENU;
+  else if (mark)
+    FErange_error (lmark);
+  return boole (app.kbdq.put_key (c));
+}
+
+// Is the object a kbd macro (a vector of characters, or an old string)?
+lisp
+Fsi_kbd_macro_p (lisp x)
+{
+  return boole (kbd_macro_p (x));
 }

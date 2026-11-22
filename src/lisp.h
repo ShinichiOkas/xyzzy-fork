@@ -3,6 +3,7 @@
 # define _lisp_h_
 
 # include "cdecl.h"
+# include "keycode.h"
 
 # define QUIT check_quit ()
 # define QUITP (xsymbol_value (Vquit_flag) != Qnil \
@@ -162,19 +163,20 @@ lowbits (pointer_t x)
   return u_short (x & 0xffff);
 }
 
-inline u_short
+inline u_int32_t
 hibits (pointer_t x)
 {
-  return u_short ((x >> 16) & 0xffff);
+  return u_int32_t ((x >> 16) & 0xffffffff);
 }
 
+// The data of an immediate is 32bit (characters: text or key).
 inline lisp
-make_immediate (u_short type, u_short data)
+make_immediate (u_short type, u_int32_t data)
 {
   return lisp ((pointer_t (data) << 16) | type);
 }
 
-inline u_short
+inline u_int32_t
 ximmediate_data (lisp x)
 {
   return hibits (pointer_t (x));

@@ -35,8 +35,8 @@ sxhash_imm (lisp object, hash_test_proc test)
     }
   if (charp (object))
     return (test == Fequalp
-            ? char_upcase (xchar_code (object))
-            : xchar_code (object));
+            ? char_value_upcase (xchar_value (object))
+            : xchar_value (object));
   return sxhashval (object);
 }
 

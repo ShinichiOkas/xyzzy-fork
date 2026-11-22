@@ -233,7 +233,7 @@ Lisp の文字との出し入れ（char.h）:
 | `(char-code #\M-x)` | #x8078 | #x1008078 |
 | `(char-code #\C-x)` | #x18 | #x18（ASCII の制御文字。キーではない） |
 | `(code-char #x100ff0f)` | 切り詰めて別の文字 | #\F1 |
-| `(code-char #x10041)` | #\A（不具合 F1） | 範囲外のエラー。V の後は U+10041 |
+| `(code-char #x10041)` | #\A（不具合 F1） | nil（BUG-0041。実在しないキーの値も nil。long を超える値は range-error のまま）。V の後は U+10041 |
 | `(string #\M-x)`、`(insert #\F1)` | 内部の値がそのまま入る | type-error |
 | `(princ #\M-x)`、`(format nil "~C" #\M-x)` | 内部の値の文字 | `M-x` |
 | `*last-kbd-macro*`、`(get-recent-keys)` | 文字列 | 文字のベクタ |
@@ -812,7 +812,7 @@ S4-d ─┬─ S4-k ─┐
 | F6 | socket-stream-send-oob-data が `alloca (w2sl (string))` の領域に w2s で書く。w2s は終わりの NUL も書くので 1 バイトはみ出す | stream.cc Fsocket_stream_send_oob_data |
 | F7 | StrBuf::make_string と make_substring で、長さが 0 のとき `make_string_simple ("", 0)` の結果を return していない（作った文字列を捨て、長さ 0 の領域を xmalloc して続ける） | StrBuf.cc |
 | F8 | ドロップしたファイルのパスとショートカットの名前を WideCharToMultiByte (CP_OEMCP) で変えている（ほかは CP_ACP。結果は A 版のファイルの API に渡る）。日本語の Windows では OEM と ANSI が同じ 932 なので表に出ない | DnD.cc（571・648・689 行）、com.cc（170・172 行） |
-| F9 | IME の再変換で w2s (lisp) が返した領域を解放していない | kbd.cc kbd_queue::reconvert（content・before） |
+| F9 | IME の再変換で w2s (lisp) が返した領域を解放していない | kbd.cc kbd_queue::documentfeed（content・before。BUG-0049。reconvert の隣の関数） |
 
 ## 13. 判断（師匠に渡すもの）
 

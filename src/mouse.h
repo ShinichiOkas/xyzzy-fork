@@ -15,7 +15,7 @@ protected:
   int ms_click_count;
   int ms_line;
   int ms_column;
-  Char ms_movechar;
+  keycode_t ms_movechar;
   int ms_enable_move;
 
   static DWORD ms_last_pos;
@@ -36,7 +36,7 @@ public:
   void cancel ();
   int track_popup_menu (HMENU, lisp, const POINT *);
   mouse_state (kbd_queue &);
-  void clear_move () {ms_movechar = 0;}
+  void clear_move () {ms_movechar = make_keycode (0);}
   static void update_cursor (UINT, WPARAM);
   static void show_cursor ();
   static void hide_cursor ();
@@ -51,7 +51,7 @@ inline
 mouse_state::mouse_state (kbd_queue &kbdq)
      : ms_kbdq (kbdq), ms_modifier (0), ms_last_modifier (0),
        ms_hwnd (0), ms_time (0), ms_line (0), ms_column (0),
-       ms_movechar (0), ms_enable_move (0)
+       ms_movechar (make_keycode (0)), ms_enable_move (0)
 {
 }
 

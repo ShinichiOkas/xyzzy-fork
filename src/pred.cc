@@ -492,7 +492,7 @@ string_array_equalp (const lisp *v, int vl, const Char *s, int sl)
   if (vl != sl)
     return Qnil;
   for (const lisp *ve = v + vl; v < ve; v++, s++)
-    if (!charp (*v) || char_upcase (xchar_code (*v)) != char_upcase (*s))
+    if (!charp (*v) || char_value_upcase (xchar_value (*v)) != char_upcase (*s))
       return Qnil;
   return Qt;
 }
@@ -519,7 +519,7 @@ equalp (lisp x, lisp y, lisp seen)
     return boole (!number_compare (x, y));
 
   if (charp (x) && charp (y))
-    return boole (char_upcase (xchar_code (x)) == char_upcase (xchar_code (y)));
+    return boole (char_value_upcase (xchar_value (x)) == char_value_upcase (xchar_value (y)));
 
   if (immediatep (x) || immediatep (y))
     return Qnil;

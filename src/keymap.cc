@@ -17,7 +17,8 @@ Fkeymapp (lisp map)
   if (symbolp (map))
     map = xsymbol_function (map);
   if (general_vector_p (map))
-    return xvector_length (map) == KEYMAP_LENGTH ? map : Qnil;
+    return (xvector_length (map) == KEYMAP_LENGTH && !kbd_macro_p (map)
+            ? map : Qnil);
   return consp (map) && xcar (map) == Qkeymap ? map : Qnil;
 }
 
@@ -34,34 +35,34 @@ Fmake_sparse_keymap ()
   return xcons (Qkeymap, Qnil);
 }
 
-static u_int
-full_keymap_index (Char c)
+// Only an ASCII letter has the other case.
+static inline int
+key_alpha_p (keycode_t k)
 {
-  if (function_char_p (c))
-    {
-      int x = 128 + (c & CCF_CHAR_MASK);
-      if (c & CCF_SHIFT_BIT)
-        x += NFUNCTION_KEYS;
-      if (c & CCF_CTRL_BIT)
-        x += 2 * NFUNCTION_KEYS;
-      return x;
-    }
-  return c < 128 ? c : -1;
+  return (keycode_text_p (k)
+          && ascii_char_p (int (keycode_value (k)))
+          && alpha_char_p (int (keycode_value (k))));
+}
+
+static inline keycode_t
+key_transpose_case (keycode_t k)
+{
+  return make_keycode (_char_transpose_case (int (keycode_value (k))));
 }
 
 static lisp
-parse_keymap (Char c, lisp map)
+parse_keymap (keycode_t c, lisp map)
 {
   if (general_vector_p (map))
     {
-      u_int i = full_keymap_index (c);
+      u_int i = keycode_keymap_index (c);
       if (i < keymap_length (map))
         return xvector_contents (map) [i];
       return Qnil;
     }
   if (consp (map) && xcar (map) == Qkeymap)
     {
-      lisp cc = make_char (c);
+      lisp cc = make_key_char (c);
       for (map = xcdr (map); consp (map); map = xcdr (map))
         {
           lisp p = xcar (map);
@@ -88,24 +89,24 @@ Fcurrent_selection_keymap ()
 }
 
 lisp
-lookup_keymap (Char c, lisp *map, int n)
+lookup_keymap (keycode_t c, lisp *map, int n)
 {
   int i;
-  if (meta_function_char_p (c))
+  if (keycode_meta_function_p (c))
     {
       for (i = 0; i < n; i++)
-        map[i] = parse_keymap (CC_ESC, Fkeymapp (map[i]));
-      c = meta_function_to_function (c);
+        map[i] = parse_keymap (keycode_from_char (CC_ESC), Fkeymapp (map[i]));
+      c = keycode_meta_function_to_function (c);
     }
-  else if (meta_char_p (c))
+  else if (keycode_meta_ascii_p (c))
     {
       for (i = 0; i < n; i++)
-        map[i] = parse_keymap (CC_ESC, Fkeymapp (map[i]));
-      c = meta_char_to_char (c);
+        map[i] = parse_keymap (keycode_from_char (CC_ESC), Fkeymapp (map[i]));
+      c = keycode_meta_ascii_to_char (c);
     }
 
   lisp *save = 0;
-  if (alpha_char_p (c))
+  if (key_alpha_p (c))
     {
       save = (lisp *)alloca (sizeof *save * n);
       memcpy (save, map, sizeof *save * n);
@@ -120,7 +121,7 @@ lookup_keymap (Char c, lisp *map, int n)
 
   if (save)
     {
-      c = _char_transpose_case (c);
+      c = key_transpose_case (c);
       for (i = 0; i < n; i++)
         map[i] = parse_keymap (c, Fkeymapp (save[i]));
     }
@@ -170,23 +171,23 @@ Fminor_mode_map (lisp buffer)
 }
 
 static lisp *
-scan_key_slot (lisp keymap, Char c, int igcase)
+scan_key_slot (lisp keymap, keycode_t c, int igcase)
 {
   if (general_vector_p (keymap))
     {
-      u_int i = full_keymap_index (c);
+      u_int i = keycode_keymap_index (c);
       if (i >= keymap_length (keymap))
         return 0;
       lisp *v = &xvector_contents (keymap) [i];
-      if (!igcase || *v != Qnil || !alpha_char_p (c))
+      if (!igcase || *v != Qnil || !key_alpha_p (c))
         return v;
-      i = full_keymap_index (_char_transpose_case (c));
+      i = keycode_keymap_index (key_transpose_case (c));
       if (i >= keymap_length (keymap))
         return 0;
       return &xvector_contents (keymap) [i];
     }
 
-  lisp cc = make_char (c);
+  lisp cc = make_key_char (c);
   for (lisp p = keymap; consp (p); p = xcdr (p))
     {
       lisp x = xcar (p);
@@ -194,9 +195,9 @@ scan_key_slot (lisp keymap, Char c, int igcase)
         return &xcdr (x);
     }
 
-  if (igcase && alpha_char_p (c))
+  if (igcase && key_alpha_p (c))
     {
-      cc = make_char (_char_transpose_case (c));
+      cc = make_key_char (key_transpose_case (c));
       for (lisp p = keymap; consp (p); p = xcdr (p))
         {
           lisp x = xcar (p);
@@ -209,11 +210,11 @@ scan_key_slot (lisp keymap, Char c, int igcase)
 }
 
 static lisp *
-make_key_slot (lisp keymap, Char c)
+make_key_slot (lisp keymap, keycode_t c)
 {
   if (general_vector_p (keymap))
     {
-      u_int i = full_keymap_index (c);
+      u_int i = keycode_keymap_index (c);
       if (i >= keymap_length (keymap))
         return 0;
       return &xvector_contents (keymap) [i];
@@ -221,7 +222,7 @@ make_key_slot (lisp keymap, Char c)
 
   if (consp (keymap))
     {
-      lisp x = xcons (make_char (c), Qnil);
+      lisp x = xcons (make_key_char (c), Qnil);
       xcdr (keymap) = xcons (x, xcdr (keymap));
       return &xcdr (x);
     }
@@ -238,11 +239,11 @@ search_key_slot (lisp keymap, lisp key, int bindp, int igcase)
 
   if (charp (key))
     {
-      Char c = xchar_code (key);
-      if (meta_char_p (c))
-        c = meta_char_to_char (c);
-      else if (meta_function_char_p (c))
-        c = meta_function_to_function (c);
+      keycode_t c = xkeycode (key);
+      if (keycode_meta_ascii_p (c))
+        c = keycode_meta_ascii_to_char (c);
+      else if (keycode_meta_function_p (c))
+        c = keycode_meta_function_to_function (c);
       else
         {
           v = scan_key_slot (map, c, igcase);
@@ -251,12 +252,12 @@ search_key_slot (lisp keymap, lisp key, int bindp, int igcase)
           return make_key_slot (map, c);
         }
 
-      v = scan_key_slot (map, CC_ESC, igcase);
+      v = scan_key_slot (map, keycode_from_char (CC_ESC), igcase);
       if (!v)
         {
           if (!bindp)
             return 0;
-          v = make_key_slot (map, CC_ESC);
+          v = make_key_slot (map, keycode_from_char (CC_ESC));
           if (!v)
             return 0;
           map = *v = Fmake_sparse_keymap ();
@@ -335,24 +336,17 @@ Fkeymap_index_char (lisp code)
   if (n < 0 || n >= KEYMAP_LENGTH)
     return Qnil;
 
-  if (n < 128)
-    return make_char (n);
-
-  n -= 128;
-  Char c = CCF_CHAR_MIN + n % NFUNCTION_KEYS;
-  n /= NFUNCTION_KEYS;
-  if (n & 1)
-    c |= CCF_SHIFT_BIT;
-  if (n & 2)
-    c |= CCF_CTRL_BIT;
-  return make_char (c);
+  keycode_t k;
+  if (!keycode_from_keymap_index (n, k))
+    return Qnil;
+  return make_key_char (k);
 }
 
 lisp
 Fkeymap_char_index (lisp c)
 {
   check_char (c);
-  u_int i = full_keymap_index (xchar_code (c));
+  u_int i = keycode_keymap_index (xkeycode (c));
   return i < KEYMAP_LENGTH ? make_fixnum (i) : Qnil;
 }
 
@@ -371,7 +365,7 @@ expand_keymap (lisp keymap, lisp *buf)
         lisp x = xcar (p);
         if (consp (x) && charp (xcar (x)))
           {
-            u_int idx = full_keymap_index (xchar_code (xcar (x)));
+            u_int idx = keycode_keymap_index (xkeycode (xcar (x)));
             if (idx < KEYMAP_LENGTH)
               buf[idx] = xcdr (x);
           }
@@ -383,7 +377,7 @@ struct keyseq_list
 {
   keyseq_list *prev;
   keyseq_list *next;
-  Char c;
+  keycode_t c;
 };
 
 static int
@@ -428,7 +422,7 @@ command_keys (lisp command, lisp keymap, keyseq_list *prev,
     if (*p == command)
       {
         lisp lc = Fkeymap_index_char (make_fixnum (i));
-        keyseq.c = xchar_code (lc);
+        keyseq.c = xkeycode (lc);
         if (!command_shadow_p (&keyseq, shadow, nshadow))
           result = Fcons (lc, result);
       }
@@ -437,7 +431,7 @@ command_keys (lisp command, lisp keymap, keyseq_list *prev,
     if (Fkeymapp (*p) != Qnil)
       {
         lisp lc = Fkeymap_index_char (make_fixnum (i));
-        keyseq.c = xchar_code (lc);
+        keyseq.c = xkeycode (lc);
         lisp sub = command_keys (command, *p, &keyseq, shadow, nshadow);
         if (sub != Qnil)
           result = Fcons (Fcons (lc, sub), result);
@@ -476,7 +470,7 @@ Fcommand_keys (lisp command, lisp gmap, lisp lmap, lisp minor_map)
 }
 
 static int
-command_shadow_p (const Char *b, const Char *be, lisp keymap)
+command_shadow_p (const keycode_t *b, const keycode_t *be, lisp keymap)
 {
   for (; b < be; b++)
     {
@@ -488,7 +482,7 @@ command_shadow_p (const Char *b, const Char *be, lisp keymap)
 }
 
 static int
-command_shadow_p (const Char *b, const Char *be, const lisp *shadow, int nshadow)
+command_shadow_p (const keycode_t *b, const keycode_t *be, const lisp *shadow, int nshadow)
 {
   for (int i = 0; i < nshadow; i++)
     if (command_shadow_p (b, be, shadow[i]))
@@ -496,9 +490,9 @@ command_shadow_p (const Char *b, const Char *be, const lisp *shadow, int nshadow
   return 0;
 }
 
-Char *
+keycode_t *
 lookup_command_keyseq (lisp command, lisp keymap, const lisp *shadow, int nshadow,
-                       Char *keyb, Char *keyp, Char *keye)
+                       keycode_t *keyb, keycode_t *keyp, keycode_t *keye)
 {
   if (keyp == keye)
     return 0;
@@ -511,7 +505,7 @@ lookup_command_keyseq (lisp command, lisp keymap, const lisp *shadow, int nshado
   for (i = 0, p = map; i < KEYMAP_LENGTH; i++, p++)
     if (*p == command)
       {
-        *keyp++ = xchar_code (Fkeymap_index_char (make_fixnum (i)));
+        *keyp++ = xkeycode (Fkeymap_index_char (make_fixnum (i)));
         if (!command_shadow_p (keyb, keyp, shadow, nshadow))
           return keyp;
       }
@@ -519,8 +513,8 @@ lookup_command_keyseq (lisp command, lisp keymap, const lisp *shadow, int nshado
   for (i = 0, p = map; i < KEYMAP_LENGTH; i++, p++)
     if (Fkeymapp (*p) != Qnil)
       {
-        *keyp = xchar_code (Fkeymap_index_char (make_fixnum (i)));
-        Char *e = lookup_command_keyseq (command, *p, shadow, nshadow, keyb, keyp + 1, keye);
+        *keyp = xkeycode (Fkeymap_index_char (make_fixnum (i)));
+        keycode_t *e = lookup_command_keyseq (command, *p, shadow, nshadow, keyb, keyp + 1, keye);
         if (e)
           return e;
       }
@@ -528,14 +522,14 @@ lookup_command_keyseq (lisp command, lisp keymap, const lisp *shadow, int nshado
 }
 
 static int
-find_in_current_keymaps (Char c, lisp map)
+find_in_current_keymaps (keycode_t c, lisp map)
 {
   lisp command = parse_keymap (c, map);
   return command != Qnil && Fkeymapp (command) == Qnil;
 }
 
 int
-find_in_current_keymaps (Char c)
+find_in_current_keymaps (keycode_t c)
 {
   if (find_in_current_keymaps (c, xsymbol_value (Vglobal_keymap)))
     return 1;

@@ -1,11 +1,14 @@
 #include "stdafx.h"
 #include "ed.h"
 
+// The character functions take a key as well as a text character.  A key is
+// not an alphabetic character and has no other case.  Comparisons are done by
+// the value.
 lisp
 Fstandard_char_p (lisp cc)
 {
   check_char (cc);
-  Char c = xchar_code (cc);
+  u_int32_t c = xchar_value (cc);
   return boole (c == '\n' || (c >= ' ' && c < CC_DEL));
 }
 
@@ -13,7 +16,10 @@ lisp
 Fgraphic_char_p (lisp cc)
 {
   check_char (cc);
-  Char c = xchar_code (cc);
+  u_int32_t v = xchar_value (cc);
+  if (v >= KEY_BASE)
+    return Qnil;
+  Char c = Char (v);
 #if 0
   return boole ((c >= ' ' && c < CC_DEL)
                 || kana_char_p (c)
@@ -36,28 +42,28 @@ lisp
 Falpha_char_p (lisp cc)
 {
   check_char (cc);
-  return boole (alpha_char_p (xchar_code (cc)));
+  return boole (alpha_char_p (lChar (xchar_value (cc))));
 }
 
 lisp
 Fupper_case_p (lisp cc)
 {
   check_char (cc);
-  return boole (upper_char_p (xchar_code (cc)));
+  return boole (upper_char_p (lChar (xchar_value (cc))));
 }
 
 lisp
 Flower_case_p (lisp cc)
 {
   check_char (cc);
-  return boole (lower_char_p (xchar_code (cc)));
+  return boole (lower_char_p (lChar (xchar_value (cc))));
 }
 
 lisp
 Fboth_case_p (lisp cc)
 {
   check_char (cc);
-  return boole (alpha_char_p (xchar_code (cc)));
+  return boole (alpha_char_p (lChar (xchar_value (cc))));
 }
 
 lisp
@@ -65,7 +71,7 @@ Fdigit_char_p (lisp cc, lisp radix)
 {
   check_char (cc);
   int r = (radix && radix != Qnil) ? fixnum_value (radix) : 10;
-  int n = digit_char (xchar_code (cc));
+  int n = digit_char (int (xchar_value (cc)));
   return n < r ? make_fixnum (n) : Qnil;
 }
 
@@ -73,7 +79,7 @@ lisp
 Falphanumericp (lisp cc)
 {
   check_char (cc);
-  return boole (alphanumericp (xchar_code (cc)));
+  return boole (alphanumericp (lChar (xchar_value (cc))));
 }
 
 lisp
@@ -92,11 +98,11 @@ lisp
 Fchar_eql (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = xchar_code (first);
+  u_int32_t x = xchar_value (first);
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      if (x != xchar_code (xcar (rest)))
+      if (x != xchar_value (xcar (rest)))
         return Qnil;
       QUIT;
     }
@@ -122,12 +128,12 @@ Fchar_not_eql (lisp args)
       return Qt;
 
     case 2:
-      return boole (xchar_code (xcar (args)) != xchar_code (xcar (xcdr (args))));
+      return boole (xchar_value (xcar (args)) != xchar_value (xcar (xcdr (args))));
 
     default:
       for (lisp p = args; consp (p); p = xcdr (p))
         for (lisp q = args; consp (q); q = xcdr (q))
-          if (p != q && xchar_code (xcar (p)) == xchar_code (xcar (q)))
+          if (p != q && xchar_value (xcar (p)) == xchar_value (xcar (q)))
             return Qnil;
       return Qt;
     }
@@ -137,11 +143,11 @@ lisp
 Fchar_less (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = xchar_code (first);
+  u_int32_t x = xchar_value (first);
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = xchar_code (xcar (rest));
+      u_int32_t y = xchar_value (xcar (rest));
       if (x >= y)
         return Qnil;
       x = y;
@@ -154,11 +160,11 @@ lisp
 Fchar_greater (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = xchar_code (first);
+  u_int32_t x = xchar_value (first);
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = xchar_code (xcar (rest));
+      u_int32_t y = xchar_value (xcar (rest));
       if (x <= y)
         return Qnil;
       x = y;
@@ -171,11 +177,11 @@ lisp
 Fchar_not_greater (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = xchar_code (first);
+  u_int32_t x = xchar_value (first);
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = xchar_code (xcar (rest));
+      u_int32_t y = xchar_value (xcar (rest));
       if (x > y)
         return Qnil;
       x = y;
@@ -188,11 +194,11 @@ lisp
 Fchar_not_less (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = xchar_code (first);
+  u_int32_t x = xchar_value (first);
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = xchar_code (xcar (rest));
+      u_int32_t y = xchar_value (xcar (rest));
       if (x < y)
         return Qnil;
       x = y;
@@ -205,11 +211,11 @@ lisp
 Fchar_equal (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = char_upcase (xchar_code (first));
+  u_int32_t x = char_value_upcase (xchar_value (first));
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      if (x != char_upcase (xchar_code (xcar (rest))))
+      if (x != char_value_upcase (xchar_value (xcar (rest))))
         return Qnil;
       QUIT;
     }
@@ -235,15 +241,15 @@ Fchar_not_equal (lisp args)
       return Qt;
 
     case 2:
-      return boole (char_upcase (xchar_code (xcar (args)))
-                    != char_upcase (xchar_code (xcar (xcdr (args)))));
+      return boole (char_value_upcase (xchar_value (xcar (args)))
+                    != char_value_upcase (xchar_value (xcar (xcdr (args)))));
 
     default:
       for (lisp p = args; consp (p); p = xcdr (p))
         for (lisp q = args; consp (q); q = xcdr (q))
           if (p != q
-              && (char_upcase (xchar_code (xcar (p)))
-                  == char_upcase (xchar_code (xcar (q)))))
+              && (char_value_upcase (xchar_value (xcar (p)))
+                  == char_value_upcase (xchar_value (xcar (q)))))
             return Qnil;
       return Qt;
     }
@@ -253,11 +259,11 @@ lisp
 Fchar_lessp (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = char_upcase (xchar_code (first));
+  u_int32_t x = char_value_upcase (xchar_value (first));
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = char_upcase (xchar_code (xcar (rest)));
+      u_int32_t y = char_value_upcase (xchar_value (xcar (rest)));
       if (x >= y)
         return Qnil;
       x = y;
@@ -270,11 +276,11 @@ lisp
 Fchar_greaterp (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = char_upcase (xchar_code (first));
+  u_int32_t x = char_value_upcase (xchar_value (first));
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = char_upcase (xchar_code (xcar (rest)));
+      u_int32_t y = char_value_upcase (xchar_value (xcar (rest)));
       if (x <= y)
         return Qnil;
       x = y;
@@ -287,11 +293,11 @@ lisp
 Fchar_not_greaterp (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = char_upcase (xchar_code (first));
+  u_int32_t x = char_value_upcase (xchar_value (first));
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = char_upcase (xchar_code (xcar (rest)));
+      u_int32_t y = char_value_upcase (xchar_value (xcar (rest)));
       if (x > y)
         return Qnil;
       x = y;
@@ -304,11 +310,11 @@ lisp
 Fchar_not_lessp (lisp first, lisp rest)
 {
   check_char (first);
-  Char x = char_upcase (xchar_code (first));
+  u_int32_t x = char_value_upcase (xchar_value (first));
   for (; consp (rest); rest = xcdr (rest))
     {
       check_char (xcar (rest));
-      Char y = char_upcase (xchar_code (xcar (rest)));
+      u_int32_t y = char_value_upcase (xchar_value (xcar (rest)));
       if (x < y)
         return Qnil;
       x = y;
@@ -321,19 +327,23 @@ lisp
 Fchar_code (lisp cc)
 {
   check_char (cc);
-  return make_fixnum (xchar_code (cc));
+  return make_fixnum (xchar_value (cc));
 }
 
+// nil if there is no such character (BUG-0041: it used to cut the code to
+// 16bit).  A code outside long is a range-error, as before.
 lisp
 Fcode_char (lisp code)
 {
-  return make_char (Char (fixnum_value (code)));
+  return code_char (fixnum_value (code));
 }
 
 lisp
 Fchar_upcase (lisp cc)
 {
   check_char (cc);
+  if (key_char_p (cc))
+    return cc;
   return make_char (char_upcase (xchar_code (cc)));
 }
 
@@ -341,6 +351,8 @@ lisp
 Fchar_downcase (lisp cc)
 {
   check_char (cc);
+  if (key_char_p (cc))
+    return cc;
   return make_char (char_downcase (xchar_code (cc)));
 }
 
@@ -357,22 +369,7 @@ lisp
 Fset_meta_bit (lisp cc, lisp f)
 {
   check_char (cc);
-  Char c = xchar_code (cc);
-  if (f != Qnil)
-    {
-      if (ascii_char_p (c))
-        c = char_to_meta_char (c);
-      else if (function_char_p (c))
-        c = function_to_meta_function (c);
-    }
-  else
-    {
-      if (meta_char_p (c))
-        c = meta_char_to_char (c);
-      else if (meta_function_char_p (c))
-        c = meta_function_to_function (c);
-    }
-  return make_char (c);
+  return make_key_char (keycode_set_meta (xkeycode (cc), f != Qnil));
 }
 
 lisp
@@ -393,6 +390,8 @@ lisp
 Fkanji_char_p (lisp x)
 {
   check_char (x);
+  if (key_char_p (x))
+    return Qnil;
   return boole (kanji_char_p (xchar_code (x)));
 }
 
@@ -400,6 +399,8 @@ lisp
 Fkana_char_p (lisp x)
 {
   check_char (x);
+  if (key_char_p (x))
+    return Qnil;
   return boole (kana_char_p (xchar_code (x)));
 }
 
@@ -407,6 +408,8 @@ lisp
 Fchar_unicode (lisp cc)
 {
   check_char (cc);
+  if (key_char_p (cc))
+    return Qnil;
   ucs2_t wc = i2w (xchar_code (cc));
   return wc != ucs2_t (-1) ? make_fixnum (wc) : Qnil;
 }
@@ -443,6 +446,8 @@ lisp
 Fiso_char_code (lisp lcc, lisp vender)
 {
   check_char (lcc);
+  if (key_char_p (lcc))
+    return Qnil;
   Char cc = xchar_code (lcc);
   if (cc != DEFCHAR)
     {
@@ -640,6 +645,8 @@ lisp
 Fword_char_p (lisp lcc)
 {
   check_char (lcc);
+  if (key_char_p (lcc))
+    return Qnil;
   return boole (word_state::char_category
                 (xsyntax_table (selected_buffer ()->lsyntax_table),
                  xchar_code (lcc)) == word_state::WCword);
