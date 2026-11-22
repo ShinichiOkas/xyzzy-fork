@@ -1084,6 +1084,9 @@ static symbols sys[] =
   SI_DEFUN3 (unicode-graphic-char-p, 1, 0, 0),
   SI_DEFUN3 (unicode-map-to-half-width, 1, 0, FFneed_rest),
   SI_DEFUN3 (unicode-map-to-full-width, 1, 0, FFneed_rest),
+  /* search.cc (tests of the character class of regexp) */
+  SI_DEFUN3 (regexp-class-test, 2, 1, 0),
+  SI_DEFUN3 (regexp-fold256, 1, 0, 0),
 
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),

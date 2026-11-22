@@ -1306,12 +1306,7 @@ public:
   void clear () {rk_match = 0;}
   int ctx_mask () const {return rk_ctx_mask;}
   int possible_match_p (Char c) const
-    {
-      // the fastmap folds a 16bit character by its high byte; a character
-      // beyond 16bit cannot be ruled out
-      return (!rk_can_fastmap || c >= 0x10000
-              || rk_fastmap[c >= 0x100 ? c >> 8 : c]);
-    }
+    {return !rk_can_fastmap || rk_fastmap[fold256 (c)];}
 };
 
 // (regexp color [context [begin [end]]])

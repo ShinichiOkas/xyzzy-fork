@@ -2,6 +2,7 @@
 #include "ed.h"
 #include "regex.h"
 #include "StrBuf.h"
+#include <vector>
 
 #define SF_CASE_FOLD 1
 #define SF_NO_DUP 2
@@ -91,7 +92,7 @@ bm_compilef (int *BM, const Char *pattern, int patlen, int case_fold)
   for (int i = patlen - 1; i >= 0; i--)
     {
       Char cc = *pattern++;
-      int c = DBCP (cc) ? cc >> 8 : cc;
+      int c = fold256 (cc);
       if (case_fold && alpha_char_p (cc))
         BM[_char_transpose_case (c)] = i;
       BM[c] = i;
@@ -108,7 +109,7 @@ bm_compileb (int *BM, const Char *pattern, int patlen, int case_fold)
   for (i = patlen - 1, pattern += patlen; i >= 0; i--)
     {
       Char cc = *--pattern;
-      int c = DBCP (cc) ? cc >> 8 : cc;
+      int c = fold256 (cc);
       if (case_fold && alpha_char_p (cc))
         BM[_char_transpose_case (c)] = i;
       BM[c] = i;
@@ -161,7 +162,7 @@ Buffer::bm_execf (Point &point, const Char *pattern, int patlen, const int *BM,
   const Char *p = cp->c_text + point.p_offset;
 
   Char c = *p;
-  int delta = BM[DBCP (c) ? c >> 8 : c];
+  int delta = BM[fold256 (c)];
 
   while (1)
     {
@@ -179,7 +180,7 @@ Buffer::bm_execf (Point &point, const Char *pattern, int patlen, const int *BM,
             }
           p += delta;
           c = *p;
-          delta = BM[DBCP (c) ? c >> 8 : c];
+          delta = BM[fold256 (c)];
         }
 
       if (((flags & SF_CASE_FOLD) ? char_upcase (c) : c) != c0)
@@ -226,7 +227,7 @@ Buffer::bm_execf (Point &point, const Char *pattern, int patlen, const int *BM,
       continue;
 
     fail:
-      delta = max (BM[DBCP (c) ? c >> 8 : c], int (opoint - point.p_point + 1));
+      delta = max (BM[fold256 (c)],int (opoint - point.p_point + 1));
     }
 }
 
@@ -243,7 +244,7 @@ Buffer::bm_execb (Point &point, const Char *pattern, int patlen, const int *BM,
   const Char *pe = cp->c_text + cp->c_used;
   Char c = *p;
 
-  int delta = BM[DBCP (c) ? c >> 8 : c];
+  int delta = BM[fold256 (c)];
 
   while (1)
     {
@@ -260,7 +261,7 @@ Buffer::bm_execb (Point &point, const Char *pattern, int patlen, const int *BM,
             }
           p -= delta;
           c = *p;
-          delta = BM[DBCP (c) ? c >> 8 : c];
+          delta = BM[fold256 (c)];
         }
 
       if (((flags & SF_CASE_FOLD) ? char_upcase (c) : c) != c0)
@@ -312,7 +313,7 @@ Buffer::bm_execb (Point &point, const Char *pattern, int patlen, const int *BM,
       continue;
 
     fail:
-      delta = max (BM[DBCP (c) ? c >> 8 : c], int (point.p_point - opoint + 1));
+      delta = max (BM[fold256 (c)],int (point.p_point - opoint + 1));
     }
 }
 
@@ -648,6 +649,52 @@ Fmatch_string (lisp regno)
   return selected_buffer ()->substring (re_regs.start[r], re_regs.end[r]);
 }
 
+/* Lisp interface for tests.  A character is given as an integer,
+   0 .. #xFFFFFFFF, not as a Lisp character: a Lisp character is below
+   CHAR_LIMIT, and the ranges of the classes are not.  The class is built,
+   compiled and matched by the code that the regexp and skip-chars use. */
+
+static Char
+class_test_code (lisp x)
+{
+  if (!fixnump (x))
+    FEtype_error (x, Qinteger);
+  int64_t n = fixnum_value64 (x);
+  if (n < 0 || n > int64_t (0xffffffff))
+    FErange_error (x);
+  return Char (n);
+}
+
+// (si:regexp-class-test ranges code [negate])
+// RANGES is a list of a code or (lo . hi).  T if the code is in the class.
+lisp
+Fsi_regexp_class_test (lisp ranges, lisp code, lisp negate)
+{
+  charclass ccl;
+  for (lisp r = ranges; consp (r); r = xcdr (r))
+    {
+      lisp x = xcar (r);
+      if (consp (x))
+        ccl.set_range (class_test_code (xcar (x)), class_test_code (xcdr (x)));
+      else
+        ccl.set (class_test_code (x));
+    }
+  Char c = class_test_code (code);
+  std::vector <Char> buf (ccl.size ());
+  ccl.copy (buf.data ());
+  int f = charclass::match (buf.data (), c) != 0;
+  if (negate && negate != Qnil)
+    f = !f;
+  return boole (f);
+}
+
+// (si:regexp-fold256 code) => the slot of the 256 slot tables
+lisp
+Fsi_regexp_fold256 (lisp code)
+{
+  return make_fixnum (fold256 (class_test_code (code)));
+}
+
 lisp
 Fcompile_regexp (lisp pattern, lisp case_fold)
 {
@@ -848,10 +895,7 @@ skip_chars (lisp chars, int dir)
 {
   check_string (chars);
 
-  u_long hi[(256 + sizeof (u_long) - 1) / sizeof (u_long)];
-  bzero (hi, sizeof hi);
-
-  u_long lo[256][(256 + sizeof (u_long) - 1) / sizeof (u_long)];
+  charclass ccl;
 
   const Char *p = xstring_contents (chars);
   const Char *pe = p + xstring_length (chars);
@@ -875,28 +919,13 @@ skip_chars (lisp chars, int dir)
         {
           Char c2 = p[1];
           p += 2;
-          for (; c <= c2; c++)
-            {
-              int h = c >> 8;
-              if (!bitisset (hi, h))
-                {
-                  bitset (hi, h);
-                  bzero (lo[h], sizeof lo[h]);
-                }
-              bitset (lo[h], c & 255);
-            }
+          ccl.set_range (c, c2);
         }
       else
-        {
-          int h = c >> 8;
-          if (!bitisset (hi, h))
-            {
-              bitset (hi, h);
-              bzero (lo[h], sizeof lo[h]);
-            }
-          bitset (lo[h], c & 255);
-        }
+        ccl.set (c);
     }
+  std::vector <Char> compiled (ccl.size ());
+  ccl.copy (compiled.data ());
 
   Window *wp = selected_window ();
   wp->w_disp_flags |= Window::WDF_GOAL_COLUMN;
@@ -912,7 +941,7 @@ skip_chars (lisp chars, int dir)
     while (1)
       {
         Char c = point.ch ();
-        if (not == (bitisset (hi, c >> 8) && bitisset (lo[c >> 8], c & 255)))
+        if (not == (charclass::match (compiled.data (), c) != 0))
           break;
         if (!bp->forward_char (point, dir) || bp->eobp (point))
           return Qt;
