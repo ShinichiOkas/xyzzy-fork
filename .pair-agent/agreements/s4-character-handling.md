@@ -55,3 +55,17 @@
 - 段 3 を閉じた（2026-11-22 21:4x）。R1〜R10 と R5 の 4 片（A .lc の版の印・B 履歴と session・C キーボードマクロと abbrev・D 共通の部品と旧い形の読み）、R8b（w2s の受け皿を w2s_max に）、BUG-0056・0058・0059 の修正を統合。統合の CI（1538db8）は全件合格・XYZZY_CHAR_UNICODE=1 のビルドとリンクも合格。最後の統合の CI は R8b を含めて流した
 - 師匠の指摘（「３時間以上はあまりにも遅すぎる。進め方の設計が根本的に悪い」）で 21:15 に進め方を改めた: 30 分以内の小片を並列、役は手元の別のデスクトップで自分の試験だけ（deskrun）、CI は親の統合の門だけ（1 の側のビルドも CI の [4/4]）。R5 は 4 片に割って約 10〜15 分ずつで終わった
 - 次の段へ回すもの: BUG-0060（子の xyzzy が終わらない試験で run-tests が止まる。直しは worktree-agent-a00f1f38effcb592f の db29c22、確かめ待ち）・BUG-0061（xyzzycli の試験）・BUG-0062（無い試験ファイルで止まる）・BUG-0051〜0054（V で閉じる）・wfile の wide_to_narrow の大きさ（UTF-8 の ACP で 3n+1）と固定長の PATH_MAX*2 の受け皿の見直し（R8b の申し送り）・各片の V への申し送り（設計書 §10.5 と各片の報告）
+
+## 段 4（V。値を 1 に切り替える。2026-11-23 開始）
+
+- V-1（3a6b762 + 06e6567）: BUG-0060 の直しを取り込み（試験 2 件・4.2 秒合格）、`XYZZY_CHAR_UNICODE` の既定を 1 に、`CHAR_LIMIT` を切り替えに応じて 0x110000（1 の側）／0x10000（0 の側）に。手元のビルドとリンクは通る。手元の試験: array-tests（10 件合格）、char-fn-tests（25 件中 24 件合格。unicode-side-names は JIS の接頭辞つきの名前の橋渡しが V の仕事で、未）。[skip ci] で push。
+- BUG-0063（新しい票）: kill-process が子の OS プロセスを本当に終わらせない。試験は xyzzy の内側の記録だけを見るので合格に見える。V の試験の確かめの外で直す。
+- 残りの V の片（設計書 §10.2 の V 値、§10.5 の申し送り）:
+  - V-2 manifest に activeCodePage=UTF-8: 済（src/xyzzy.manifest。A 版の API が UTF-8 のバイトを取る）。execution-charset を utf-8 に切り替える試みは、gen-ktab.cc の cp932 のバイト列のリテラル（`fh_voiced_b6_ce` など）を 2 バイト単位で読む `F(T,N)` マクロが UTF-8 の 3 バイトで壊れるため、生成器の書き換えが要る（V-2b で分けて扱う）。
+  - V-3 encoding.cc: `MultiByteToWideChar` を使っていた所を P1 の変換器（codec_cp932・codec_utf8 など）に置き換え、`si:legacy-internal-to-unicode` の経路を正とする。
+  - V-4 charset.h の整理: 領域の定義（CHARSET_* の 5bit の枠）の残りを消す。`char_width` を `char_display_width` と同じ中身に。
+  - V-5 lread/lprint のエスケープ: `\X{…}`（6 桁 → 4〜6 桁の可変）、`#\xN` の受け・印字、生のバイトの文字（R4 の生のバイト符号点の継続）。
+  - V-6 旧い形の読み替えの表（9.4）: 履歴・session・キーボードマクロ・.lc の 1 行目。R5 の各片で始めてある表の値を V の時点の実測で埋める。
+  - V-7 init.cc の初期化・manifest・char-code-limit まわりの Lisp の記号（build-info の値も確かめる）。
+  - V-8 文字名の橋渡し: JIS の接頭辞つきの名前（JISX0208_・JISX0212_・ISO8859-1_ など）を 1 の側で Unicode の符号点に写す。
+  - V-9 統合 CI: 全件を流して、残る失敗を票にして直す。試験の期待値が V で変わるもの（ED・EE・FA〜FC・NEC の 13 区の往復、unicode-side-names、regex のエスケープなど）は期待値を更新し、内訳を報告。
