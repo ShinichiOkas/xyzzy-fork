@@ -1,6 +1,6 @@
 # BUG-0039 文字コードを自動判定で開くと、はぐれたバイトが big5 / euc-jp と判定され、保存でバイト列が変わる
 
-- 状態: 未修正（S4-0 の網 unittest/cp932-roundtrip-tests.l で見つけた。試験は `:cp932-roundtrip-known-bugs` の機能フラグで切ってある）
+- 状態: 修正済み（2026-11-22、S4-0。試験は通常の試験に戻した）
 - 対象: x64 版（feature/x64-only、f2342cb）。x64 固有ではないと見られる
 - 起票: 2026-11-22
 
@@ -32,3 +32,8 @@
 
 ## 期待
 - 自動判定でも、保存でバイト列が変わらない（変換できないバイトは保存で元のバイトに戻る）。または、変換できないバイトがあるときは big5・euc-jp にしない。
+
+## 原因と直し方（2026-11-22）
+- 原因: src/guess.cc の `Fguess_char_encoding` は、候補が 1 つだけ生き残ると、そのバイトを読ませる前に（ほかの候補を殺したバイトを無視して）その候補を返していた。A0 や E0 の後ろの ASCII は sjis・euc-jp・utf8 を殺すが、big5 は検査されないまま返された。また、データの終わりで文字の途中にいる候補（`abc FE`）も残っていた。
+- 直し方: すべての候補にすべてのバイトを読ませ、全滅したら nil（呼ぶ側が既定の符号 sjis にして、バイトは保たれる）にする。データ全体が渡されたときは、文字の途中で終わる候補を外す。判定窓だけが渡されたとき（ファイルの先頭 `*detect-char-encoding-buffer-size*` バイトだけ）は、切れ目が文字の途中でも外さない（kanji.cc の `detect_char_encoding_libguess`、size < real_size）。
+- 試験: unittest/cp932-roundtrip-tests.l の `cp932-roundtrip-invalid-bytes-auto-lossy`。

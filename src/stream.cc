@@ -1396,7 +1396,12 @@ readc_stream (lisp stream)
                 if (SJISP (c))
                   {
                     int c2 = getc (xfile_stream_input (stream));
-                    return c2 == EOF ? c : ((c << 8) | c2);
+                    if (c2 == EOF)
+                      return c;
+                    if (SJIS2P (c2))
+                      return (c << 8) | c2;
+                    ungetc (c2, xfile_stream_input (stream));
+                    return c;
                   }
                 else if (xfile_stream_encoding (stream) == lstream::ENCODE_CANON
                          && c == '\r')
@@ -1490,7 +1495,12 @@ readc_stream (lisp stream)
                   if (SJISP (c))
                     {
                       int c2 = xsocket_stream_sock (stream)->sgetc ();
-                      return c2 == sock::eof ? c : ((c << 8) | c2);
+                      if (c2 == sock::eof)
+                        return c;
+                      if (SJIS2P (c2))
+                        return (c << 8) | c2;
+                      xsocket_stream_sock (stream)->sungetc (c2);
+                      return c;
                     }
                   else if (xsocket_stream_encoding (stream) == lstream::ENCODE_CANON
                            && c == '\r')

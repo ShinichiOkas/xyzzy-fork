@@ -529,22 +529,33 @@ detect_char_encoding_xyzzy (lisp string)
   return judge_char_encoding (iso2022, euc, sjis, utf8, big5, sum, buf, nb);
 }
 
+static lisp detect_char_encoding_libguess (lisp string, int complete);
+
 static lisp
 detect_char_encoding_libguess (const char *string, int size, int real_size)
 {
   if (!string || size == 0)
     return Qnil;
-  return Fdetect_char_encoding (make_string_simple (string, size));
+  // SIZE < REAL_SIZE: only the head of the data is given, and the cut
+  // may be in the middle of a character.
+  return detect_char_encoding_libguess (make_string_simple (string, size),
+                                        size >= real_size);
 }
 
 static lisp
 detect_char_encoding_libguess (lisp string)
 {
+  return detect_char_encoding_libguess (string, 1);
+}
+
+static lisp
+detect_char_encoding_libguess (lisp string, int complete)
+{
 #define score xcdr
 #define encoding xcar
   // r == ((<encoding> . <score>) (<encoding> . <score>) ...)
 
-  lisp r = Fguess_char_encoding (string);
+  lisp r = guess_char_encoding (string, complete);
   if (r == Qnil)
     return Qnil;
 

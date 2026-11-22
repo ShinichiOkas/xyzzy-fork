@@ -15,10 +15,6 @@
 ;;; The result of a check is :ok, or the list of the failed cases
 ;;; ((:diff CASE-NUMBER OFFSET EXPECTED-BYTE ACTUAL-BYTE) ...).
 ;;;
-;;; Tests named ...-known-bug fail today (bugs/BUG-0039, BUG-0040).  They are
-;;; off by default so that the whole run is not red; to run them, evaluate
-;;;   (push :cp932-roundtrip-known-bugs *features*)
-;;; before this file is loaded.
 
 (in-package :user)
 
@@ -215,12 +211,9 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
   (cp932-rt-check-bytes (cp932-rt-mixed-line-end-cases) :auto)
   => :ok)
 
-;; The encoding is given: a file that begins with CRLF gets CRLF at every
-;; line end when it is saved (BUG-0040).  Off by default so that the whole
-;; run is not red.  To run it:
-;;   (push :cp932-roundtrip-known-bugs *features*) before loading this file.
-#+cp932-roundtrip-known-bugs
-(deftest cp932-roundtrip-mixed-line-ends-explicit-known-bug ()
+;; The encoding is given: the line ends are kept as when it is detected
+;; (BUG-0040).
+(deftest cp932-roundtrip-mixed-line-ends-explicit ()
   (cp932-rt-check-bytes (cp932-rt-mixed-line-end-cases) :explicit)
   => :ok)
 
@@ -462,9 +455,9 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
      (append a '(#x80 #x80 #x80) a)
      (append a '(#xff #xff #xff) a))))
 
-;; Cases whose bytes change when the encoding is detected (not given):
-;; the detection chooses big5 or euc-jp and the bytes are converted to "?"
-;; or to another byte sequence.  See bugs/BUG-0039-*.md.
+;; Cases whose bytes changed when the encoding is detected (not given):
+;; the detection chose big5 or euc-jp and the bytes were converted to "?"
+;; or to another byte sequence (BUG-0039).
 (defun cp932-rt-invalid-cases-auto-lossy ()
   (let ((a (cp932-rt-ascii "abc")))
     (list
@@ -490,10 +483,65 @@ bytes.  Rows are joined by EOL (:crlf or :lf)."
      :auto))
   => :ok)
 
-;; The encoding is detected: the cases which lose bytes today (BUG-0039).
-;; Off by default so that the whole run is not red.  To run it:
-;;   (push :cp932-roundtrip-known-bugs *features*) before loading this file.
-#+cp932-roundtrip-known-bugs
-(deftest cp932-roundtrip-invalid-bytes-auto-known-bug ()
+;; The encoding is detected: the cases which lost bytes (BUG-0039).
+(deftest cp932-roundtrip-invalid-bytes-auto-lossy ()
   (cp932-rt-check-bytes (cp932-rt-invalid-cases-auto-lossy) :auto)
   => :ok)
+
+;; A lead byte followed by a line end: the line end is a line end, and the
+;; bytes are kept (BUG-0044).
+(defun cp932-rt-lead-line-end-cases ()
+  '((#x61 #x81 #x0a #x62 #x0a)                     ; lead LF
+    (#x61 #xe0 #x0a #x62 #x0a)
+    (#x61 #xfc #x0a #x62 #x0a)
+    (#x61 #x81 #x0d #x0a #x62 #x0d #x0a)           ; lead CRLF
+    (#x61 #x81 #x0a #x82 #xa0 #x0a)))              ; lead LF, a character
+
+(defun cp932-rt-line-count (bytes mode)
+  "Open BYTES as a file and return the line number at the end of the buffer."
+  (let ((tmp (make-temp-file-name))
+        (buf nil))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp bytes)
+          (setq buf (ed::find-file-internal tmp t
+                                          (if (eq mode :explicit)
+                                              *encoding-sjis*
+                                            nil)
+                                          nil t))
+          (save-excursion
+            (set-buffer buf)
+            (goto-char (point-max))
+            (current-line-number)))
+      (when buf
+        (delete-buffer buf))
+      (when (file-exist-p tmp)
+        (delete-file tmp)))))
+
+(deftest cp932-roundtrip-lead-line-end ()
+  (list (cp932-rt-check-bytes (cp932-rt-lead-line-end-cases) :explicit)
+        (cp932-rt-check-bytes (cp932-rt-lead-line-end-cases) :auto))
+  => (:ok :ok))
+
+;; Every case has two line ends.
+(deftest cp932-lead-line-end-is-line-end ()
+  (list (mapcar (lambda (c) (cp932-rt-line-count c :explicit))
+                (cp932-rt-lead-line-end-cases))
+        (mapcar (lambda (c) (cp932-rt-line-count c :auto))
+                (cp932-rt-lead-line-end-cases)))
+  => ((3 3 3 3 3) (3 3 3 3 3)))
+
+;; A file stream reads the same way.
+(deftest cp932-lead-line-end-file-stream ()
+  (let ((tmp (make-temp-file-name)))
+    (unwind-protect
+        (progn
+          (cp932-rt-write-bytes tmp '(#x61 #x81 #x0a #x62 #x0a))
+          (with-open-file (s tmp :direction :input)
+            (let* ((l1 (read-line s nil nil))
+                   (l2 (read-line s nil nil)))
+              (list (map 'list #'char-code l1)
+                    (map 'list #'char-code l2)))))
+      (when (file-exist-p tmp)
+        (delete-file tmp))))
+  => ((#x61 #x81) (#x62)))

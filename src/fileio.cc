@@ -292,14 +292,17 @@ Buffer::read_file_contents (ReadFileContext &rfc, const char *filename,
         rfc.r_expect_char_encoding = detect_encoding (mf);
 
       if (!char_encoding_p (rfc.r_expect_char_encoding))
-        {
-          rfc.r_expect_char_encoding = rfc.r_char_encoding;
-          if (rfc.r_expect_eol == eol_guess
-              && xchar_encoding_type (rfc.r_char_encoding) == encoding_sjis)
-            rfc.r_eol_code = rfc.r_expect_eol = detect_eol_code (mf);
-        }
+        rfc.r_expect_char_encoding = rfc.r_char_encoding;
 
       rfc.r_char_encoding = rfc.r_expect_char_encoding;
+
+      // A file that has a bare LF is read with the line end LF whether
+      // the encoding is given or detected, so that the CRs stay and the
+      // bytes are kept on save (BUG-0040).
+      if (rfc.r_expect_eol == eol_guess
+          && char_encoding_p (rfc.r_char_encoding)
+          && xchar_encoding_type (rfc.r_char_encoding) == encoding_sjis)
+        rfc.r_eol_code = rfc.r_expect_eol = detect_eol_code (mf);
 
       encoding_input_stream_helper sin (rfc.r_char_encoding, str, 1);
       int r = read_file_contents (rfc, sin);

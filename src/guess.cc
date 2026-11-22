@@ -98,6 +98,16 @@ make_pair (lisp encoding, double score)
 lisp
 Fguess_char_encoding (lisp string)
 {
+  return guess_char_encoding (string, 1);
+}
+
+/* COMPLETE is true when STRING is the whole of the data.  A candidate
+   that ends in the middle of a character is then a broken sequence
+   and is not a candidate.  When STRING is only the head of the data,
+   the cut may be anywhere and is not judged. */
+lisp
+guess_char_encoding (lisp string, int complete)
+{
   guess_dfa eucj = DFA_INIT(guess_eucj_st, guess_eucj_ar);
   guess_dfa sjis = DFA_INIT(guess_sjis_st, guess_sjis_ar);
   guess_dfa utf8 = DFA_INIT(guess_utf8_st, guess_utf8_ar);
@@ -136,36 +146,30 @@ Fguess_char_encoding (lisp string)
             return list (make_pair (Vencoding_default_utf16be_bom, 1.0));
         }
 
-      if (DFA_ALIVE(eucj))
-        {
-          if (!DFA_ALIVE(sjis) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
-            return list (make_pair (Vencoding_euc_jp, 1.0));
-          DFA_NEXT(eucj, c);
-        }
-      if (DFA_ALIVE(sjis))
-        {
-          if (!DFA_ALIVE(eucj) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
-            return list (make_pair (Vencoding_sjis, 1.0));
-          DFA_NEXT(sjis, c);
-        }
-      if (DFA_ALIVE(utf8))
-        {
-          if (!DFA_ALIVE(sjis) && !DFA_ALIVE(eucj) && !DFA_ALIVE(big5))
-            return list (make_pair (get_utf8_encoding (sig, siglen), 1.0));
-          DFA_NEXT(utf8, c);
-        }
-      if (DFA_ALIVE(big5))
-        {
-          if (!DFA_ALIVE(sjis) && !DFA_ALIVE(eucj) && !DFA_ALIVE(utf8))
-            return list (make_pair (Vencoding_big5, 1.0));
-          DFA_NEXT(big5, c);
-        }
+      /* Every candidate reads every byte.  A candidate that is the only
+         one alive is not chosen before it has read the rest: the byte
+         that killed the others may kill it too (BUG-0039). */
+      DFA_NEXT(eucj, c);
+      DFA_NEXT(sjis, c);
+      DFA_NEXT(utf8, c);
+      DFA_NEXT(big5, c);
 
       if (!DFA_ALIVE(eucj) && !DFA_ALIVE(sjis) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
         {
           /* we ran out the possibilities */
           return Qnil;
         }
+    }
+
+  if (complete)
+    {
+      /* The data ends in the middle of a character: broken. */
+      guess_dfa *all[] = { &eucj, &sjis, &utf8, &big5 };
+      for (int i = 0; i < numberof (all); i++)
+        if (all[i]->state > 0)
+          all[i]->state = -1;
+      if (!DFA_ALIVE(eucj) && !DFA_ALIVE(sjis) && !DFA_ALIVE(utf8) && !DFA_ALIVE(big5))
+        return Qnil;
     }
 
   /* Now, we have ambigous code. */

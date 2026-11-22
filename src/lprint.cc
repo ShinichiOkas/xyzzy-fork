@@ -924,7 +924,7 @@ print_char (wStream &stream, Char c, int escape)
 
           if (DBCP (c))
             {
-              if (!escape || SJISP (c >> 8))
+              if (!escape || (SJISP (c >> 8) && SJIS2P (c & 255)))
                 stream.add (c);
               else
                 {
@@ -980,7 +980,7 @@ print_string (wStream &stream, const print_control &pc, lisp object)
           Char c = *p;
           if (DBCP (c))
             {
-              if (SJISP (c >> 8))
+              if (SJISP (c >> 8) && SJIS2P (c & 255))
                 stream.add (c);
               else
                 {
