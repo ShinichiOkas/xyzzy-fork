@@ -215,9 +215,15 @@
   (with-open-file (os (compile-file-pathname filename)
 		      :direction :output
 		      :if-exists :supersede
-		      :if-does-not-exist :create)
-    (when encoding
-      (format os ";;; -*- Mode: Lisp; Encoding: ~A; -*-~%" encoding))
+		      :if-does-not-exist :create
+		      :char-encoding (if (si:char-unicode-p)
+					 ed::*encoding-utf8n*
+				       ed::*encoding-sjis*))
+    ;; The version mark of the .lc (checked by load).  Lc-Format 1 is the
+    ;; raw Shift_JIS form, 2 is UTF-8 (chars are Unicode).
+    (if (si:char-unicode-p)
+	(format os ";;; -*- Mode: Lisp; Encoding: utf-8; Lc-Format: 2 -*-~%")
+      (format os ";;; -*- Mode: Lisp; Encoding: Shift_JIS; Lc-Format: 1 -*-~%"))
     (let ((*macro-environment* nil)
 	  (*special-variables* nil)
 	  (*constant-variables* nil)

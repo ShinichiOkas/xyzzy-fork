@@ -2104,6 +2104,106 @@ public:
     }
 };
 
+// The version of the .lc format (design 9.2).  1: the bytecode is written as
+// the raw cp932 form (the internal codes).  2: it is written as UTF-8 and the
+// chars are Unicode.  An .lc of the other version is not read.
+static constexpr int LC_FORMAT = XYZZY_CHAR_UNICODE ? 2 : 1;
+
+static bool
+lc_file_name_p (lisp filename)
+{
+  if (!stringp (filename))
+    return false;
+  int l = xstring_length (filename);
+  return (l >= 3
+          && xstring_contents (filename)[l - 3] == '.'
+          && (xstring_contents (filename)[l - 2] | 0x20) == 'l'
+          && (xstring_contents (filename)[l - 1] | 0x20) == 'c');
+}
+
+// The value of "Lc-Format: N" in the first line of the file.  1 when the line
+// has no mark.  The position of the stream is kept.
+static int
+lc_file_format (lisp stream)
+{
+  FILE *fp = xfile_stream_input (stream);
+  if (!fp)
+    return 1;
+  int64_t pos = _ftelli64 (fp);
+  if (pos < 0)
+    return 1;
+  char line[512];
+  size_t n = fread (line, 1, sizeof line - 1, fp);
+  _fseeki64 (fp, pos, SEEK_SET);
+
+  size_t e = 0;
+  while (e < n && line[e] != '\n' && line[e] != '\r')
+    e++;
+  line[e] = 0;
+
+  static const char key[] = "lc-format:";
+  const size_t kl = sizeof key - 1;
+  for (const char *p = line; p + kl <= line + e; p++)
+    if (!_strnicmp (p, key, kl))
+      {
+        p += kl;
+        while (*p == ' ' || *p == '\t')
+          p++;
+        if (*p < '0' || *p > '9')
+          return 0;
+        int v = 0;
+        for (; *p >= '0' && *p <= '9' && v < 1000; p++)
+          v = v * 10 + (*p - '0');
+        return v;
+      }
+  return 1;
+}
+
+static lisp
+load_file (lisp filename, lisp realname, lisp if_does_not_exist,
+           int verbose, int print);
+
+// Called for a file whose name ends in ".lc", after the encoding is chosen.
+// Returns true when the .lc was not read because it is of another version and
+// the .l next to it was loaded instead (the result is in ret).
+static bool
+load_old_lc (lisp stream, lisp filename, lisp if_does_not_exist,
+             int verbose, int print, lisp &ret)
+{
+  if (!file_stream_p (stream) || !xfile_stream_input (stream))
+    return false;
+  if (lc_file_format (stream) == LC_FORMAT)
+    return false;
+
+  Fclose (stream, 0);
+
+  int l = xstring_length (filename);
+  lisp src = Qnil;
+  if (l < PATH_MAX)
+    {
+      lisp name = make_string (xstring_contents (filename), l - 1);
+      char path[PATH_MAX * 2 + 1];
+      pathname2cstr (name, path);
+      DWORD a = WINFS::GetFileAttributes (path);
+      if (a != DWORD (-1) && !(a & FILE_ATTRIBUTE_DIRECTORY))
+        src = name;
+    }
+  if (src == Qnil)
+    FEsimple_error (Eold_lc_format, filename);
+  protect_gc gcpro (src);
+
+  Char buf[PATH_MAX * 2], *b = buf;
+  b = a2w (b, "old .lc format, loading ");
+  int n = min (PATH_MAX, int (xstring_length (src)));
+  bcopy (xstring_contents (src), b, n);
+  b += n;
+  b = a2w (b, "\n");
+  app.status_window.puts (buf, b - buf);
+
+  ret = load_file (src, src, if_does_not_exist, verbose, print);
+  return true;
+}
+
 static lisp
 load_file (lisp filename, lisp realname, lisp if_does_not_exist,
            int verbose, int print)
@@ -2119,6 +2219,13 @@ load_file (lisp filename, lisp realname, lisp if_does_not_exist,
         return Qnil;
       // BOM, -*- Encoding: -*-, valid UTF-8, cp932 (design 4.5).
       stream_detect_load_encoding (stream);
+      // The version mark of an .lc (design 9.2).
+      if (lc_file_name_p (filename))
+        {
+          lisp ret;
+          if (load_old_lc (stream, filename, if_does_not_exist, verbose, print, ret))
+            return ret;
+        }
     }
 
   Char buf[PATH_MAX * 2], *b = buf;
