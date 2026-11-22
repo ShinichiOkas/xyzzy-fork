@@ -29,6 +29,24 @@ public class G {
  public static List<IntPtr> Kids(IntPtr top){ var r=new List<IntPtr>(); EnumChildWindows(top,(c,l2)=>{r.Add(c); return true;}, IntPtr.Zero); return r;}
  public static RECT WR(IntPtr h){ RECT r; GetWindowRect(h,out r); return r; }
 }
+public class RM {
+ [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint a, bool i, uint pid);
+ [DllImport("kernel32.dll")] static extern IntPtr VirtualAllocEx(IntPtr p, IntPtr a, UIntPtr s, uint t, uint pr);
+ [DllImport("kernel32.dll")] static extern bool VirtualFreeEx(IntPtr p, IntPtr a, UIntPtr s, uint t);
+ [DllImport("kernel32.dll")] static extern bool ReadProcessMemory(IntPtr p, IntPtr a, byte[] b, int n, out IntPtr rd);
+ [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr h);
+ [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+ [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+ // text of a list/combo item (CB_GETLBTEXTW = 0x0148 is not marshalled across processes, so read it via remote memory)
+ public static string ComboItem(IntPtr cb, int idx) {
+  uint pid; GetWindowThreadProcessId(cb, out pid);
+  IntPtr hp = OpenProcess(0x1F0FFF, false, pid);
+  IntPtr mem = VirtualAllocEx(hp, IntPtr.Zero, (UIntPtr)4096, 0x3000, 4);
+  try { SendMessage(cb, 0x0148, (IntPtr)idx, mem); byte[] b = new byte[4096]; IntPtr rd; ReadProcessMemory(hp, mem, b, 4096, out rd);
+    string s = Encoding.Unicode.GetString(b); int z = s.IndexOf((char)0); return z >= 0 ? s.Substring(0, z) : s; }
+  finally { VirtualFreeEx(hp, mem, UIntPtr.Zero, 0x8000); CloseHandle(hp); }
+ }
+}
 public class SB {
  [DllImport("kernel32.dll")] static extern IntPtr OpenProcess(uint a, bool i, uint pid);
  [DllImport("kernel32.dll")] static extern IntPtr VirtualAllocEx(IntPtr p, IntPtr a, UIntPtr s, uint t, uint pr);
