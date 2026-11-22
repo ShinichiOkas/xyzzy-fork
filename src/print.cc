@@ -557,7 +557,7 @@ print_engine::init_font (HDC hdc)
         pe_glyph_width.cache (i, (get_glyph_width ('^', pe_glyph_width)
                                   + get_glyph_width ('@' + i, pe_glyph_width)));
       pe_glyph_width.cache (CC_DEL, (get_glyph_width ('^', pe_glyph_width)
-                                     + get_glyph_width ('?' + i, pe_glyph_width)));
+                                     + get_glyph_width ('?', pe_glyph_width)));
     }
 
   SelectObject (hdc, of);
@@ -844,13 +844,10 @@ print_engine::paint_char (PaintCtx &ctx, Char cc) const
     }
   else if (fc.nwc || fc.subst)
     {
-      // The Han slots of GB, KSC and Big5 were centered with the offset of
-      // one cell even for a wide character; the old internal code keeps that.
-      bool one = (l == 1
-                  || (!XYZZY_CHAR_UNICODE
-                      && (f == FONT_CN_SIMPLIFIED || f == FONT_CN_TRADITIONAL
-                          || f == FONT_HANGUL)));
-      int o = one ? pe_offset[f].x : pe_offset2x[f];
+      // A narrow character is centered in its cell with half of the
+      // difference, a wide one with the whole difference (BUG-0059: the
+      // GB, KSC and Big5 slots used the narrow offset for a wide character).
+      int o = l == 1 ? pe_offset[f].x : pe_offset2x[f];
       SelectObject (ctx.hdc, pe_hfonts[fc.nwc ? f : FONT_JP]);
       if (fc.nwc)
         ExtTextOutW (ctx.hdc, ctx.x + o, ctx.y + pe_offset[f].y,

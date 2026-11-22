@@ -63,5 +63,5 @@
 | [BUG-0055](BUG-0055-mapf-fails-over-2gb.md) | mapf（mman.cc）が 2GB を超えるファイルを開けず、2〜4GB のファイルの compare-file が失敗する | 修正済み（2026-11-22。mapf を size_t に。試験を追加） |
 | [BUG-0056](BUG-0056-negated-regexp-class-misses-high-byte-rows.md) | 否定の文字クラス `[^…]` が、符号の上位バイトがクラスの範囲にある文字（`[^A]` に対する 0x4142 など）に当たらない | 未修正（2026-11-22） |
 | [BUG-0057](BUG-0057-iso2022cn-writer-loses-big5-char-without-cns.md) | ISO-2022-CN の書きが、CNS 11643 に無い Big5 の文字（U+FF64 など）で、でたらめなバイト列（7bit の符号に 0x80 以上のバイト）を出す | 修正済み（2026-11-22、S4 の W） |
-| [BUG-0058](BUG-0058-print-del-width-uses-underscore.md) | 印刷のプロポーショナルフォントで、DEL（^?）の幅が「^」＋「_」で計算される | 未修正（2026-11-22、S4 R3） |
-| [BUG-0059](BUG-0059-print-wide-han-chars-centered-with-one-cell-offset.md) | 印刷で、GB・KSC・Big5 の全角文字だけ、全角のずらしでなく半角のずらしで置かれる | 未修正（2026-11-22、S4 R3） |
+| [BUG-0058](BUG-0058-print-del-width-uses-underscore.md) | 印刷のプロポーショナルフォントで、DEL（^?）の幅が「^」＋「_」で計算される | 修正済み（2026-11-22、e828cc3） |
+| [BUG-0059](BUG-0059-print-wide-han-chars-centered-with-one-cell-offset.md) | 印刷で、GB・KSC・Big5 の全角文字だけ、全角のずらしでなく半角のずらしで置かれる | 修正済み（2026-11-22、e828cc3） |
