@@ -141,10 +141,15 @@ struct glyph_width
   glyph_width ()
        : hdc (0), hfonts (0), height (0), han (FONT_JP)
     {memset (gw_pages, 0, sizeof gw_pages);}
-  ~glyph_width ()
+  ~glyph_width () {clear ();}
+  // forget every width (the fonts are made again)
+  void clear ()
     {
       for (int i = 0; i < NPAGES; i++)
-        free (gw_pages[i]);
+        {
+          free (gw_pages[i]);
+          gw_pages[i] = 0;
+        }
     }
   // -1 when the width of C is not known yet
   int cached (Char c) const

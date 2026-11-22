@@ -846,8 +846,11 @@ char_unicode_of (Char cc)
     }
 }
 
+// HAN: the slot of the Han characters.  A buffer in ISO-2022-CN (GB 2312 and CNS 11643)
+// draws them with the simplified slot; the IME composition string keeps the
+// traditional slot it has always had.
 static int
-cjk_font_slot (int cjk)
+cjk_font_slot (int cjk, int han)
 {
   switch (cjk)
     {
@@ -859,8 +862,9 @@ cjk_font_slot (int cjk)
     case ENCODING_LANG_CN_GB:
       return FONT_CN_SIMPLIFIED;
     case ENCODING_LANG_CN_BIG5:
-    case ENCODING_LANG_CN:
       return FONT_CN_TRADITIONAL;
+    case ENCODING_LANG_CN:
+      return han ? FONT_CN_SIMPLIFIED : FONT_CN_TRADITIONAL;
     }
   return -1;
 }
@@ -899,16 +903,16 @@ encoding_font_slot (lisp encoding, int han)
     case encoding_iso2022:
       if (!han)
         return -1;
-      return cjk_font_slot (xchar_encoding_iso_cjk (encoding));
+      return cjk_font_slot (xchar_encoding_iso_cjk (encoding), han);
 
     case encoding_iso2022_noesc:
-      return cjk_font_slot (xchar_encoding_iso_cjk (encoding));
+      return cjk_font_slot (xchar_encoding_iso_cjk (encoding), han);
 
     case encoding_utf7:
     case encoding_utf8:
     case encoding_utf16:
     case encoding_utf5:
-      return han ? cjk_font_slot (xchar_encoding_utf_cjk (encoding)) : -1;
+      return han ? cjk_font_slot (xchar_encoding_utf_cjk (encoding), han) : -1;
 
     default:
       break;
@@ -952,6 +956,7 @@ char_face_to_list (const char_face &f)
   r = xcons (make_fixnum (f.nwc), r);
   r = xcons (make_fixnum (f.width), r);
   r = xcons (Fintern (make_string (names[f.font]), xsymbol_value (Vkeyword_package)), r);
+  multiple_value::clear (); // Fintern returned 2 values
   return r;
 }
 

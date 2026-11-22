@@ -514,6 +514,8 @@ print_engine::~print_engine ()
 void
 print_engine::init_font (HDC hdc)
 {
+  // the widths of the old fonts are not valid
+  pe_glyph_width.clear ();
   for (int i = 0; i < FONT_MAX; i++)
     pe_hfonts[i] = pe_settings.make_font (hdc, pe_dev, i);
 

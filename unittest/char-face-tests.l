@@ -56,7 +56,7 @@ width (when WIDTH), and the UTF-16 unit equal to char-unicode."
   ;; a lead byte without a trail byte: nothing to draw, the printer draws the
   ;; middle dot (0x8145)
   (si:char-face-internal #x8100)
-  => (:jp 2 0 0 0 0 #x30fb))
+  => (:jp 2 0 0 0 #x30fb))
 
 (deftest char-face-internal-iso-and-latin ()
   (char-face-range-bad #x100 #x2ff :latin 1)
@@ -191,5 +191,6 @@ width (when WIDTH), and the UTF-16 unit equal to char-unicode."
         (si:encoding-han-font ed::*encoding-big5*)
         (si:encoding-han-font ed::*encoding-iso-8859-1*)
         (si:encoding-han-font ed::*encoding-utf8n*)
-        (si:encoding-han-font ed::*encoding-utf8n-kr*))
-  => (1 7 5 6 1 1 7))
+        (si:encoding-han-font ed::*encoding-utf8n-kr*)
+        (si:encoding-han-font ed::*encoding-iso-2022-cn*))
+  => (1 7 5 6 1 1 7 5))
