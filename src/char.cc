@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "ed.h"
+#include "charfn.h"
+#include "codec-priv.h"
 
 // The character functions take a key as well as a text character.  A key is
 // not an alphabetic character and has no other case.  Comparisons are done by
@@ -19,23 +21,7 @@ Fgraphic_char_p (lisp cc)
   u_int32_t v = xchar_value (cc);
   if (v >= KEY_BASE)
     return Qnil;
-  Char c = Char (v);
-#if 0
-  return boole ((c >= ' ' && c < CC_DEL)
-                || kana_char_p (c)
-                || (SJISP (c >> 8) && SJIS2P (c & 0xff))
-                || cs_char_charset_bit (c) & (CCSF_ISO8859 | CCSF_JISX0212 \
-                                              | CCSF_KSC5601 | CCSF_GB2312 \
-                                              | CCSF_BIG5));
-#else
-  if ((c >= ' ' && c < CC_DEL) || kana_char_p (c))
-    return Qt;
-  if (c < 0x100)
-    return Qnil;
-  if (code_charset_bit (c) & (ccsf_utf16_undef_char | ccsf_utf16_surrogate))
-    return Qnil;
-  return boole (i2w (c) != ucs2_t (-1));
-#endif
+  return boole (fn_graphic_char_p (Char (v)));
 }
 
 lisp
@@ -392,7 +378,7 @@ Fkanji_char_p (lisp x)
   check_char (x);
   if (key_char_p (x))
     return Qnil;
-  return boole (kanji_char_p (xchar_code (x)));
+  return boole (fn_kanji_char_p (xchar_code (x)));
 }
 
 lisp
@@ -401,7 +387,7 @@ Fkana_char_p (lisp x)
   check_char (x);
   if (key_char_p (x))
     return Qnil;
-  return boole (kana_char_p (xchar_code (x)));
+  return boole (fn_kana_char_p (xchar_code (x)));
 }
 
 lisp
