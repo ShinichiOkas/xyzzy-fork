@@ -229,16 +229,17 @@ detect_encoding (const mapf &mf)
   if (INT_MAX < size)
     size = INT_MAX;
 
+  const int total = mf.size () > size_t (INT_MAX) ? INT_MAX : int (mf.size ());
   return detect_char_encoding (static_cast <const char *> (mf.base ()),
-                               min (static_cast <int> (mf.size ()), static_cast <int> (size)),
-                               mf.size ());
+                               min (total, static_cast <int> (size)),
+                               total);
 }
 
 static eol_code
 detect_eol_code (const mapf &mf)
 {
   const u_char *p = (const u_char *)mf.base ();
-  const u_char *const pe = p + min (0x8000UL, mf.size ());
+  const u_char *const pe = p + min (size_t (0x8000), mf.size ());
 
   if (p < pe)
     {
@@ -277,7 +278,15 @@ Buffer::read_file_contents (ReadFileContext &rfc, const char *filename,
   if (read_size >= 0)
     be = min (be, bb + read_size);
 
-  xinput_strstream str (bb, be - bb);
+  if (be - bb > INT_MAX)
+    {
+      // 読み込みの長さは int なので、2GB を超える範囲は読み込めない
+      rfc.r_status = ReadFileContext::RFCS_OPEN;
+      rfc.r_errcode = ERROR_FILE_TOO_LARGE;
+      return 0;
+    }
+
+  xinput_strstream str (bb, int (be - bb));
 
   wfile::find_data fd;
   if (WINFS::get_file_data (filename, fd))
@@ -361,7 +370,13 @@ Buffer::readin_chunk (ReadFileContext &rfc, const char *filename)
       rfc.r_errcode = GetLastError ();
       return 0;
     }
-  xinput_strstream str ((const char *)mf.base (), mf.size ());
+  if (mf.size () > size_t (INT_MAX))
+    {
+      rfc.r_status = ReadFileContext::RFCS_OPEN;
+      rfc.r_errcode = ERROR_FILE_TOO_LARGE;
+      return 0;
+    }
+  xinput_strstream str ((const char *)mf.base (), int (mf.size ()));
 
   try
     {

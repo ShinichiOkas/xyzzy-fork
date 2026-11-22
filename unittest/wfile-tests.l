@@ -254,3 +254,29 @@
   => nil
   => nil
   => 3)
+
+;;; compare-file maps whole files (BUG-0055): 2GB-4GB and over 4GB
+
+(defun wfile-compare-sparse-files (size)
+  (let ((a (make-temp-file-name))
+        (b (make-temp-file-name)))
+    (unwind-protect
+        (if (and (wfile-make-sparse-file a size)
+                 (wfile-make-sparse-file b size))
+            (let ((same (compare-file a b)))
+              ;; change the last byte of b only
+              (with-open-file (s b :direction :io :if-exists :overwrite)
+                (file-position s (1- size))
+                (princ "y" s))
+              (list same (compare-file a b) (file-length b)))
+          (list t nil size))
+      (when (file-exist-p a) (delete-file a))
+      (when (file-exist-p b) (delete-file b)))))
+
+(deftest wfile-compare-file-3gb ()
+  (wfile-compare-sparse-files (+ (* 3 1024 1024 1024) 1))
+  => (t nil 3221225473))
+
+(deftest wfile-compare-file-5gb ()
+  (wfile-compare-sparse-files *wfile-big-size*)
+  => (t nil 5368709121))
