@@ -7,16 +7,26 @@
 - 全件の実行（`-Tests` なし）の最後に、値の切り替え `XYZZY_CHAR_UNICODE=1` でビルドとリンクが通るかを確かめる（[4/4]）。
 - 同じブランチに新しく push すると、そのブランチの古い実行は取り消される。ランナーは 1 台なので、別のブランチの実行は順番待ちになる。
 
-## 作業用のブランチで試験を流す
+## 作業用のブランチでの確かめ（役）
 
-手元で `run-tests.bat`・`install.bat`（中の byte-compile が xyzzy.exe を起動する）・`xyzzy.exe` を走らせない。xyzzy の窓が利用者の画面に出て、前面やキーボードを奪う。手元ではコンパイル（`build.bat`）だけにする。
+役のブランチでは CI は走らない。役の門は手元の 2 つ:
 
-    git push -u origin HEAD
+1. 0 の側の差分ビルド: `build.bat Release Build minimal`
+2. 自分の試験ファイルだけを、別のデスクトップで（PowerShell から。Git Bash からは呼ばない。pwsh 7 を使う）:
+
+       & tools\gui-verify\deskrun.exe 1200 'C:\Program Files\PowerShell\7\pwsh.exe' -NoProfile -ExecutionPolicy Bypass -File <作業ツリー>\ci\ci-test.ps1 -Tests unittest\a-tests.l,unittest\b-tests.l
+
+   deskrun の最後の行が `windows of the child tree seen on Default desktop: 0` と `foreground window ever owned by the child tree: False` であること。全件とクリップボードを使う試験は手元で流さない。deskrun を通さずに `run-tests.bat`・`install.bat`・`xyzzy.exe` を走らせない（窓が利用者の画面に出て、前面やキーボードを奪う）。
+
+## 統合のブランチで結果を待つ（親）
+
+    git push origin feature/x64-only        # 文書だけの変更なら: gh workflow run test.yml --ref feature/x64-only
     powershell -NoProfile -ExecutionPolicy Bypass -File ci/wait-run.ps1
 
 - `wait-run.ps1` は HEAD のコミットの実行を待ち、結果・失敗した試験・ログの末尾を出す。ログは `ci-out/run-<番号>/` に落ちる。
 - 終了コード: 0 合格、1 不合格か取り消し、2 まだ待ち行列か実行中（もう一度呼ぶ）、3 そのコミットの実行が無い。
 - 既定では 9 分で待つのをやめる（エージェントのシェルのコマンドの上限 10 分より短い）。`-Minutes` で変えられる。
+- 最後の門の前に、ランナーに他の実行が無いことを確かめる（`gh run list`）。ランナーは 1 台。
 
 ## ランナーの登録（1 回だけ）
 

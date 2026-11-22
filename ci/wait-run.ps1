@@ -1,7 +1,7 @@
 # Waits for the CI run (.github/workflows/test.yml) of a pushed commit and
 # prints the result: the conclusion, the failed tests and the end of the log.
 #
-# For work on a branch (a role's worktree-agent-* branch, feature/x64-only):
+# For the integration branch (feature/x64-only; agents' branches do not run CI):
 # commit, `git push -u origin HEAD`, then
 #   powershell -NoProfile -ExecutionPolicy Bypass -File ci/wait-run.ps1
 # Options:
@@ -66,7 +66,7 @@ while ($true) {
   $now = Get-Date
   if (-not $found -and $now -gt $findDeadline) {
     Write-Host "No CI run for $Sha."
-    Write-Host 'Check: pushed? to feature/x64-only, develop or worktree-agent-*? no [skip ci]? not only docs (*.md, docs/, bugs/, .pair-agent/)?'
+    Write-Host 'Check: pushed? to feature/x64-only or develop (agent branches do not run CI)? no [skip ci]? not only docs (*.md, docs/, bugs/, .pair-agent/)?'
     exit 3
   }
   if ($now -gt $deadline) {
