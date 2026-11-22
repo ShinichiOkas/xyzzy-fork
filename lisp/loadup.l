@@ -26,6 +26,7 @@
 (si:*load-library "keymap") (gc)
 (si:*load-library "defs") (gc)
 (si:*load-library "cmds") (gc)
+(si:*load-library "datafile") (gc)
 (si:*load-library "abbrev") (gc)
 (si:*load-library "buffer") (gc)
 (si:*load-library "window") (gc)
