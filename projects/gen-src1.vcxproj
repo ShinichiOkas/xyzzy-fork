@@ -97,6 +97,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="..\src\gen-codec.cc">
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
+    </ClCompile>
     <ClCompile Include="..\src\gen-ctab.cc">
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>gen-stdafx.h</PrecompiledHeaderFile>
@@ -182,6 +186,15 @@
   <Target Name="GenCharWidth" Inputs="$(GenCharWidthInputs)" Outputs="$(GenCharWidthOutput)" DependsOnTargets="PrepareGenerate">
     <Exec Command="&quot;$(TargetPath)&quot; gen-char-width &gt; &quot;$(GenCharWidthOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
   </Target>
+  <ItemGroup>
+    <GenCodecInput Include="..\src\gen-codec.cc;..\src\unicode\*.TXT;..\src\unicode\*.txt" />
+  </ItemGroup>
+  <PropertyGroup>
+    <GenCodecOutput>$(GenerateDir)codec-tab.cc</GenCodecOutput>
+  </PropertyGroup>
+  <Target Name="GenCodec" Inputs="@(GenCodecInput)" Outputs="$(GenCodecOutput)" DependsOnTargets="PrepareGenerate">
+    <Exec Command="&quot;$(TargetPath)&quot; gen-codec &gt; &quot;$(GenCodecOutput)&quot;" WorkingDirectory="$(GenerateWorkingDirectory)" />
+  </Target>
   <PropertyGroup>
     <GenCtabInputs>..\src\gen-ctab.cc;..\src\cdecl.h;..\src\chtype.h;..\src\keycode.h</GenCtabInputs>
     <GenCtabOutput>$(GenerateDir)chtab.cc</GenCtabOutput>
@@ -244,6 +257,7 @@
   <Target Name="AfterBuild">
     <CallTarget Targets="Dpp" />
     <CallTarget Targets="GenCharWidth" />
+    <CallTarget Targets="GenCodec" />
     <CallTarget Targets="GenCtab" />
     <CallTarget Targets="GenIbmExt" />
     <CallTarget Targets="GenIso2022State" />
@@ -256,6 +270,7 @@
   <Target Name="BeforeClean">
     <Delete Files="$(DppOutput)" />
     <Delete Files="$(GenCharWidthOutput)" />
+    <Delete Files="$(GenCodecOutput)" />
     <Delete Files="$(GenCtabOutput)" />
     <Delete Files="$(GenIbmExtOutput)" />
     <Delete Files="$(GenIso2022StateOutputs)" />

@@ -823,6 +823,11 @@ static symbols sys[] =
   SI_DEFUN3 (*set-schar, 3, 0, 0),
   SI_DEFUN3 (octet-length, 1, 0, FFneed_rest),
 
+  /* codec-fns.cc */
+  SI_DEFUN3 (codec-decode, 2, 2, 0),
+  SI_DEFUN3 (codec-encode, 2, 2, 0),
+  SI_DEFUN3 (codec-can-encode, 2, 0, 0),
+
   /* hash.cc */
   SI_DEFUN3 (*puthash, 3, 0, 0),
   SI_DEFUN3 (*enum-hash-table, 2, 0, 0),

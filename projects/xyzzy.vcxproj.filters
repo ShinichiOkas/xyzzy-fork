@@ -69,6 +69,15 @@
     <ClCompile Include="..\src\ces.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\codec.cc">
+      <Filter>ソース ファイル\ed</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\codec-fns.cc">
+      <Filter>ソース ファイル\ed</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\codec-iso2022.cc">
+      <Filter>ソース ファイル\ed</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\char.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
@@ -379,6 +388,9 @@
       <Filter>ソース ファイル\libguess</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gen\chtab.cc">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\gen\codec-tab.cc">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gen\dumpver.cc">
@@ -740,6 +752,15 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ces.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\codec.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\codec-priv.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\codec-tab.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\chunk.h">
