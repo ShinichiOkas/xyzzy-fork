@@ -41,6 +41,17 @@ provenance: xyzzy-fork S4 後（師匠の指示 2026-11-22。一般の規則は�
 - 試験の流し方: コミット → `git push -u origin HEAD` → `powershell -NoProfile -ExecutionPolicy Bypass -File ci/wait-run.ps1`（終了コード 0 合格・1 不合格・2 まだ〈もう一度呼ぶ〉・3 実行なし）。ログは `ci-out/run-<番号>/`
 - ランナーは 1 台。押すのは試験の結果が要る区切りだけにする（途中の保存の push は `[skip ci]`）。同じブランチの新しい push は古い実行を取り消す
 
+## 役は CI を待たない（師匠の指摘 2026-11-22・21:15 から適用）
+
+師匠の言葉（原文 2026-11-22）:
+
+> ３時間以上はあまりにも遅すぎる。進め方の設計が根本的に悪い
+
+- 段 3 で、役が全件 CI の待ちを抱えて 1 スライス 3〜3.5 時間かかった。**役は CI を待たない。** 上の「役（サブエージェント）の試験も CI で流す」は、この節で置き換える
+- 役の門は手元の周: **増分ビルド + 自分の試験だけ**を、別デスクトップ（deskrun。`xyzzy-verify-gui-on-a-separate-desktop`）で流す。秒で回す。`XYZZY_CHAR_UNICODE=1` 側の Rebuild も役はしない
+- **CI は統合の門。** 親が部品を束ねて統合し、統合の CI を 1 回流す（1 側のビルドもここで確かめる）。落ちたら落ちた部品だけを差し戻す
+- 仕事は 30 分以内の部品（関数 1 つかファイル 1 つ）に割って並列に起こす。一般の規則はペア固有 Skill `small-parallel-parts-fast-local-loop-ci-only-at-integration`
+
 ## つまずいた点（再発させない）
 
 - ランナーを `C:\Users\<名前>\…` の下に置くとサービスのアカウント（NETWORK SERVICE）が上の階層を読めず起動しない。`%ProgramData%` 側に置く
