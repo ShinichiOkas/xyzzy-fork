@@ -252,6 +252,7 @@
     <ClCompile Include="..\src\ucs2.cc" />
     <ClCompile Include="..\src\undo.cc" />
     <ClCompile Include="..\src\usertab.cc" />
+    <ClCompile Include="..\src\uprops.cc" />
     <ClCompile Include="..\src\usertool.cc" />
     <ClCompile Include="..\src\utils.cc" />
     <ClCompile Include="..\src\utimer.cc" />
@@ -397,6 +398,7 @@
     <ClInclude Include="..\src\thread.h" />
     <ClInclude Include="..\src\timer.h" />
     <ClInclude Include="..\src\trace.h" />
+    <ClInclude Include="..\src\uprops.h" />
     <ClInclude Include="..\src\utils.h" />
     <ClInclude Include="..\src\utimer.h" />
     <ClInclude Include="..\src\vector.h" />

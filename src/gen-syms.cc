@@ -1051,6 +1051,21 @@ static symbols sys[] =
   /* listen.cc */
   SI_DEFVAR2 (*accept-kill-xyzzy*),
 
+  /* uprops.cc */
+  SI_DEFUN3 (uprops-category, 1, 0, 0),
+  SI_DEFUN3 (uprops-east-asian-width, 1, 0, 0),
+  SI_DEFUN3 (uprops-script, 1, 0, 0),
+  SI_DEFUN3 (uprops-width, 1, 1, 0),
+  SI_DEFUN3 (uprops-font-group, 1, 1, 0),
+  SI_DEFUN3 (uprops-word-char-p, 1, 0, 0),
+  SI_DEFUN3 (uprops-graphic-p, 1, 0, 0),
+  SI_DEFUN3 (uprops-upcase, 1, 0, 0),
+  SI_DEFUN3 (uprops-downcase, 1, 0, 0),
+  SI_DEFUN3 (uprops-titlecase, 1, 0, 0),
+  SI_DEFUN3 (uprops-casefold, 1, 0, 0),
+  SI_DEFUN3 (uprops-version, 0, 0, 0),
+  SI_DEFUN3 (uprops-table-size, 0, 0, 0),
+
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),
 };
@@ -2433,6 +2448,7 @@ static symbols ed[] =
   DEFVAR2 (*ime-control*),
   DEFVAR2 (*extended-key-translate-table*),
   DEFVAR2 (*kbd-translate-table*),
+  DEFVAR2 (*east-asian-ambiguous-width*),
   DEFVAR2 (*activate-hook*),
   DEFVAR2 (*deactivate-hook*),
   DEFVAR2 (*save-buffer-ime-mode*),
