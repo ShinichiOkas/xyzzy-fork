@@ -558,6 +558,10 @@ MultiByteToWideChar(932) → WideCharToMultiByte(932) で、2 バイトの全符
 
 - set-syntax-* は非 ASCII も受けて、上書きに入れる。今 NIL を返していた所が働くようになる（互換は壊さない）。
 - ダンプは syntax_table を生のまま書いている（data.cc）。形が変わるので、ダンプの書きと読みも直す（ダンプはビルドのたびに作り直すので問題ない）。
+- 実装（S4 R2。syntax.h・syntax.cc・data.cc）: 密な表は 0..255 のまま（`match` だけ `Char` に広げた）、256 以上は `syntax_override { c, match, type, comment, has_type }` の並び（c の昇順、二分探索）。`syntax_of (tab, c)` は 256 未満なら密な表、それ以上は上書きを見てから `wide_syntax (c)`（既定の規則）に落ちる。`wide_syntax` は 0 では今の word_state の判定、1 では `unicode_wide_syntax`（U+0080–009F は junk、半角カナは kana、uc_word_char_p かつ幅 2 でないものは word、それ以外は kanji、コードポイントでないものは junk）。1 の側は `si:syntax-unicode-default` で値の切り替えに依らず試せる。
+- `set-syntax-*`・`syntax-*-p`・`copy-syntax-table`・forward-word（word_state）・`\sX`・skip-syntax-spec は上書きを見る。構文の走査（forward-sexp、構文の色付け、コメントの読み）は今のまま 256 以上を SCkanji として扱い、上書きは見ない（R2 の範囲外。残課題）。
+- 正規表現の fastmap（regex.cc の syntax_fastmap）は、256 以上の既定を word か kanji とみなして上位バイトの枠を埋めていたので、上書きがその述語に当たるときも埋めるようにした（`syntax_any_override`。1 行）。R1 が fastmap を書き替えるときは、この条件を残す。
+- DUMP_FORMAT を 3 に上げた。
 
 ### 7.4 正規表現と検索
 
