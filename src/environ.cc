@@ -743,6 +743,10 @@ init_environ ()
 
 #if defined (_M_X64)
   xsymbol_value (Vfeatures) = xcons (Kx64, xsymbol_value (Vfeatures));
+  // The marker of the tests that only the 1 side of the value switch can pass
+  // (#+xyzzy-char-unicode).
+  if constexpr (XYZZY_CHAR_UNICODE)
+    xsymbol_value (Vfeatures) = xcons (Kxyzzy_char_unicode, xsymbol_value (Vfeatures));
   xsymbol_value (Vmachine_type) = make_string ("x64");
 #else
 # error xyzzy is built for x64 only (docs/refactoring/decisions.md, decision 6)
