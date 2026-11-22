@@ -15,8 +15,33 @@
 (defun xyzzycli-test-name (&rest codes)
   (coerce (mapcar #'unicode-char codes) 'string))
 
-(defun xyzzycli-test-open (path)
-  "Runs xyzzycli.exe with PATH. Returns (buffer-name process-status exit-code output)."
+(defvar *xyzzycli-test-log* nil)
+(defun xyzzycli-test-hook (arg)
+  (push arg *xyzzycli-test-log*)
+  nil)
+(add-hook '*process-command-line-hook* 'xyzzycli-test-hook)
+
+(defun xyzzycli-test-tasklist ()
+  (let* ((tb (create-new-buffer "*xyzzycli-test-ps*"))
+         (p (make-process "tasklist /v /fo csv /nh /fi \"imagename eq xyzzy.exe\""
+                          :output tb :show :hide)))
+    (unwind-protect
+        (let ((deadline (+ (get-universal-time) 10)))
+          (while (and (eql (process-status p) :run)
+                      (< (get-universal-time) deadline))
+            (sleep-for 0.1))
+          (sleep-for 0.3)
+          (save-excursion
+            (set-buffer tb)
+            (buffer-substring (point-min) (point-max))))
+      (delete-buffer tb))))
+
+;; The buffer is looked for by its name (the name part of the file): the test
+;; directory has an 8.3 name in the CI ("NETWOR~1"), and the buffer of
+;; find-file may have the long name, so get-file-buffer with the path may not
+;; find it.
+(defun xyzzycli-test-open (path name)
+  "Runs xyzzycli.exe with PATH. Returns (buffer-name process-status exit-code output buffers)."
   (let* ((cli (merge-pathnames "xyzzycli.exe" (si:system-root)))
          (tmpbuf (create-new-buffer "*xyzzycli-test*"))
          (proc nil)
@@ -28,16 +53,11 @@
         (progn
           (setq proc (make-process (format nil "\"~A\" \"~A\"" cli path)
                                    :output tmpbuf :show :hide))
-          (let ((deadline (+ (get-universal-time) 40)))
+          (let ((deadline (+ (get-universal-time) 20)))
             (loop
-              (setq buffer (get-file-buffer path))
+              (setq buffer (find-buffer name))
               (when (or buffer (> (get-universal-time) deadline))
                 (return))
-              (sleep-for 0.1)))
-          ;; xyzzycli returns when the server has read the text
-          (let ((deadline (+ (get-universal-time) 10)))
-            (while (and (eql (process-status proc) :run)
-                        (< (get-universal-time) deadline))
               (sleep-for 0.1)))
           (list (and buffer (buffer-name buffer))
                 (process-status proc)
@@ -46,23 +66,12 @@
                 (save-excursion
                   (set-buffer tmpbuf)
                   (buffer-substring (point-min) (point-max)))
-                (let ((tr (find-buffer "*Trace Output*")))
-                  (and tr
-                       (save-excursion
-                         (set-buffer tr)
-                         (buffer-substring (point-min) (point-max)))))
-                (let ((tb (create-new-buffer "*xyzzycli-test-ps*")))
-                  (unwind-protect
-                      (progn
-                        (call-process "tasklist /fi \"imagename eq xyzzy.exe\""
-                                      :output tb :wait t :show :hide)
-                        (save-excursion
-                          (set-buffer tb)
-                          (buffer-substring (point-min) (point-max))))
-                    (delete-buffer tb)))))
+                (mapcar #'(lambda (b) (list (buffer-name b) (get-buffer-file-name b)))
+                        (buffer-list))
+                (list (fboundp 'ed::*xyzzycli-helper) *xyzzycli-test-log*)))
       (when (and proc (eql (process-status proc) :run))
         (ignore-errors (signal-process proc)))
-      (let ((b (get-file-buffer path)))
+      (let ((b (find-buffer name)))
         (when b
           (ignore-errors (delete-buffer b))))
       (ignore-errors (delete-buffer tmpbuf)))))
@@ -78,7 +87,7 @@
           (with-open-file (s path :direction :output :if-exists :supersede)
             (format s "x"))
           (if (file-exist-p (merge-pathnames "xyzzycli.exe" (si:system-root)))
-              (let ((r (xyzzycli-test-open path)))
+              (let ((r (xyzzycli-test-open path name)))
                 (or (equal (car r) name) r))
             :no-xyzzycli))
       (ignore-errors (delete-file path))
@@ -94,7 +103,7 @@
           (with-open-file (s path :direction :output :if-exists :supersede)
             (format s "x"))
           (if (file-exist-p (merge-pathnames "xyzzycli.exe" (si:system-root)))
-              (let ((r (xyzzycli-test-open path)))
+              (let ((r (xyzzycli-test-open path name)))
                 (or (equal (car r) name) r))
             :no-xyzzycli))
       (ignore-errors (delete-file path))
