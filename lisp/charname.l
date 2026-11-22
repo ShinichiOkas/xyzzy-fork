@@ -25,7 +25,7 @@
 	(setf (gethash (car x) h) c)
 	(dolist (cs *character-name-charsets*)
 	  (when (si:unicode-iso-code (cdr x) cs)
-	    (setf (gethash (concatenate 'string (symbol-name cs)
+	    (setf (gethash (concatenate 'string (string-upcase (symbol-name cs))
 					"_" (car x))
 			   h)
 		  c)))))
