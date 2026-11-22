@@ -1077,7 +1077,7 @@ Fsocket_stream_send_oob_data (lisp stream, lisp string)
   valid_socket_stream_p (stream);
   check_string (string);
   int l = w2sl (string);
-  char *s = (char *)alloca (l);
+  char *s = (char *)alloca (l + 1);  /* w2s writes the terminating NUL */
   w2s (s, string);
   try
     {

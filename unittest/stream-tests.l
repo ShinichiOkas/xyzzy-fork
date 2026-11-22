@@ -38,3 +38,19 @@
   => t
   => nil
   => t)
+
+;; BUG-0047: strings built from an empty StrBuf (the printer, the reader).
+(deftest test-strbuf-empty-string ()
+  (values
+   (princ-to-string "")
+   (format nil "")
+   (with-output-to-string (s))
+   (get-output-stream-string (make-string-output-stream))
+   (length (symbol-name (read-from-string "#:")))
+   (stringp (with-output-to-string (s))))
+  => ""
+  => ""
+  => ""
+  => ""
+  => 0
+  => t)

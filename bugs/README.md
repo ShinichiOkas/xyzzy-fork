@@ -46,3 +46,7 @@
 | [BUG-0038](BUG-0038-expt-huge-exponent-complex-float.md) | 巨大な整数の指数の expt が、有理複素数の底では返らず、浮動小数の底で負の指数だと誤ったエラーになる | 修正済み（2026-11-22） |
 | [BUG-0039](BUG-0039-auto-encoding-corrupts-stray-bytes.md) | 文字コードを自動判定で開くと、はぐれたバイト（単独の A0、E0 の後に ASCII など）が big5 / euc-jp と判定され、保存でバイト列が変わる | 未修正（2026-11-22、S4-0 の網。試験は機能フラグで切ってある） |
 | [BUG-0040](BUG-0040-explicit-encoding-normalizes-mixed-line-ends.md) | 符号を指定して開くと、CRLF で始まり LF・CR が混ざるファイルが、保存で全行 CRLF に変わる（自動判定では変わらない） | 未検証（仕様かもしれない。2026-11-22、S4-0 の網。試験は機能フラグで切ってある） |
+| [BUG-0043](BUG-0043-fontset-need-pad-condition-always-true.md) | FontSet::create の「全角が半角の 2 倍でない」判定 `ex[i][0].cx * 2 != ex[i][0].cx` が、幅が 0 でなければ常に真になる（パディングを省く経路が使われない） | 修正済み（2026-11-22。`ex[i][1].cx` に直した。9 設定で撮影して表示が変わらないことを確かめた） |
+| [BUG-0045](BUG-0045-si-environ-name-uses-byte-count.md) | si:environ が環境変数の名前を切り出すとき、バイト数を文字数として渡している（名前に 2 バイト文字があると、名前が `=` の後ろまで伸びる） | 修正済み（2026-11-22。試験を追加） |
+| [BUG-0046](BUG-0046-socket-send-oob-data-nul-overrun.md) | socket-stream-send-oob-data が alloca した領域を NUL の 1 バイトぶん超えて書く | 修正済み（2026-11-22。試験は書けない） |
+| [BUG-0047](BUG-0047-strbuf-empty-string-not-returned.md) | StrBuf::make_string と make_substring が、長さ 0 のときに作った空の文字列を return していない | 修正済み（2026-11-22。試験を追加） |
