@@ -226,6 +226,33 @@
   (char-width-check-roundtrip '(#x41 #x81 #x20 #x42 #x0a) *encoding-sjis*)
   => nil)
 
+;;;; writers
+
+(defun char-width-encode-chars (chars encoding)
+  "The bytes that the characters (a list of codes) become in ENCODING."
+  (let ((tmp (make-temp-file-name))
+        (bytes nil))
+    (unwind-protect
+        (progn
+          (with-temp-buffer
+            (dolist (c chars)
+              (insert (code-char c)))
+            (write-region (point-min) (point-max) tmp nil encoding))
+          (setq bytes (char-width-read-bytes tmp)))
+      (when (file-exist-p tmp)
+        (delete-file tmp)))
+    bytes))
+
+(deftest char-width-iso-2022-cn-big5-char-without-cns ()
+  ;; BUG-0057: a Big5 character that CNS 11643 and GB 2312 do not have was
+  ;; written as garbage (8bit bytes in a 7bit encoding).  U+FF64 is one of them.
+  (let ((c (char-code (unicode-char #xff64))))
+    (list (every #'(lambda (b) (< b #x80))
+                 (char-width-encode-chars (list c) *encoding-iso-2022-cn*))
+          (every #'(lambda (b) (< b #x80))
+                 (char-width-encode-chars (list (char-code #\a) c (char-code #\b))
+                                          *encoding-iso-2022-cn*))))
+  => (t t))
 ;;;; regexp character classes (the bitmap words have the width of Char)
 
 (defun char-width-class-test-codes (clo chi)

@@ -1080,7 +1080,7 @@ make_cf_text_sjis (CLIPBOARDTEXT &clp, lisp string)
       if (DBCP (cc))
         {
           if (code_charset (cc) == ccs_cp932)
-            *b++ = cc >> 8;
+            *b++ = char (cc >> 8);
           else
             {
               Char c2 = wc2cp932 (i2w (cc));
@@ -1088,7 +1088,7 @@ make_cf_text_sjis (CLIPBOARDTEXT &clp, lisp string)
                 {
                   cc = c2;
                   if (DBCP (cc))
-                    *b++ = cc >> 8;
+                    *b++ = char (cc >> 8);
                 }
               else
                 cc = '?';
@@ -1150,10 +1150,10 @@ make_cf_wtext (CLIPBOARDTEXT &clp, lisp string)
       ucs2_t c = i2w (*s);
       if (c == ucs2_t (-1))
         {
-          if (utf16_undef_char_high_p (*s) && s < se - 1
-              && utf16_undef_char_low_p (s[1]))
+          if (utf16_undef_char_high_p (ucs2_t (*s)) && s < se - 1
+              && utf16_undef_char_low_p (ucs2_t (s[1])))
             {
-              c = utf16_undef_pair_to_ucs2 (*s, s[1]);
+              c = utf16_undef_pair_to_ucs2 (ucs2_t (*s), ucs2_t (s[1]));
               s++;
             }
           else

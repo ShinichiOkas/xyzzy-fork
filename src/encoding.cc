@@ -1494,10 +1494,12 @@ internal_to_iso2022_stream::refill ()
             goto badchar;
           if (s_flags & ENCODING_ISO_USE_CNS11643)
             {
-              cc = big5cns_table[cc - CCS_BIG5_MIN];
-              if (cc != CHAR_NONE)
+              // The Big5 character that CNS 11643 and GB 2312 do not have is
+              // written as Big5 (below): do not lose it (BUG-0057).
+              Char cns = big5cns_table[cc - CCS_BIG5_MIN];
+              if (cns != CHAR_NONE)
                 {
-                  switch (cc & 0x8080)
+                  switch (cns & 0x8080)
                     {
                     default:
                       ccs = ccs_gb2312;
@@ -1511,8 +1513,8 @@ internal_to_iso2022_stream::refill ()
                       ccs = ccs_cns11643_2;
                       break;
                     }
-                  c1 = (cc >> 8) & 127;
-                  c2 = cc & 127;
+                  c1 = (cns >> 8) & 127;
+                  c2 = cns & 127;
                   goto put94n;
                 }
             }
@@ -1562,7 +1564,10 @@ internal_to_utf_stream::getw () const
 
   Char cc = Char (c);
 
-  if (!(s_flags & ENCODING_UTF_WINDOWS) && cc != CHAR_NONE)
+  // 0xffff is the value of an empty entry of the hash (gen-utf2sjis.cc): it is
+  // not a character to look up.  (It used to be Char (-1), and it is still not
+  // converted: i2w gives nothing for it either.)
+  if (!(s_flags & ENCODING_UTF_WINDOWS) && cc != Char (0xffff))
     {
       int n = cc % numberof (utf_internal2shiftjis_hash);
       if (utf_internal2shiftjis_hash[n].cc == cc)

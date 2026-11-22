@@ -536,10 +536,10 @@ i2w (const Char *p, int l, ucs2_t *b)
       ucs2_t c = i2w (*p);
       if (c == ucs2_t (-1))
         {
-          if (utf16_undef_char_high_p (*p) && p < pe - 1
-              && utf16_undef_char_low_p (p[1]))
+          if (utf16_undef_char_high_p (ucs2_t (*p)) && p < pe - 1
+              && utf16_undef_char_low_p (ucs2_t (p[1])))
             {
-              c = utf16_undef_pair_to_ucs2 (*p, p[1]);
+              c = utf16_undef_pair_to_ucs2 (ucs2_t (*p), ucs2_t (p[1]));
               p++;
             }
           else
@@ -559,8 +559,8 @@ i2wl (const Char *p, int l)
     {
       ucs2_t c = i2w (*p);
       if (c == ucs2_t (-1)
-          && utf16_undef_char_high_p (*p) && p < pe - 1
-          && utf16_undef_char_low_p (p[1]))
+          && utf16_undef_char_high_p (ucs2_t (*p)) && p < pe - 1
+          && utf16_undef_char_low_p (ucs2_t (p[1])))
         p++;
     }
   return r + 1;

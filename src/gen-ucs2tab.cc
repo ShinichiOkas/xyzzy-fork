@@ -454,7 +454,7 @@ make_wc2cp950 (ucs2_t *const wc2cp950)
                    || c1 >= 0xc9 && c1 <= 0xf9)
                   && (c2 >= 0x40 && c2 <= 0x7e
                       || c2 >= 0xa1 && c2 <= 0xfe))
-                wc2cp950[i] = big5_to_int (c1, c2);
+                wc2cp950[i] = ucs2_t (big5_to_int (c1, c2));
               else
                 wc2cp950[i] = ucs2_t (-1);
               break;
@@ -491,7 +491,7 @@ read_big5 (ucs2_t *wbuf)
           int c2 = mb % 256;
           if (!big5_lead_p (c1) || !big5_trail_p (c2))
             invalid (file, linenum);
-          Char16 cc = big5_to_int (c1, c2);
+          Char16 cc = Char16 (big5_to_int (c1, c2));
           wbuf[cc - CCS_BIG5_MIN] = wc;
         }
     }
@@ -541,7 +541,7 @@ make_wc2cp949 (ucs2_t *const wc2cp949)
               int c1 = mb[0] & 255, c2 = mb[1] & 255;
               if (c1 >= 0xa1 && c1 <= 0xfe
                   && c2 >= 0xa1 && c2 <= 0xfe)
-                wc2cp949[i] = ksc5601_to_int (c1 & 127, c2 & 127);
+                wc2cp949[i] = ucs2_t (ksc5601_to_int (c1 & 127, c2 & 127));
               else
                 wc2cp949[i] = ucs2_t (-1);
               break;
@@ -593,7 +593,7 @@ make_wc2cp936 (ucs2_t *const wc2cp936)
               int c1 = mb[0] & 255, c2 = mb[1] & 255;
               if (c1 >= 0xa1 && c1 <= 0xfe
                   && c2 >= 0xa1 && c2 <= 0xfe)
-                wc2cp936[i] = gb2312_to_int (c1 & 127, c2 & 127);
+                wc2cp936[i] = ucs2_t (gb2312_to_int (c1 & 127, c2 & 127));
               else
                 wc2cp936[i] = ucs2_t (-1);
               break;

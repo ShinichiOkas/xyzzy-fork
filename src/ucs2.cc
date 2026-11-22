@@ -56,7 +56,7 @@ static void
 init_ucs2tab (int min, int max)
 {
   Char o = wc2internal_table[0xffff];
-  for (Char cc = max; cc >= min; cc--)
+  for (Char cc = max; cc >= Char (min); cc--)
     wc2internal_table[i2w (cc)] = cc;
   wc2internal_table[0xffff] = o;
 }

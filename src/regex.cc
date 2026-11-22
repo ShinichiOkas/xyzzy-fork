@@ -1460,7 +1460,7 @@ Regexp::match_char_class (const Char *p, Char c) const
           if ((*p >> 8) == hi)
             {
               int x = lo / NBITS;
-              return x >= (p[1] & 0xff) && x < (p[1] >> 8);
+              return x >= int (p[1] & 0xff) && x < int (p[1] >> 8);
             }
           p += 2;
         }

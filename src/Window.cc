@@ -215,7 +215,7 @@ StatusWindow::putc (Char c)
           *sw_b++ = '^';
           if (sw_b == sw_buf + TEXT_MAX)
             return 0;
-          *sw_b++ = c == CC_DEL ? '?' : c + '@';
+          *sw_b++ = ucs2_t (c == CC_DEL ? '?' : c + '@');
         }
       else
         *sw_b++ = i2w (c);
