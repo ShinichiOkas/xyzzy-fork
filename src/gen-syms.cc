@@ -1084,6 +1084,8 @@ static symbols sys[] =
   SI_DEFUN3 (unicode-graphic-char-p, 1, 0, 0),
   SI_DEFUN3 (unicode-map-to-half-width, 1, 0, FFneed_rest),
   SI_DEFUN3 (unicode-map-to-full-width, 1, 0, FFneed_rest),
+  /* legacy.cc (S4 R5) */
+  SI_DEFUN3 (legacy-internal-to-unicode, 1, 0, 0),
 
   SI_DEFUN3 (inflate-stream, 1, 1, 0),
   //SI_DEFUN3 (deflate-stream, 1, 2, 0),

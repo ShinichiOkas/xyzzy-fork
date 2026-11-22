@@ -198,6 +198,7 @@
     <ClCompile Include="..\src\kbd.cc" />
     <ClCompile Include="..\src\keymap.cc" />
     <ClCompile Include="..\src\ldialog.cc" />
+    <ClCompile Include="..\src\legacy.cc" />
     <ClCompile Include="..\src\lex.cc" />
     <ClCompile Include="..\src\list.cc" />
     <ClCompile Include="..\src\listen.cc" />

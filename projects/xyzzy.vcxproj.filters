@@ -180,6 +180,9 @@
     <ClCompile Include="..\src\list.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\legacy.cc">
+      <Filter>ソース ファイル\ed</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\listen.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>

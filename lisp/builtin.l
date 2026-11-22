@@ -670,6 +670,7 @@
 (si::defun-builtin unicode-graphic-char-p (code-point))
 (si::defun-builtin unicode-map-to-half-width (code-points &key :ascii :hiragana :katakana :greek :cyrillic))
 (si::defun-builtin unicode-map-to-full-width (code-points &key :ascii :hiragana :katakana :greek :cyrillic))
+(si::defun-builtin legacy-internal-to-unicode (codes))
 (si::defun-builtin get-key-state (vkey))
 (si::defun-builtin search-path (file &optional path ext))
 (si::defun-builtin *file-operation (operation from to &keys :allow-undo :files-only :no-connected-elements :no-ui :no-confirmation :no-confirm-mkdir :no-copy-security-attributes :no-error-ui :no-recursion :rename-on-collision :silent :want-nuke-warning))
