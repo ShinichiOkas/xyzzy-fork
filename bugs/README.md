@@ -52,3 +52,7 @@
 | [BUG-0046](BUG-0046-socket-send-oob-data-nul-overrun.md) | socket-stream-send-oob-data が alloca した領域を NUL の 1 バイトぶん超えて書く | 修正済み（2026-11-22。試験は書けない） |
 | [BUG-0047](BUG-0047-strbuf-empty-string-not-returned.md) | StrBuf::make_string と make_substring が、長さ 0 のときに作った空の文字列を return していない | 修正済み（2026-11-22。試験を追加） |
 | [BUG-0050](BUG-0050-latin-word-char-forward-word-vs-regexp.md) | ラテン文字（ISO-8859 など）が、forward-word・word-char-p では語の文字で、正規表現の \w では語の文字でない | 修正済み（2026-11-22） |
+| [BUG-0051](BUG-0051-std-utf8-writes-backslash-as-yen.md) | std- の UTF（std-utf8n など）が、ASCII の `\` と `~` を ¥（U+00A5）と ‾（U+203E）で書き、U+005C を読むと全角の＼になる | 未修正（2026-11-22、P1） |
+| [BUG-0052](BUG-0052-utf8-reader-drops-invalid-bytes.md) | UTF-8 の読みが、不正なバイトと途中で切れた列を黙って捨てる | 未修正（2026-11-22、P1。BUG-0044 との関係は未確認） |
+| [BUG-0053](BUG-0053-undefined-bytes-read-as-other-characters.md) | 符号に定義のないバイトが、別の文字（半角カナ・U+30FB・私用領域）として読まれる | 未修正（2026-11-22、P1） |
+| [BUG-0054](BUG-0054-euc-writer-emits-escape-sequences.md) | EUC-JP の書きが、EUC にない文字で ISO-2022 のエスケープ列を出す。EUC-KR の書きが é を e にする | 未修正（2026-11-22、P1） |
