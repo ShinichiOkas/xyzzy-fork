@@ -99,6 +99,9 @@
     <ClCompile Include="..\src\conf.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ini.cc">
+      <Filter>ソース ファイル\ed</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\dialogs.cc">
       <Filter>ソース ファイル\ed</Filter>
     </ClCompile>
@@ -683,6 +686,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\conf.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ini.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="..\src\cons.h">

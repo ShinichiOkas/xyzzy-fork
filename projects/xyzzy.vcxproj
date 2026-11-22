@@ -165,6 +165,7 @@
     <ClCompile Include="..\src\colors.cc" />
     <ClCompile Include="..\src\com.cc" />
     <ClCompile Include="..\src\conf.cc" />
+    <ClCompile Include="..\src\ini.cc" />
     <ClCompile Include="..\src\data.cc" />
     <ClCompile Include="..\src\debug.cc" />
     <ClCompile Include="..\src\dialogs.cc" />
@@ -313,6 +314,7 @@
     <ClInclude Include="..\src\com.h" />
     <ClInclude Include="..\src\comm-arc.h" />
     <ClInclude Include="..\src\conf.h" />
+    <ClInclude Include="..\src\ini.h" />
     <ClInclude Include="..\src\cons.h" />
     <ClInclude Include="..\src\ctxmenu.h" />
     <ClInclude Include="..\src\data.h" />
